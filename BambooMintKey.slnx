@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BambooMintKey.Core/BambooMintKey.Core.fsproj" />
+    <Project Path="src/BambooMintKey.NativeBridge/BambooMintKey.NativeBridge.csproj" />
+    <Project Path="src/BambooMintKey.Shared/BambooMintKey.Shared.fsproj" />
+    <Project Path="src/BambooMintKey.UI/BambooMintKey.UI.fsproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/BambooMintKey.Core.Tests/BambooMintKey.Core.Tests.fsproj" />
+  </Folder>
+</Solution>
