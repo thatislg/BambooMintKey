@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using BambooMintKey.NativeBridge.COM;
 using BambooMintKey.NativeBridge.Common;
+using BambooMintKey.NativeBridge.Interop;
 
 namespace BambooMintKey.NativeBridge;
 
@@ -40,13 +41,19 @@ public static unsafe class Exports
         return ComServerState.CanUnload ? HResult.Ok : HResult.False;
     }
 
-    /// <summary>
-    /// DLL entry point: Đăng ký COM server + TSF profile/category.
-    /// </summary>
     [UnmanagedCallersOnly(EntryPoint = "DllRegisterServer", CallConvs = [typeof(CallConvStdcall)])]
     public static int DllRegisterServer()
     {
-        return ServerRegistrar.RegisterServer();
+        // TSF COM classes (ITfInputProcessorProfiles, ITfCategoryMgr) require STA apartment.
+        NativeMethods.CoInitializeEx(IntPtr.Zero, NativeMethods.CoinitApartmentthreaded);
+        try
+        {
+            return ServerRegistrar.RegisterServer();
+        }
+        finally
+        {
+            NativeMethods.CoUninitialize();
+        }
     }
 
     /// <summary>
@@ -55,6 +62,14 @@ public static unsafe class Exports
     [UnmanagedCallersOnly(EntryPoint = "DllUnregisterServer", CallConvs = [typeof(CallConvStdcall)])]
     public static int DllUnregisterServer()
     {
-        return ServerRegistrar.UnregisterServer();
+        NativeMethods.CoInitializeEx(IntPtr.Zero, NativeMethods.CoinitApartmentthreaded);
+        try
+        {
+            return ServerRegistrar.UnregisterServer();
+        }
+        finally
+        {
+            NativeMethods.CoUninitialize();
+        }
     }
 }

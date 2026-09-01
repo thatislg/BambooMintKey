@@ -46,9 +46,44 @@ public static class NativeMethods
         in Guid riid,
         out IntPtr ppv);
 
+    [DllImport("ole32.dll", ExactSpelling = true)]
+    public static extern int CoInitializeEx(IntPtr pvReserved, uint dwCoInit);
+
+    [DllImport("ole32.dll", ExactSpelling = true)]
+    public static extern void CoUninitialize();
+
+    public const uint CoinitApartmentthreaded = 0x2;
+    public const uint CoinitMultithreaded = 0x0;
+
     // =========================================================================
     // Helper lấy đường dẫn DLL hiện tại
     // =========================================================================
+
+    /// <summary>
+    /// Lấy đường dẫn tuyệt đối của file DLL hiện tại đang thực thi trong bộ nhớ
+    /// từ một con trỏ hàm cụ thể nằm trong DLL đó.
+    /// </summary>
+    /// <param name="functionPtr">Con trỏ đến hàm nằm trong DLL cần lấy đường dẫn.</param>
+    public static string GetDllPathFromFunctionPointer(IntPtr functionPtr)
+    {
+        if (functionPtr == IntPtr.Zero) return string.Empty;
+
+        if (!GetModuleHandleExW(GetModuleHandleExFlagFromAddress, functionPtr, out IntPtr hModule) || hModule == IntPtr.Zero)
+        {
+            return string.Empty;
+        }
+
+        char[] buffer = new char[260]; // MAX_PATH
+        uint length = GetModuleFileNameW(hModule, buffer, (uint)buffer.Length);
+
+        if (length >= buffer.Length)
+        {
+            buffer = new char[32768];
+            length = GetModuleFileNameW(hModule, buffer, (uint)buffer.Length);
+        }
+
+        return length > 0 ? new string(buffer, 0, (int)length) : string.Empty;
+    }
 
     /// <summary>
     /// Lấy đường dẫn tuyệt đối của file DLL hiện tại đang thực thi trong bộ nhớ.
@@ -58,23 +93,9 @@ public static class NativeMethods
     {
         var dummyDelegate = (Action)DummyMethod;
         IntPtr functionPtr = Marshal.GetFunctionPointerForDelegate(dummyDelegate);
-        if (!GetModuleHandleExW(GetModuleHandleExFlagFromAddress, functionPtr, out IntPtr hModule) || hModule == IntPtr.Zero)
-        {
-            return string.Empty;
-        }
-
-        char[] buffer = new char[260]; // MAX_PATH
-        uint length = GetModuleFileNameW(hModule, buffer, (uint)buffer.Length);
-
-        // Xử lý nếu đường dẫn dài hơn MAX_PATH
-        if (length >= buffer.Length)
-        {
-            buffer = new char[32768];
-            length = GetModuleFileNameW(hModule, buffer, (uint)buffer.Length);
-        }
-
+        var path = GetDllPathFromFunctionPointer(functionPtr);
         GC.KeepAlive(dummyDelegate);
-        return length > 0 ? new string(buffer, 0, (int)length) : string.Empty;
+        return path;
     }
 
     /// <summary>

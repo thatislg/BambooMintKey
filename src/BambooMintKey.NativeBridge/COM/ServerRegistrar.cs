@@ -11,33 +11,71 @@ namespace BambooMintKey.NativeBridge.COM;
 /// </summary>
 public static class ServerRegistrar
 {
+    private static void Log(string msg)
+    {
+        try
+        {
+            var path = Path.Combine(Path.GetTempPath(), "BambooMintKey_Register.log");
+            File.AppendAllText(path, $"[{DateTime.Now:HH:mm:ss.fff}] {msg}{Environment.NewLine}");
+        }
+        catch { }
+    }
+
+    private static string GetDllPath()
+    {
+        unsafe
+        {
+            // Lấy địa chỉ hàm DllRegisterServer export; nó chắc chắn nằm trong BambooMintKey.dll.
+            delegate* unmanaged[Stdcall]<int> fn = &Exports.DllRegisterServer;
+            return NativeMethods.GetDllPathFromFunctionPointer((IntPtr)fn);
+        }
+    }
+
     /// <summary>
     /// Đăng ký COM server và TSF profile/category cho tiếng Việt.
     /// Trả về HResult.Ok nếu thành công.
     /// </summary>
     public static int RegisterServer()
     {
-        // Lấy đúng đường dẫn thực của DLL hiện tại đang được load.
-        // Không dùng Process.GetCurrentProcess().MainModule vì có thể trỏ đến EXE host.
-        var dllPath = NativeMethods.GetCurrentDllPath();
+        Log("RegisterServer started");
 
-        if (string.IsNullOrEmpty(dllPath)) return HResult.Fail;
+        var dllPath = GetDllPath();
+        Log($"DLL path: {dllPath}");
 
-        // 1. Ghi Registry InprocServer32
-        var clsidKeyPath = $@"CLSID\{{{Guids.TextServiceClsid}}}";
-        using (var key = Registry.ClassesRoot.CreateSubKey(clsidKeyPath))
+        if (string.IsNullOrEmpty(dllPath))
         {
-            key.SetValue(null, Constants.TextServiceName);
-            using var inproc = key.CreateSubKey("InprocServer32");
-            inproc.SetValue(null, dllPath);
-            inproc.SetValue("ThreadingModel", Constants.ThreadingModel);
+            Log("GetDllPath returned empty");
+            return HResult.Fail;
         }
 
-        // 2. Gọi TSF COM API để đăng ký Category & Profile
-        var hr = TsfRegistration.RegisterProfiles(dllPath);
-        if (!HResult.Succeeded(hr)) return hr;
+        try
+        {
+            var clsidKeyPath = $@"CLSID\{{{Guids.TextServiceClsid}}}";
+            using (var key = Registry.ClassesRoot.CreateSubKey(clsidKeyPath))
+            {
+                key.SetValue(null, Constants.TextServiceName);
+                using var inproc = key.CreateSubKey("InprocServer32");
+                inproc.SetValue(null, dllPath);
+                inproc.SetValue("ThreadingModel", Constants.ThreadingModel);
+            }
+            Log("Registry InprocServer32 written");
+        }
+        catch (Exception ex)
+        {
+            Log($"Registry write failed: {ex}");
+            return HResult.Fail;
+        }
 
-        return TsfRegistration.RegisterCategories();
+        var hrProfiles = TsfRegistration.RegisterProfiles(dllPath);
+        Log($"RegisterProfiles HRESULT: 0x{hrProfiles:X8}");
+        if (!HResult.Succeeded(hrProfiles)) return hrProfiles;
+
+        var hrCategories = TsfRegistration.RegisterCategories();
+        Log($"RegisterCategories HRESULT: 0x{hrCategories:X8}");
+        if (!HResult.Succeeded(hrCategories)) return hrCategories;
+
+        Log("RegisterServer completed successfully");
+        return HResult.Ok;
     }
 
     /// <summary>
@@ -46,14 +84,14 @@ public static class ServerRegistrar
     /// </summary>
     public static int UnregisterServer()
     {
-        // 1. Hủy Categories và Profile trong TSF
+        Log("UnregisterServer started");
         TsfRegistration.UnregisterCategories();
         TsfRegistration.UnregisterProfiles();
 
-        // 2. Xóa Registry CLSID
         var clsidKeyPath = $@"CLSID\{{{Guids.TextServiceClsid}}}";
         Registry.ClassesRoot.DeleteSubKeyTree(clsidKeyPath, throwOnMissingSubKey: false);
 
+        Log("UnregisterServer completed");
         return HResult.Ok;
     }
 }

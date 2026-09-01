@@ -62,7 +62,6 @@ public unsafe struct TfCategoryMgrVTable
 /// </summary>
 public static unsafe class TsfRegistration
 {
-    // CLSIDs chuẩn của Windows TSF COM Manager
     private static readonly Guid ClsidTfInputProcessorProfiles = new("33C53824-660F-457B-8B3E-5F4A9D87AC47");
     private static readonly Guid IidITfInputProcessorProfiles = new("1F02B6C5-7842-4EE6-8A0B-9A24183A95CA");
 
@@ -71,12 +70,23 @@ public static unsafe class TsfRegistration
 
     private const uint ClsCtxInprocServer = 0x1;
 
+    private static void Log(string msg)
+    {
+        try
+        {
+            var path = Path.Combine(Path.GetTempPath(), "BambooMintKey_Register.log");
+            File.AppendAllText(path, $"[{DateTime.Now:HH:mm:ss.fff}] [TsfRegistration] {msg}{Environment.NewLine}");
+        }
+        catch { }
+    }
+
     /// <summary>
     /// Đăng ký Text Service và Language Profile tiếng Việt với TSF.
     /// </summary>
-    /// <param name="dllPath">Đường dẫn đầy đủ đến BambooMintKey.dll.</param>
     public static int RegisterProfiles(string dllPath)
     {
+        Log("RegisterProfiles started");
+
         int hr = NativeMethods.CoCreateInstance(
             ClsidTfInputProcessorProfiles,
             IntPtr.Zero,
@@ -84,6 +94,7 @@ public static unsafe class TsfRegistration
             IidITfInputProcessorProfiles,
             out IntPtr pProfiles);
 
+        Log($"CoCreateInstance(ITfInputProcessorProfiles) HR=0x{hr:X8}, pProfiles={(nint)pProfiles}");
         if (!HResult.Succeeded(hr) || pProfiles == IntPtr.Zero) return hr;
 
         var vtable = *(TfInputProcessorProfilesVTable**)pProfiles;
@@ -92,11 +103,10 @@ public static unsafe class TsfRegistration
             Guid clsid = Guids.TextServiceClsid;
             Guid profileGuid = Guids.ProfileGuid;
 
-            // 1. Đăng ký TIP chính
             hr = vtable->Register(pProfiles, &clsid);
+            Log($"Register TIP HR=0x{hr:X8}");
             if (!HResult.Succeeded(hr)) return hr;
 
-            // 2. Thêm Language Profile Tiếng Việt (0x042A)
             fixed (char* pDesc = Constants.TextServiceName)
             fixed (char* pIconFile = dllPath)
             {
@@ -109,17 +119,16 @@ public static unsafe class TsfRegistration
                     Constants.TextServiceName.Length,
                     pIconFile,
                     dllPath.Length,
-                    0 // Icon index
-                );
+                    0);
+                Log($"AddLanguageProfile HR=0x{hr:X8}");
+                if (!HResult.Succeeded(hr)) return hr;
             }
 
-            if (!HResult.Succeeded(hr)) return hr;
-
-            // 3. Kích hoạt mặc định
-            vtable->EnableLanguageProfileByDefault(
+            hr = vtable->EnableLanguageProfileByDefault(
                 pProfiles, &clsid, Constants.LangIdVietnamese, &profileGuid, 1);
+            Log($"EnableLanguageProfileByDefault HR=0x{hr:X8}");
 
-            return HResult.Ok;
+            return hr;
         }
         finally
         {
@@ -158,10 +167,12 @@ public static unsafe class TsfRegistration
     }
 
     /// <summary>
-    /// Đăng ký Categories với TSF Category Manager (TIP Keyboard & DisplayAttribute).
+    /// Đăng ký Categories với TSF Category Manager.
     /// </summary>
     public static int RegisterCategories()
     {
+        Log("RegisterCategories started");
+
         int hr = NativeMethods.CoCreateInstance(
             ClsidTfCategoryMgr,
             IntPtr.Zero,
@@ -169,6 +180,7 @@ public static unsafe class TsfRegistration
             IidITfCategoryMgr,
             out IntPtr pCatMgr);
 
+        Log($"CoCreateInstance(ITfCategoryMgr) HR=0x{hr:X8}, pCatMgr={(nint)pCatMgr}");
         if (!HResult.Succeeded(hr) || pCatMgr == IntPtr.Zero) return hr;
 
         var vtable = *(TfCategoryMgrVTable**)pCatMgr;
@@ -178,10 +190,14 @@ public static unsafe class TsfRegistration
             Guid catTip = Guids.GuidTfCategoryTipKeyboard;
             Guid catDisplay = Guids.GuidTfCategoryDisplayAttributeProvider;
 
-            vtable->RegisterCategory(pCatMgr, &clsid, &catTip, &clsid);
-            vtable->RegisterCategory(pCatMgr, &clsid, &catDisplay, &clsid);
+            hr = vtable->RegisterCategory(pCatMgr, &clsid, &catTip, &clsid);
+            Log($"RegisterCategory(TIP_KEYBOARD) HR=0x{hr:X8}");
+            if (!HResult.Succeeded(hr)) return hr;
 
-            return HResult.Ok;
+            hr = vtable->RegisterCategory(pCatMgr, &clsid, &catDisplay, &clsid);
+            Log($"RegisterCategory(DISPLAY_ATTRIBUTE) HR=0x{hr:X8}");
+
+            return hr;
         }
         finally
         {
@@ -212,7 +228,6 @@ public static unsafe class TsfRegistration
 
             vtable->UnregisterCategory(pCatMgr, &clsid, &catTip, &clsid);
             vtable->UnregisterCategory(pCatMgr, &clsid, &catDisplay, &clsid);
-
             return HResult.Ok;
         }
         finally

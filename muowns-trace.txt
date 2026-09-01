@@ -1,6 +1,0 @@
-m -> m (raw=['m'])
-u -> mu (raw=['m'; 'u'])
-o -> muo (raw=['m'; 'u'; 'o'])
-w -> mươ (raw=['m'; 'u'; 'o'; 'w'])
-n -> mươn (raw=['m'; 'u'; 'o'; 'w'; 'n'])
-s -> mướn (raw=['m'; 'u'; 'o'; 'w'; 'n'; 's'])

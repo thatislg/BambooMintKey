@@ -105,12 +105,12 @@ public unsafe class TextServiceClassFactory
 
         if (pUnkOuter != IntPtr.Zero) return HResult.ClassNoAggregation;
 
-        // Khởi tạo đối tượng BambooMintKeyTextService chính
+        // Khởi tạo đối tượng BambooMintKeyTextService chính.
+        // textServicePtr trỏ đến NativeLayout; slot đầu tiên là VTableProcessor (TfTextInputProcessorExVTable).
         var textServicePtr = BambooMintKeyTextService.CreateNativeInstance();
-        var punk = (IntPtr*)textServicePtr;
-        var vtable = *(ClassFactoryVTable**)*punk; // Bóc tách IUnknown vtable
+        var processorVTable = *(TfTextInputProcessorExVTable**)textServicePtr;
 
-        return ((delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int>)vtable->QueryInterface)(textServicePtr, riid, ppvObject);
+        return processorVTable->QueryInterface(textServicePtr, riid, ppvObject);
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
