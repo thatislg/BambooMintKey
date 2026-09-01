@@ -15,7 +15,7 @@
 ## 1. Mục Tiêu Kỹ Thuật
 
 - Cài đặt giao diện COM `ITfTextInputProcessorEx` và `ITfTextInputProcessor` trên đối tượng chính `BambooMintKeyTextService` mà không dùng `ComImport` (NativeAOT VTable compliant).
-- Xử lý phương thức `ActivateEx` để tiếp nhận `ITfThreadMgr`, `TfClientId` (client ID do TSF cấp), và cờ kích hoạt hệ thống (`TF_TMAE_*`).
+- Xử lý phương thức `ActivateEx` để tiếp nhận `ITfThreadMgr`, `TfClientId` (client ID do TSF cấp), và cờ kích hoạt hệ thống (`TfTmae*`).
 - Đăng ký lắng nghe sự kiện thay đổi focus (`ITfThreadMgrEventSink`) và chuyển đổi context (`ITfDocumentMgr`).
 - Quản lý cơ chế hủy tài nguyên trong `Deactivate`, đảm bảo unadvise toàn bộ event sink, giải phóng tham chiếu COM và reset `WordState` của F# Engine về trạng thái rỗng (`WordState.Empty`).
 
@@ -72,14 +72,14 @@ namespace BambooMintKey.NativeBridge.TSF;
 
 public static class TsfFlags
 {
-    public const uint TF_TMAE_NOACTIVATETIP = 0x00000001;
-    public const uint TF_TMAE_SECUREMODE    = 0x00000002;
-    public const uint TF_TMAE_UIELEMENTENABLEDONLY = 0x00000004;
-    public const uint TF_INVALID_CLIENT_ID  = 0;
+    public const uint TfTmaeNoactivatetip = 0x00000001;
+    public const uint TfTmaeSecuremode    = 0x00000002;
+    public const uint TfTmaeUielementenabledonly = 0x00000004;
+    public const uint TfInvalidClientId  = 0;
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct ITfTextInputProcessorExVTable
+public unsafe struct TfTextInputProcessorExVTable
 {
     // IUnknown
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
@@ -95,7 +95,7 @@ public unsafe struct ITfTextInputProcessorExVTable
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct ITfThreadMgrEventSinkVTable
+public unsafe struct TfThreadMgrEventSinkVTable
 {
     // IUnknown
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
@@ -128,12 +128,12 @@ namespace BambooMintKey.NativeBridge.TSF;
 
 public unsafe class BambooMintKeyTextService
 {
-    private static ITfTextInputProcessorExVTable* _processorVTable;
-    private static ITfThreadMgrEventSinkVTable* _threadMgrSinkVTable;
+    private static TfTextInputProcessorExVTable* _processorVTable;
+    private static TfThreadMgrEventSinkVTable* _threadMgrSinkVTable;
 
     // Instance native structure holding interfaces
     [StructLayout(LayoutKind.Sequential)]
-    public struct NativeLayout
+    private struct NativeLayout
     {
         public IntPtr VTableProcessor;       // Con trỏ vtable ITfTextInputProcessorEx
         public IntPtr VTableThreadMgrSink;   // Con trỏ vtable ITfThreadMgrEventSink
@@ -143,7 +143,7 @@ public unsafe class BambooMintKeyTextService
 
     private int _refCount = 1;
     private IntPtr _pThreadMgr = IntPtr.Zero;
-    private uint _clientId = TsfFlags.TF_INVALID_CLIENT_ID;
+    private uint _clientId = TsfFlags.TfInvalidClientId;
     private uint _threadMgrEventSinkCookie = 0;
     private uint _keyEventSinkCookie = 0;
     private bool _isActivated = false;
@@ -174,8 +174,8 @@ public unsafe class BambooMintKeyTextService
     {
         if (_processorVTable != null) return;
 
-        _processorVTable = (ITfTextInputProcessorExVTable*)RuntimeHelpers.AllocateTypeAssociatedMemory(
-            typeof(BambooMintKeyTextService), sizeof(ITfTextInputProcessorExVTable));
+        _processorVTable = (TfTextInputProcessorExVTable*)RuntimeHelpers.AllocateTypeAssociatedMemory(
+            typeof(BambooMintKeyTextService), sizeof(TfTextInputProcessorExVTable));
         _processorVTable->QueryInterface = &QueryInterface;
         _processorVTable->AddRef = &AddRef;
         _processorVTable->Release = &Release;
@@ -183,8 +183,8 @@ public unsafe class BambooMintKeyTextService
         _processorVTable->Deactivate = &Deactivate;
         _processorVTable->ActivateEx = &ActivateEx;
 
-        _threadMgrSinkVTable = (ITfThreadMgrEventSinkVTable*)RuntimeHelpers.AllocateTypeAssociatedMemory(
-            typeof(BambooMintKeyTextService), sizeof(ITfThreadMgrEventSinkVTable));
+        _threadMgrSinkVTable = (TfThreadMgrEventSinkVTable*)RuntimeHelpers.AllocateTypeAssociatedMemory(
+            typeof(BambooMintKeyTextService), sizeof(TfThreadMgrEventSinkVTable));
         _threadMgrSinkVTable->QueryInterface = &QueryInterface_ThreadMgrSink;
         _threadMgrSinkVTable->AddRef = &AddRef_ThreadMgrSink;
         _threadMgrSinkVTable->Release = &Release_ThreadMgrSink;
@@ -195,7 +195,8 @@ public unsafe class BambooMintKeyTextService
         _threadMgrSinkVTable->OnPopContext = &OnPopContext;
     }
 
-    private static BambooMintKeyTextService GetTarget(IntPtr thisPtr)
+    // Để internal để KeyEventSinkImpl có thể lấy instance từ con trỏ VTable
+    internal static BambooMintKeyTextService GetTarget(IntPtr thisPtr)
     {
         var layout = (NativeLayout*)thisPtr;
         var handle = GCHandle.FromIntPtr(layout->GCHandle);
@@ -203,88 +204,95 @@ public unsafe class BambooMintKeyTextService
     }
 
     #region IUnknown Callbacks
-    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static int QueryInterface(IntPtr thisPtr, Guid* riid, IntPtr* ppvObject)
+
+    // Các phương thức Impl không có [UnmanagedCallersOnly] để các proxy interface
+    // có thể gọi lẫn nhau mà không vi phạm lệnh cấm gọi trực tiếp giữa các hàm unmanaged.
+    internal static int QueryInterfaceImpl(IntPtr rootPtr, Guid* riid, IntPtr* ppvObject)
     {
-        if (ppvObject == null || riid == null) return HRESULT.E_POINTER;
+        if (ppvObject == null || riid == null) return HResult.Pointer;
         *ppvObject = IntPtr.Zero;
 
         if (*riid == Guids.IidIUnknown ||
             *riid == Guids.IidITfTextInputProcessor ||
             *riid == Guids.IidITfTextInputProcessorEx)
         {
-            *ppvObject = thisPtr;
-            AddRef(thisPtr);
-            return HRESULT.S_OK;
+            *ppvObject = rootPtr;
+            var processorVTable = *(TfTextInputProcessorExVTable**)rootPtr;
+            processorVTable->AddRef(rootPtr);
+            return HResult.Ok;
         }
 
         if (*riid == Guids.IidITfThreadMgrEventSink)
         {
-            // Trỏ đến offset của ITfThreadMgrEventSink trong struct NativeLayout
-            *ppvObject = thisPtr + sizeof(IntPtr);
-            AddRef(thisPtr);
-            return HRESULT.S_OK;
+            *ppvObject = rootPtr + sizeof(IntPtr);
+            var processorVTable = *(TfTextInputProcessorExVTable**)rootPtr;
+            processorVTable->AddRef(rootPtr);
+            return HResult.Ok;
         }
 
         if (*riid == Guids.IidITfKeyEventSink)
         {
-            // Trỏ đến offset của ITfKeyEventSink trong struct NativeLayout
-            *ppvObject = thisPtr + (sizeof(IntPtr) * 2);
-            AddRef(thisPtr);
-            return HRESULT.S_OK;
+            *ppvObject = rootPtr + (sizeof(IntPtr) * 2);
+            var processorVTable = *(TfTextInputProcessorExVTable**)rootPtr;
+            processorVTable->AddRef(rootPtr);
+            return HResult.Ok;
         }
 
-        return HRESULT.E_NOINTERFACE;
+        return HResult.NoInterface;
     }
 
-    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static uint AddRef(IntPtr thisPtr)
+    internal static uint AddRefImpl(IntPtr rootPtr)
     {
-        var target = GetTarget(thisPtr);
+        var target = GetTarget(rootPtr);
         return (uint)Interlocked.Increment(ref target._refCount);
     }
 
-    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static uint Release(IntPtr thisPtr)
+    internal static uint ReleaseImpl(IntPtr rootPtr)
     {
-        var target = GetTarget(thisPtr);
+        var target = GetTarget(rootPtr);
         var count = Interlocked.Decrement(ref target._refCount);
         if (count == 0)
         {
-            var layout = (NativeLayout*)thisPtr;
+            var layout = (NativeLayout*)rootPtr;
             var handle = GCHandle.FromIntPtr(layout->GCHandle);
             handle.Free();
-            Marshal.FreeHGlobal(thisPtr);
+            Marshal.FreeHGlobal(rootPtr);
             ComServerState.ObjectDestroyed();
         }
         return (uint)count;
     }
 
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+    private static int QueryInterface(IntPtr thisPtr, Guid* riid, IntPtr* ppvObject)
+        => QueryInterfaceImpl(thisPtr, riid, ppvObject);
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+    private static uint AddRef(IntPtr thisPtr)
+        => AddRefImpl(thisPtr);
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+    private static uint Release(IntPtr thisPtr)
+        => ReleaseImpl(thisPtr);
+
     // Proxy Unknown cho Interface con thứ 2 (ThreadMgrSink)
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int QueryInterface_ThreadMgrSink(IntPtr thisPtr, Guid* riid, IntPtr* ppvObject)
-        => QueryInterface(thisPtr - sizeof(IntPtr), riid, ppvObject);
+        => QueryInterfaceImpl(thisPtr - sizeof(IntPtr), riid, ppvObject);
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static uint AddRef_ThreadMgrSink(IntPtr thisPtr)
-        => AddRef(thisPtr - sizeof(IntPtr));
+        => AddRefImpl(thisPtr - sizeof(IntPtr));
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static uint Release_ThreadMgrSink(IntPtr thisPtr)
-        => Release(thisPtr - sizeof(IntPtr));
+        => ReleaseImpl(thisPtr - sizeof(IntPtr));
     #endregion
 
     #region ITfTextInputProcessorEx Callbacks
-    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static int Activate(IntPtr thisPtr, IntPtr pThreadMgr, uint tfClientId)
-    {
-        return ActivateEx(thisPtr, pThreadMgr, tfClientId, 0);
-    }
 
-    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static int ActivateEx(IntPtr thisPtr, IntPtr pThreadMgr, uint tfClientId, uint dwFlags)
+    internal static int ActivateExImpl(IntPtr thisPtr, IntPtr pThreadMgr, uint tfClientId, uint dwFlags)
     {
-        if (pThreadMgr == IntPtr.Zero) return HRESULT.E_INVALIDARG;
+        if (pThreadMgr == IntPtr.Zero) return HResult.InvalidArgument;
 
         var target = GetTarget(thisPtr);
         target._pThreadMgr = pThreadMgr;
@@ -292,7 +300,7 @@ public unsafe class BambooMintKeyTextService
         target._isActivated = true;
 
         // 1. Tăng RefCount cho ITfThreadMgr
-        NativeCOM.AddRef(pThreadMgr);
+        NativeCom.AddRef(pThreadMgr);
 
         // 2. Advise ThreadMgrEventSink để theo dõi chuyển đổi cửa sổ / control
         var sinkPtr = thisPtr + sizeof(IntPtr);
@@ -307,14 +315,26 @@ public unsafe class BambooMintKeyTextService
         // 4. Khởi tạo / Đồng bộ Engine State
         BridgeStateManager.InitializeEngine();
 
-        return HRESULT.S_OK;
+        return HResult.Ok;
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+    private static int Activate(IntPtr thisPtr, IntPtr pThreadMgr, uint tfClientId)
+    {
+        return ActivateExImpl(thisPtr, pThreadMgr, tfClientId, 0);
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+    private static int ActivateEx(IntPtr thisPtr, IntPtr pThreadMgr, uint tfClientId, uint dwFlags)
+    {
+        return ActivateExImpl(thisPtr, pThreadMgr, tfClientId, dwFlags);
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int Deactivate(IntPtr thisPtr)
     {
         var target = GetTarget(thisPtr);
-        if (!target._isActivated) return HRESULT.S_OK;
+        if (!target._isActivated) return HResult.Ok;
 
         // 1. Unadvise KeyEventSink
         if (target._keyEventSinkCookie != 0)
@@ -337,22 +357,22 @@ public unsafe class BambooMintKeyTextService
         // 4. Giải phóng ITfThreadMgr
         if (target._pThreadMgr != IntPtr.Zero)
         {
-            NativeCOM.Release(target._pThreadMgr);
+            NativeCom.Release(target._pThreadMgr);
             target._pThreadMgr = IntPtr.Zero;
         }
 
-        target._clientId = TsfFlags.TF_INVALID_CLIENT_ID;
+        target._clientId = TsfFlags.TfInvalidClientId;
         target._isActivated = false;
-        return HRESULT.S_OK;
+        return HResult.Ok;
     }
     #endregion
 
     #region ITfThreadMgrEventSink Callbacks
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static int OnInitDocumentMgr(IntPtr thisPtr, IntPtr pdimNew, IntPtr pdimPrev) => HRESULT.S_OK;
+    private static int OnInitDocumentMgr(IntPtr thisPtr, IntPtr pdimNew, IntPtr pdimPrev) => HResult.Ok;
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static int OnUninitDocumentMgr(IntPtr thisPtr, IntPtr pdim) => HRESULT.S_OK;
+    private static int OnUninitDocumentMgr(IntPtr thisPtr, IntPtr pdim) => HResult.Ok;
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int OnSetFocus(IntPtr thisPtr, IntPtr pdimFocus, IntPtr pdimPrevFocus)
@@ -360,19 +380,91 @@ public unsafe class BambooMintKeyTextService
         // Khi chuyển sang ô nhập liệu khác -> Chốt từ đang gõ dở và làm sạch State
         CompositionManager.EndComposition();
         BridgeStateManager.ResetState();
-        return HRESULT.S_OK;
+        return HResult.Ok;
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static int OnPushContext(IntPtr thisPtr, IntPtr pic) => HRESULT.S_OK;
+    private static int OnPushContext(IntPtr thisPtr, IntPtr pic) => HResult.Ok;
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static int OnPopContext(IntPtr thisPtr, IntPtr pic) => HRESULT.S_OK;
+    private static int OnPopContext(IntPtr thisPtr, IntPtr pic) => HResult.Ok;
     #endregion
 }
 ```
 
-## 5. Quản Lý Trạng Thái Cầu Nối F# (`BridgeStateManager.cs`)
+> **Lưu ý khi sửa lỗi `[UnmanagedCallersOnly]` cannot be called directly:**
+> - Tách logic thực sự vào các phương thức `Impl` **không** có `[UnmanagedCallersOnly]` (ví dụ `QueryInterfaceImpl`, `AddRefImpl`, `ReleaseImpl`, `ActivateExImpl`).
+> - Các entry point `QueryInterface`, `AddRef`, `Release`, `Activate`, `ActivateEx`, ... chỉ nên là wrapper gọi đến `Impl`.
+> - `GetTarget` cần để `internal` để `KeyEventSinkImpl` có thể truy cập từ cùng assembly.
+> - NativeAOT cấm gọi trực tiếp giữa các phương thức `[UnmanagedCallersOnly]`; cách khắc phục chuẩn là tách `Impl` như trên hoặc gọi qua function pointer VTable.
+
+## 5. Helper Đăng Ký Event Sink (`TsfEventSinkHelper.cs`)
+
+Tập trung tại file `src/BambooMintKey.NativeBridge/TSF/TsfEventSinkHelper.cs`:
+
+```c#
+using System.Runtime.InteropServices;
+using BambooMintKey.NativeBridge.Common;
+
+namespace BambooMintKey.NativeBridge.TSF;
+
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct TfSourceVTable
+{
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint> AddRef;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint> Release;
+
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr, uint*, int> AdviseSink;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint, int> UnadviseSink;
+}
+
+public static unsafe class TsfEventSinkHelper
+{
+    private static readonly Guid IidITfSource = new("4EA48A35-60AE-446F-8BC6-0B0B6E49E0C0");
+
+    public static uint AdviseSink(IntPtr pSource, Guid riid, IntPtr pSink)
+    {
+        if (pSource == IntPtr.Zero || pSink == IntPtr.Zero) return 0;
+
+        IntPtr pTfSource = IntPtr.Zero;
+        var punk = *(TfSourceVTable**)pSource;
+
+        Guid riidCopy = riid;
+        var pRiid = &riidCopy;
+
+        int hr = punk->QueryInterface(pSource, pRiid, &pTfSource);
+        if (hr != HResult.Ok || pTfSource == IntPtr.Zero) return 0;
+
+        var sourceVTable = *(TfSourceVTable**)pTfSource;
+        uint cookie = 0;
+        int adviseHr = sourceVTable->AdviseSink(pTfSource, pRiid, pSink, &cookie);
+        sourceVTable->Release(pTfSource);
+
+        return adviseHr == HResult.Ok ? cookie : 0;
+    }
+
+    public static void UnadviseSink(IntPtr pSource, uint cookie)
+    {
+        if (pSource == IntPtr.Zero || cookie == 0) return;
+
+        IntPtr pTfSource = IntPtr.Zero;
+        var punk = *(TfSourceVTable**)pSource;
+
+        Guid iidSource = IidITfSource;
+        var pRiidSource = &iidSource;
+
+        int hr = punk->QueryInterface(pSource, pRiidSource, &pTfSource);
+        if (hr != HResult.Ok || pTfSource == IntPtr.Zero) return;
+
+        var sourceVTable = *(TfSourceVTable**)pTfSource;
+        sourceVTable->UnadviseSink(pTfSource, cookie);
+        sourceVTable->Release(pTfSource);
+    }
+}
+```
+
+## 6. Quản Lý Trạng Thái Cầu Nối F# (`BridgeStateManager.cs`)
 
 Lớp điều phối in-memory gọi trực tiếp các kiểu dữ liệu và hàm của `BambooMintKey.Core`:
 
@@ -429,7 +521,39 @@ public static class BridgeStateManager
 }
 ```
 
-## 6. Sơ Đồ Cấu Trúc Mã Nguồn Bổ Sung (Phase 2.2)
+### Mã nguồn `NativeCom.cs`:
+
+Helper thực hiện `IUnknown::AddRef` / `IUnknown::Release` thủ công trên con trỏ COM thô, dùng trong `ActivateEx`/`Deactivate` để giữ/thả `ITfThreadMgr`.
+
+```c#
+using System.Runtime.InteropServices;
+
+namespace BambooMintKey.NativeBridge.Interop;
+
+public static unsafe class NativeCom
+{
+    public static uint AddRef(IntPtr punk)
+    {
+        if (punk == IntPtr.Zero) return 0;
+
+        // VTable nằm ở offset 0 của object; AddRef là slot thứ 2 sau QueryInterface.
+        var vtable = *(IntPtr*)punk;
+        var pfnAddRef = (delegate* unmanaged[Stdcall]<IntPtr, uint>)(*((IntPtr*)vtable + 1));
+        return pfnAddRef(punk);
+    }
+
+    public static uint Release(IntPtr punk)
+    {
+        if (punk == IntPtr.Zero) return 0;
+
+        var vtable = *(IntPtr*)punk;
+        var pfnRelease = (delegate* unmanaged[Stdcall]<IntPtr, uint>)(*((IntPtr*)vtable + 2));
+        return pfnRelease(punk);
+    }
+}
+```
+
+## 7. Sơ Đồ Cấu Trúc Mã Nguồn Bổ Sung (Phase 2.2)
 
 ```bash
 src/BambooMintKey.NativeBridge/
@@ -440,6 +564,6 @@ src/BambooMintKey.NativeBridge/
 │   ├── BridgeStateManager.cs       # Cầu nối in-memory tới F# TelexEngine
 │   └── TsfEventSinkHelper.cs       # Helper Advise/Unadvise ITfSource COM API
 └── Interop/
-    └── NativeCOM.cs                # P/Invoke IUnknown::AddRef / Release thủ công
+    └── NativeCom.cs                # P/Invoke IUnknown::AddRef / Release thủ công
 ```
 

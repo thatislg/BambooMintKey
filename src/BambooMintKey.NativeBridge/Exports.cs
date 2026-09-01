@@ -5,8 +5,16 @@ using BambooMintKey.NativeBridge.Common;
 
 namespace BambooMintKey.NativeBridge;
 
+/// <summary>
+/// Các điểm nhập C-ABI chuẩn của một COM DLL.
+/// Được Windows TSF gọi khi load/unload và bởi regsvr32 khi đăng ký TIP.
+/// Theo thiết kế 002_01_COM_Registration_and_Exports.md.
+/// </summary>
 public static unsafe class Exports
 {
+    /// <summary>
+    /// DLL entry point: Tạo đối tượng COM từ CLSID của BambooMintKey TIP.
+    /// </summary>
     [UnmanagedCallersOnly(EntryPoint = "DllGetClassObject", CallConvs = [typeof(CallConvStdcall)])]
     public static int DllGetClassObject(Guid* rclsid, Guid* riid, IntPtr* ppv)
     {
@@ -23,18 +31,27 @@ public static unsafe class Exports
         return punk->QueryInterface(factory, riid, ppv);
     }
 
+    /// <summary>
+    /// DLL entry point: Cho phép Windows kiểm tra xem DLL có thể unload hay chưa.
+    /// </summary>
     [UnmanagedCallersOnly(EntryPoint = "DllCanUnloadNow", CallConvs = [typeof(CallConvStdcall)])]
     public static int DllCanUnloadNow()
     {
         return ComServerState.CanUnload ? HResult.Ok : HResult.False;
     }
 
+    /// <summary>
+    /// DLL entry point: Đăng ký COM server + TSF profile/category.
+    /// </summary>
     [UnmanagedCallersOnly(EntryPoint = "DllRegisterServer", CallConvs = [typeof(CallConvStdcall)])]
     public static int DllRegisterServer()
     {
         return ServerRegistrar.RegisterServer();
     }
 
+    /// <summary>
+    /// DLL entry point: Gỡ đăng ký COM server + TSF profile/category.
+    /// </summary>
     [UnmanagedCallersOnly(EntryPoint = "DllUnregisterServer", CallConvs = [typeof(CallConvStdcall)])]
     public static int DllUnregisterServer()
     {

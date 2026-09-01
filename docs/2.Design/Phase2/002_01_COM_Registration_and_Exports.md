@@ -52,6 +52,32 @@ public static class Guids
 }
 
 // Ở 1 file riêng
+public static class HResult
+{
+    // .NET naming convention: PascalCase thay vì HRESULT raw macro names
+    public const int Ok = 0x00000000;
+    public const int False = 0x00000001;
+
+    public const int InvalidArgument = unchecked((int)0x80070057);
+    public const int NoInterface = unchecked((int)0x80004002);
+    public const int Pointer = unchecked((int)0x80004003);
+    public const int Fail = unchecked((int)0x80004005);
+
+    public const int ClassNoAggregation = unchecked((int)0x80040110);
+    public const int ClassNotAvailable = unchecked((int)0x80040111);
+    public const int RegDbClassNotReg = unchecked((int)0x80040154);
+
+    public static bool Succeeded(int hr) => hr >= 0;
+    public static bool Failed(int hr) => hr < 0;
+}
+```
+
+> **Lưu ý quan trọng khi sửa warning/lỗi build:**
+> - Tất cả các hằng số HRESULT trong codebase được chuyển sang lớp `HResult` với tên **PascalCase** (`Ok`, `Fail`, `Pointer`, `NoInterface`, `ClassNotAvailable`, ...) để tuân thủ quy ước đặt tên .NET.
+> - Các struct VTable định nghĩa thủ công (ví dụ `IClassFactoryVTable`) nên **bỏ tiền tố `I`** thành `ClassFactoryVTable` để tránh cảnh báo *"Name does not match rule 'Types and namespaces'"* của .NET analyzer.
+
+```c#
+// Ở 1 file riêng
 public static class Constants
 {
     public const ushort LangIdVietnamese = 0x042A; // Vietnamese (Vietnam)
@@ -100,7 +126,7 @@ using BambooMintKey.NativeBridge.Common;
 namespace BambooMintKey.NativeBridge.COM;
 
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct IClassFactoryVTable
+public unsafe struct ClassFactoryVTable
 {
     // IUnknown
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
@@ -114,15 +140,15 @@ public unsafe struct IClassFactoryVTable
 
 public unsafe class TextServiceClassFactory
 {
-    private static IClassFactoryVTable* _vTable;
+    private static ClassFactoryVTable* _vTable;
     private static IntPtr _singletonInstance;
 
     public static IntPtr GetInstance()
     {
         if (_singletonInstance != IntPtr.Zero) return _singletonInstance;
 
-        _vTable = (IClassFactoryVTable*)RuntimeHelpers.AllocateTypeAssociatedMemory(
-            typeof(TextServiceClassFactory), sizeof(IClassFactoryVTable));
+        _vTable = (ClassFactoryVTable*)RuntimeHelpers.AllocateTypeAssociatedMemory(
+            typeof(TextServiceClassFactory), sizeof(ClassFactoryVTable));
 
         _vTable->QueryInterface = &QueryInterface;
         _vTable->AddRef = &AddRef;
@@ -139,17 +165,19 @@ public unsafe class TextServiceClassFactory
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int QueryInterface(IntPtr thisPtr, Guid* riid, IntPtr* ppvObject)
     {
-        if (ppvObject == null || riid == null) return HRESULT.E_POINTER;
+        if (ppvObject == null || riid == null) return HResult.Pointer;
 
         if (*riid == Guids.IidIUnknown || *riid == Guids.IidIClassFactory)
         {
             *ppvObject = thisPtr;
-            AddRef(thisPtr);
-            return HRESULT.S_OK;
+            // AddRef có [UnmanagedCallersOnly], phải gọi qua function pointer trong VTable
+            var vtable = *(ClassFactoryVTable**)thisPtr;
+            vtable->AddRef(thisPtr);
+            return HResult.Ok;
         }
 
         *ppvObject = IntPtr.Zero;
-        return HRESULT.E_NOINTERFACE;
+        return HResult.NoInterface;
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
@@ -169,15 +197,15 @@ public unsafe class TextServiceClassFactory
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int CreateInstance(IntPtr thisPtr, IntPtr pUnkOuter, Guid* riid, IntPtr* ppvObject)
     {
-        if (ppvObject == null || riid == null) return HRESULT.E_POINTER;
+        if (ppvObject == null || riid == null) return HResult.Pointer;
         *ppvObject = IntPtr.Zero;
 
-        if (pUnkOuter != IntPtr.Zero) return HRESULT.CLASS_E_NOAGGREGATION;
+        if (pUnkOuter != IntPtr.Zero) return HResult.ClassNoAggregation;
 
         // Khởi tạo đối tượng BambooMintKeyTextService chính
         var textServicePtr = BambooMintKeyTextService.CreateNativeInstance();
         var punk = (IntPtr*)textServicePtr;
-        var vtable = *(IClassFactoryVTable**)*punk; // Bóc tách IUnknown vtable
+        var vtable = *(ClassFactoryVTable**)*punk; // Bóc tách IUnknown vtable
 
         return ((delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int>)vtable->QueryInterface)(textServicePtr, riid, ppvObject);
     }
@@ -187,10 +215,14 @@ public unsafe class TextServiceClassFactory
     {
         if (fLock != 0) ComServerState.Lock();
         else ComServerState.Unlock();
-        return HRESULT.S_OK;
+        return HResult.Ok;
     }
 }
 ```
+
+> **Lưu ý khi sửa lỗi build:**
+> - Không gọi trực tiếp một phương thức được đánh dấu `[UnmanagedCallersOnly]` từ code C# khác. Thay vào đó, lấy con trỏ hàm từ VTable và gọi qua đó (như `vtable->AddRef(thisPtr)` trong `QueryInterface`).
+> - Hoặc tách logic ra thành các phương thức `Impl` không có `[UnmanagedCallersOnly]` và để các entry point unmanaged chỉ điều phối đến `Impl`.
 
 ## 4. Các Hàm Xuất C-ABI (Dll Exports)
 
@@ -220,7 +252,7 @@ public static unsafe class Exports
         }
 
         var factory = TextServiceClassFactory.GetInstance();
-        var punk = *(IClassFactoryVTable**)factory;
+        var punk = *(ClassFactoryVTable**)factory;
         return punk->QueryInterface(factory, riid, ppv);
     }
 
@@ -270,7 +302,6 @@ C#
 
 ```c#
 using Microsoft.Win32;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using BambooMintKey.NativeBridge.Common;
 using BambooMintKey.NativeBridge.Interop;
@@ -281,8 +312,7 @@ public static class ServerRegistrar
 {
     public static int RegisterServer()
     {
-        var modulePath = Process.GetCurrentProcess().MainModule?.FileName;
-        // Lấy đúng đường dẫn thực của DLL hiện tại
+        // Lấy đúng đường dẫn thực của DLL hiện tại đang được load
         var dllPath = NativeMethods.GetCurrentDllPath();
 
         if (string.IsNullOrEmpty(dllPath)) return HResult.Fail;

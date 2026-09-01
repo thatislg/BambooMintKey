@@ -61,7 +61,7 @@ using System.Runtime.InteropServices;
 namespace BambooMintKey.NativeBridge.TSF;
 
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct ITfKeyEventSinkVTable
+public unsafe struct TfKeyEventSinkVTable
 {
     // IUnknown
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
@@ -69,7 +69,8 @@ public unsafe struct ITfKeyEventSinkVTable
     public delegate* unmanaged[Stdcall]<IntPtr, uint> Release;
 
     // ITfKeyEventSink
-    public delegate* unmanaged[Stdcall]<IntPtr, IntPtr, UIntPtr, IntPtr, int*, int> OnSetFocus;
+    // OnSetFocus chỉ có 2 tham số sau this: ITfContext* pic, BOOL fForeground
+    public delegate* unmanaged[Stdcall]<IntPtr, IntPtr, int, int> OnSetFocus;
     public delegate* unmanaged[Stdcall]<IntPtr, IntPtr, UIntPtr, IntPtr, int*, int> OnTestKeyDown;
     public delegate* unmanaged[Stdcall]<IntPtr, IntPtr, UIntPtr, IntPtr, int*, int> OnTestKeyUp;
     public delegate* unmanaged[Stdcall]<IntPtr, IntPtr, UIntPtr, IntPtr, int*, int> OnKeyDown;
@@ -91,13 +92,15 @@ namespace BambooMintKey.NativeBridge.Interop;
 
 public static class KeyInputTranslator
 {
-    public const uint VK_BACK    = 0x08;
-    public const uint VK_RETURN  = 0x0D;
-    public const uint VK_SPACE   = 0x20;
-    public const uint VK_CONTROL = 0x11;
-    public const uint VK_MENU    = 0x12; // Alt
-    public const uint VK_LWIN    = 0x5B;
-    public const uint VK_RWIN    = 0x5C;
+    // Virtual-key codes theo Win32 User Input API.
+    // Đặt tên PascalCase + 'Vk' prefix để tuân thủ quy ước .NET/F# analyzer.
+    public const uint VkBack = 0x08;
+    public const uint VkReturn = 0x0D;
+    public const uint VkSpace = 0x20;
+    private const uint VkControl = 0x11;
+    private const uint VkMenu = 0x12; // Alt
+    private const uint VkLeftWin = 0x5B;
+    private const uint VkRightWin = 0x5C;
 
     [DllImport("user32.dll")]
     private static extern short GetKeyState(int nVirtKey);
@@ -117,9 +120,9 @@ public static class KeyInputTranslator
     public static bool IsModifierModifierPressed()
     {
         // Kiểm tra xem Ctrl, Alt hoặc phím Win có đang được đè không
-        bool isCtrl = (GetKeyState((int)VK_CONTROL) & 0x8000) != 0;
-        bool isAlt = (GetKeyState((int)VK_MENU) & 0x8000) != 0;
-        bool isWin = ((GetKeyState((int)VK_LWIN) & 0x8000) != 0) || ((GetKeyState((int)VK_RWIN) & 0x8000) != 0);
+        bool isCtrl = (GetKeyState((int)VkControl) & 0x8000) != 0;
+        bool isAlt = (GetKeyState((int)VkMenu) & 0x8000) != 0;
+        bool isWin = ((GetKeyState((int)VkLeftWin) & 0x8000) != 0) || ((GetKeyState((int)VkRightWin) & 0x8000) != 0);
 
         return isCtrl || isAlt || isWin;
     }
@@ -167,14 +170,14 @@ namespace BambooMintKey.NativeBridge.TSF;
 
 public static unsafe class KeyEventSinkImpl
 {
-    private static ITfKeyEventSinkVTable* _vTable;
+    private static TfKeyEventSinkVTable* _vTable;
 
     public static IntPtr GetVTablePointer()
     {
         if (_vTable != null) return (IntPtr)_vTable;
 
-        _vTable = (ITfKeyEventSinkVTable*)RuntimeHelpers.AllocateTypeAssociatedMemory(
-            typeof(KeyEventSinkImpl), sizeof(ITfKeyEventSinkVTable));
+        _vTable = (TfKeyEventSinkVTable*)RuntimeHelpers.AllocateTypeAssociatedMemory(
+            typeof(KeyEventSinkImpl), sizeof(TfKeyEventSinkVTable));
 
         _vTable->QueryInterface = &QueryInterface;
         _vTable->AddRef = &AddRef;
@@ -195,47 +198,47 @@ public static unsafe class KeyEventSinkImpl
     {
         // Offset lùi lại về struct BambooMintKeyTextService chính
         var rootPtr = thisPtr - (sizeof(IntPtr) * 2);
-        return BambooMintKeyTextService.QueryInterface(rootPtr, riid, ppvObject);
+        return BambooMintKeyTextService.QueryInterfaceImpl(rootPtr, riid, ppvObject);
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static uint AddRef(IntPtr thisPtr)
     {
         var rootPtr = thisPtr - (sizeof(IntPtr) * 2);
-        return BambooMintKeyTextService.AddRef(rootPtr);
+        return BambooMintKeyTextService.AddRefImpl(rootPtr);
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static uint Release(IntPtr thisPtr)
     {
         var rootPtr = thisPtr - (sizeof(IntPtr) * 2);
-        return BambooMintKeyTextService.Release(rootPtr);
+        return BambooMintKeyTextService.ReleaseImpl(rootPtr);
     }
     #endregion
 
     #region ITfKeyEventSink Callbacks
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static int OnSetFocus(IntPtr thisPtr, IntPtr pic, int fForeground) => HRESULT.S_OK;
+    private static int OnSetFocus(IntPtr thisPtr, IntPtr pic, int fForeground) => HResult.Ok;
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int OnTestKeyDown(IntPtr thisPtr, IntPtr pic, UIntPtr wParam, IntPtr lParam, int* pfEaten)
     {
-        if (pfEaten == null) return HRESULT.E_POINTER;
+        if (pfEaten == null) return HResult.Pointer;
         *pfEaten = 0;
 
         // 1. Không can thiệp nếu người dùng đang bấm tổ hợp phím tắt (Ctrl/Alt/Win)
         if (KeyInputTranslator.IsModifierModifierPressed())
         {
-            return HRESULT.S_OK;
+            return HResult.Ok;
         }
 
         uint vkCode = (uint)wParam;
 
         // 2. Can thiệp nếu là Backspace khi đang có phiên Composition
-        if (vkCode == KeyInputTranslator.VK_BACK && CompositionManager.HasActiveComposition())
+        if (vkCode == KeyInputTranslator.VkBack && CompositionManager.HasActiveComposition())
         {
             *pfEaten = 1;
-            return HRESULT.S_OK;
+            return HResult.Ok;
         }
 
         // 3. Chuyển đổi mã phím sang ký tự để kiểm tra
@@ -250,26 +253,26 @@ public static unsafe class KeyEventSinkImpl
             }
         }
 
-        return HRESULT.S_OK;
+        return HResult.Ok;
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int OnTestKeyUp(IntPtr thisPtr, IntPtr pic, UIntPtr wParam, IntPtr lParam, int* pfEaten)
     {
-        if (pfEaten == null) return HRESULT.E_POINTER;
+        if (pfEaten == null) return HResult.Pointer;
         *pfEaten = 0;
-        return HRESULT.S_OK;
+        return HResult.Ok;
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int OnKeyDown(IntPtr thisPtr, IntPtr pic, UIntPtr wParam, IntPtr lParam, int* pfEaten)
     {
-        if (pfEaten == null) return HRESULT.E_POINTER;
+        if (pfEaten == null) return HResult.Pointer;
         *pfEaten = 0;
 
         if (KeyInputTranslator.IsModifierModifierPressed())
         {
-            return HRESULT.S_OK;
+            return HResult.Ok;
         }
 
         uint vkCode = (uint)wParam;
@@ -277,21 +280,21 @@ public static unsafe class KeyEventSinkImpl
         var service = BambooMintKeyTextService.GetTarget(servicePtr);
 
         // Trường hợp 1: Phím Backspace
-        if (vkCode == KeyInputTranslator.VK_BACK)
+        if (vkCode == KeyInputTranslator.VkBack)
         {
             if (CompositionManager.HasActiveComposition())
             {
                 var (newState, action) = BridgeStateManager.ProcessBackspace();
                 CompositionManager.HandleEngineAction(service, pic, action, newState.TransformedText);
                 *pfEaten = 1;
-                return HRESULT.S_OK;
+                return HResult.Ok;
             }
-            return HRESULT.S_OK;
+            return HResult.Ok;
         }
 
         // Trường hợp 2: Phím Ký tự bình thường / Phím Ngắt
         var inputChar = KeyInputTranslator.ConvertVirtualKeyToChar(wParam, lParam);
-        if (!inputChar.HasValue) return HRESULT.S_OK;
+        if (!inputChar.HasValue) return HResult.Ok;
 
         char c = inputChar.Value;
 
@@ -302,7 +305,7 @@ public static unsafe class KeyEventSinkImpl
                 var (newState, action) = BridgeStateManager.ProcessWordBreak(c);
                 CompositionManager.HandleEngineAction(service, pic, action, newState.TransformedText);
                 *pfEaten = 1;
-                return HRESULT.S_OK;
+                return HResult.Ok;
             }
         }
         else
@@ -310,26 +313,26 @@ public static unsafe class KeyEventSinkImpl
             var (newState, action) = BridgeStateManager.ProcessKey(c);
             CompositionManager.HandleEngineAction(service, pic, action, newState.TransformedText);
             *pfEaten = 1;
-            return HRESULT.S_OK;
+            return HResult.Ok;
         }
 
-        return HRESULT.S_OK;
+        return HResult.Ok;
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int OnKeyUp(IntPtr thisPtr, IntPtr pic, UIntPtr wParam, IntPtr lParam, int* pfEaten)
     {
-        if (pfEaten == null) return HRESULT.E_POINTER;
+        if (pfEaten == null) return HResult.Pointer;
         *pfEaten = 0;
-        return HRESULT.S_OK;
+        return HResult.Ok;
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int OnPreservedKey(IntPtr thisPtr, IntPtr pic, Guid* rguid, int* pfEaten)
     {
-        if (pfEaten == null) return HRESULT.E_POINTER;
+        if (pfEaten == null) return HResult.Pointer;
         *pfEaten = 0;
-        return HRESULT.S_OK;
+        return HResult.Ok;
     }
     #endregion
 }
@@ -348,7 +351,7 @@ using BambooMintKey.NativeBridge.Common;
 namespace BambooMintKey.NativeBridge.TSF;
 
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct ITfKeystrokeMgrVTable
+public unsafe struct TfKeystrokeMgrVTable
 {
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
     public delegate* unmanaged[Stdcall]<IntPtr, uint> AddRef;
@@ -372,20 +375,20 @@ public static unsafe class KeyEventSinkHelper
         if (pThreadMgr == IntPtr.Zero || pKeyEventSink == IntPtr.Zero) return 0;
 
         IntPtr pKeystrokeMgr = IntPtr.Zero;
-        var punk = *(ITfKeystrokeMgrVTable**)pThreadMgr;
+        var punk = *(TfKeystrokeMgrVTable**)pThreadMgr;
         
         fixed (Guid* riid = &IidITfKeystrokeMgr)
         {
             int hr = punk->QueryInterface(pThreadMgr, riid, &pKeystrokeMgr);
-            if (hr != HRESULT.S_OK || pKeystrokeMgr == IntPtr.Zero) return 0;
+            if (hr != HResult.Ok || pKeystrokeMgr == IntPtr.Zero) return 0;
         }
 
-        var pkmVTable = *(ITfKeystrokeMgrVTable**)pKeystrokeMgr;
+        var pkmVTable = *(TfKeystrokeMgrVTable**)pKeystrokeMgr;
         // fForeground = 1 (Nhận sự kiện bàn phím ưu tiên mức Foreground)
         int adviseHr = pkmVTable->AdviseKeyEventSink(pKeystrokeMgr, clientId, pKeyEventSink, 1);
 
         pkmVTable->Release(pKeystrokeMgr);
-        return adviseHr == HRESULT.S_OK ? 1u : 0u;
+        return adviseHr == HResult.Ok ? 1u : 0u;
     }
 
     public static void UnadviseKeyEventSink(IntPtr pThreadMgr, uint clientId)
@@ -393,15 +396,15 @@ public static unsafe class KeyEventSinkHelper
         if (pThreadMgr == IntPtr.Zero) return;
 
         IntPtr pKeystrokeMgr = IntPtr.Zero;
-        var punk = *(ITfKeystrokeMgrVTable**)pThreadMgr;
+        var punk = *(TfKeystrokeMgrVTable**)pThreadMgr;
 
         fixed (Guid* riid = &IidITfKeystrokeMgr)
         {
             int hr = punk->QueryInterface(pThreadMgr, riid, &pKeystrokeMgr);
-            if (hr != HRESULT.S_OK || pKeystrokeMgr == IntPtr.Zero) return;
+            if (hr != HResult.Ok || pKeystrokeMgr == IntPtr.Zero) return;
         }
 
-        var pkmVTable = *(ITfKeystrokeMgrVTable**)pKeystrokeMgr;
+        var pkmVTable = *(TfKeystrokeMgrVTable**)pKeystrokeMgr;
         pkmVTable->UnadviseKeyEventSink(pKeystrokeMgr, clientId);
         pkmVTable->Release(pKeystrokeMgr);
     }

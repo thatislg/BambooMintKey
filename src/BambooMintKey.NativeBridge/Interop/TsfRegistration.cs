@@ -3,14 +3,19 @@ using BambooMintKey.NativeBridge.Common;
 
 namespace BambooMintKey.NativeBridge.Interop;
 
+// =========================================================================
 // VTable định nghĩa cho ITfInputProcessorProfiles
+// =========================================================================
+
 [StructLayout(LayoutKind.Sequential)]
 public unsafe struct TfInputProcessorProfilesVTable
 {
+    // IUnknown
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
     public delegate* unmanaged[Stdcall]<IntPtr, uint> AddRef;
     public delegate* unmanaged[Stdcall]<IntPtr, uint> Release;
 
+    // ITfInputProcessorProfiles
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, int> Register;
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, int> Unregister;
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, ushort, Guid*, char*, int, char*, int, uint, int> AddLanguageProfile;
@@ -20,14 +25,19 @@ public unsafe struct TfInputProcessorProfilesVTable
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, ushort, Guid*, int, int> EnableLanguageProfileByDefault;
 }
 
+// =========================================================================
 // VTable định nghĩa cho ITfCategoryMgr
+// =========================================================================
+
 [StructLayout(LayoutKind.Sequential)]
 public unsafe struct TfCategoryMgrVTable
 {
+    // IUnknown
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
     public delegate* unmanaged[Stdcall]<IntPtr, uint> AddRef;
     public delegate* unmanaged[Stdcall]<IntPtr, uint> Release;
 
+    // ITfCategoryMgr
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, Guid*, Guid*, int> RegisterCategory;
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, Guid*, Guid*, int> UnregisterCategory;
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> EnumCategoriesInItem;
@@ -42,6 +52,14 @@ public unsafe struct TfCategoryMgrVTable
     public delegate* unmanaged[Stdcall]<IntPtr, uint, uint*, int> GetGUIDDWORD;
 }
 
+// =========================================================================
+// TsfRegistration - Đăng ký / gỡ đăng ký TSF Profile & Categories
+// =========================================================================
+
+/// <summary>
+/// Đăng ký và gỡ đăng ký TSF Language Profile / Categories thông qua COM API.
+/// Theo thiết kế 002_01_COM_Registration_and_Exports.md.
+/// </summary>
 public static unsafe class TsfRegistration
 {
     // CLSIDs chuẩn của Windows TSF COM Manager
@@ -54,8 +72,9 @@ public static unsafe class TsfRegistration
     private const uint ClsCtxInprocServer = 0x1;
 
     /// <summary>
-    /// Đăng ký Text Service và Language Profile tiếng Việt với TSF
+    /// Đăng ký Text Service và Language Profile tiếng Việt với TSF.
     /// </summary>
+    /// <param name="dllPath">Đường dẫn đầy đủ đến BambooMintKey.dll.</param>
     public static int RegisterProfiles(string dllPath)
     {
         int hr = NativeMethods.CoCreateInstance(
@@ -97,7 +116,9 @@ public static unsafe class TsfRegistration
             if (!HResult.Succeeded(hr)) return hr;
 
             // 3. Kích hoạt mặc định
-            vtable->EnableLanguageProfileByDefault(pProfiles, &clsid, Constants.LangIdVietnamese, &profileGuid, 1);
+            vtable->EnableLanguageProfileByDefault(
+                pProfiles, &clsid, Constants.LangIdVietnamese, &profileGuid, 1);
+
             return HResult.Ok;
         }
         finally
@@ -107,7 +128,7 @@ public static unsafe class TsfRegistration
     }
 
     /// <summary>
-    /// Gỡ đăng ký Language Profile và Text Service khỏi TSF
+    /// Gỡ đăng ký Language Profile và Text Service khỏi TSF.
     /// </summary>
     public static int UnregisterProfiles()
     {
@@ -137,7 +158,7 @@ public static unsafe class TsfRegistration
     }
 
     /// <summary>
-    /// Đăng ký Categories với TSF Category Manager (TIP Keyboard & DisplayAttribute)
+    /// Đăng ký Categories với TSF Category Manager (TIP Keyboard & DisplayAttribute).
     /// </summary>
     public static int RegisterCategories()
     {
@@ -157,10 +178,7 @@ public static unsafe class TsfRegistration
             Guid catTip = Guids.GuidTfCategoryTipKeyboard;
             Guid catDisplay = Guids.GuidTfCategoryDisplayAttributeProvider;
 
-            // Đăng ký category bàn phím
             vtable->RegisterCategory(pCatMgr, &clsid, &catTip, &clsid);
-            
-            // Đăng ký category hiển thị gạch chân composition
             vtable->RegisterCategory(pCatMgr, &clsid, &catDisplay, &clsid);
 
             return HResult.Ok;
@@ -172,7 +190,7 @@ public static unsafe class TsfRegistration
     }
 
     /// <summary>
-    /// Gỡ bỏ Categories khỏi TSF Category Manager
+    /// Gỡ bỏ Categories khỏi TSF Category Manager.
     /// </summary>
     public static int UnregisterCategories()
     {

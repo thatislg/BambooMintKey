@@ -5,6 +5,10 @@ using BambooMintKey.NativeBridge.TSF;
 
 namespace BambooMintKey.NativeBridge.COM;
 
+// =========================================================================
+// VTable định nghĩa cho IClassFactory (bỏ tiền tố 'I' theo quy ước .NET analyzer)
+// =========================================================================
+
 [StructLayout(LayoutKind.Sequential)]
 public unsafe struct ClassFactoryVTable
 {
@@ -18,11 +22,22 @@ public unsafe struct ClassFactoryVTable
     public delegate* unmanaged[Stdcall]<IntPtr, int, int> LockServer;
 }
 
+// =========================================================================
+// TextServiceClassFactory - Tạo instance BambooMintKeyTextService cho TSF
+// =========================================================================
+
+/// <summary>
+/// Cài đặt IClassFactory thủ công cho NativeAOT, trả về singleton factory.
+/// Theo thiết kế 002_01_COM_Registration_and_Exports.md.
+/// </summary>
 public unsafe class TextServiceClassFactory
 {
     private static ClassFactoryVTable* _vTable;
     private static IntPtr _singletonInstance;
 
+    /// <summary>
+    /// Lấy (hoặc khởi tạo) singleton instance của ClassFactory để Windows TSF query.
+    /// </summary>
     public static IntPtr GetInstance()
     {
         if (_singletonInstance != IntPtr.Zero) return _singletonInstance;
@@ -41,6 +56,10 @@ public unsafe class TextServiceClassFactory
         _singletonInstance = (IntPtr)objMem;
         return _singletonInstance;
     }
+
+    // =========================================================================
+    // IUnknown Callbacks
+    // =========================================================================
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int QueryInterface(IntPtr thisPtr, Guid* riid, IntPtr* ppvObject)
@@ -74,6 +93,10 @@ public unsafe class TextServiceClassFactory
         return 1;
     }
 
+    // =========================================================================
+    // IClassFactory Callbacks
+    // =========================================================================
+
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int CreateInstance(IntPtr thisPtr, IntPtr pUnkOuter, Guid* riid, IntPtr* ppvObject)
     {
@@ -87,7 +110,7 @@ public unsafe class TextServiceClassFactory
         var punk = (IntPtr*)textServicePtr;
         var vtable = *(ClassFactoryVTable**)*punk; // Bóc tách IUnknown vtable
 
-        return vtable->QueryInterface(textServicePtr, riid, ppvObject);
+        return ((delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int>)vtable->QueryInterface)(textServicePtr, riid, ppvObject);
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]

@@ -61,18 +61,18 @@ namespace BambooMintKey.NativeBridge.TSF;
 
 public static class TsfEditFlags
 {
-    public const uint TF_ES_ASYNCDONTCARE = 0x00000000;
-    public const uint TF_ES_SYNC          = 0x00000001;
-    public const uint TF_ES_READ          = 0x00000002;
-    public const uint TF_ES_READWRITE     = 0x00000006;
-    public const uint TF_ES_ASYNC         = 0x00000008;
+    public const uint TfEsAsyncdontcare = 0x00000000;
+    public const uint TfEsSync          = 0x00000001;
+    public const uint TfEsRead          = 0x00000002;
+    public const uint TfEsReadWrite     = 0x00000006;
+    public const uint TfEsAsync         = 0x00000008;
 
-    public const uint TF_ANCHOR_START     = 0;
-    public const uint TF_ANCHOR_END       = 1;
+    public const uint TfAnchorStart     = 0;
+    public const uint TfAnchorEnd       = 1;
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public struct TF_SELECTION
+public struct TfSelection
 {
     public IntPtr range; // ITfRange*
     public uint styleAse;
@@ -80,7 +80,7 @@ public struct TF_SELECTION
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct ITfEditSessionVTable
+public unsafe struct TfEditSessionVTable
 {
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
     public delegate* unmanaged[Stdcall]<IntPtr, uint> AddRef;
@@ -90,7 +90,7 @@ public unsafe struct ITfEditSessionVTable
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct ITfCompositionSinkVTable
+public unsafe struct TfCompositionSinkVTable
 {
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
     public delegate* unmanaged[Stdcall]<IntPtr, uint> AddRef;
@@ -100,7 +100,7 @@ public unsafe struct ITfCompositionSinkVTable
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct ITfCompositionVTable
+public unsafe struct TfCompositionVTable
 {
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
     public delegate* unmanaged[Stdcall]<IntPtr, uint> AddRef;
@@ -111,7 +111,7 @@ public unsafe struct ITfCompositionVTable
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct ITfRangeVTable
+public unsafe struct TfRangeVTable
 {
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
     public delegate* unmanaged[Stdcall]<IntPtr, uint> AddRef;
@@ -155,7 +155,7 @@ public enum EditActionType
 
 public unsafe class TextEditSession
 {
-    private static ITfEditSessionVTable* _vTable;
+    private static TfEditSessionVTable* _vTable;
 
     private int _refCount = 1;
     private readonly BambooMintKeyTextService _service;
@@ -168,7 +168,7 @@ public unsafe class TextEditSession
         _service = service;
         _pContext = pContext;
         _actionType = actionType;
-        _text = text ?? string.Empty;
+        _text = text; // caller always provides non-null string
         InitializeVTable();
     }
 
@@ -176,8 +176,8 @@ public unsafe class TextEditSession
     {
         if (_vTable != null) return;
 
-        _vTable = (ITfEditSessionVTable*)RuntimeHelpers.AllocateTypeAssociatedMemory(
-            typeof(TextEditSession), sizeof(ITfEditSessionVTable));
+        _vTable = (TfEditSessionVTable*)RuntimeHelpers.AllocateTypeAssociatedMemory(
+            typeof(TextEditSession), sizeof(TfEditSessionVTable));
 
         _vTable->QueryInterface = &QueryInterface;
         _vTable->AddRef = &AddRef;
@@ -205,17 +205,19 @@ public unsafe class TextEditSession
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int QueryInterface(IntPtr thisPtr, Guid* riid, IntPtr* ppvObject)
     {
-        if (ppvObject == null || riid == null) return HRESULT.E_POINTER;
+        if (ppvObject == null || riid == null) return HResult.Pointer;
         *ppvObject = IntPtr.Zero;
 
         if (*riid == Guids.IidIUnknown || *riid == Guids.IidITfEditSession)
         {
             *ppvObject = thisPtr;
-            AddRef(thisPtr);
-            return HRESULT.S_OK;
+            // AddRef có [UnmanagedCallersOnly], gọi qua function pointer trong VTable
+            var vtable = *(TfEditSessionVTable**)thisPtr;
+            vtable->AddRef(thisPtr);
+            return HResult.Ok;
         }
 
-        return HRESULT.E_NOINTERFACE;
+        return HResult.NoInterface;
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
@@ -262,7 +264,7 @@ public unsafe class TextEditSession
                 return PerformCancelComposition(ec);
 
             default:
-                return HRESULT.S_OK;
+                return HResult.Ok;
         }
     }
 
@@ -273,18 +275,18 @@ public unsafe class TextEditSession
         {
             if (!CompositionManager.StartComposition(_service, _pContext, ec))
             {
-                return HRESULT.E_FAIL;
+                return HResult.Fail;
             }
         }
 
         // 2. Lấy vùng Text Range của Composition hiện tại
         var pRange = CompositionManager.GetCompositionRange();
-        if (pRange == IntPtr.Zero) return HRESULT.E_FAIL;
+        if (pRange == IntPtr.Zero) return HResult.Fail;
 
         // 3. Thay thế văn bản trực tiếp
         fixed (char* pChars = _text)
         {
-            var rangeVTable = *(ITfRangeVTable**)pRange;
+            var rangeVTable = *(TfRangeVTable**)pRange;
             rangeVTable->SetText(pRange, ec, 0, pChars, _text.Length);
         }
 
@@ -294,7 +296,7 @@ public unsafe class TextEditSession
         // 5. Di chuyển con trỏ (Selection) về cuối chuỗi vừa gõ
         TsfSelectionHelper.SetSelectionToEnd(_pContext, ec, pRange);
 
-        return HRESULT.S_OK;
+        return HResult.Ok;
     }
 
     private int PerformCommitText(uint ec)
@@ -307,7 +309,7 @@ public unsafe class TextEditSession
                 // Thay thế chuỗi chốt cuối cùng
                 fixed (char* pChars = _text)
                 {
-                    var rangeVTable = *(ITfRangeVTable**)pRange;
+                    var rangeVTable = *(TfRangeVTable**)pRange;
                     rangeVTable->SetText(pRange, ec, 0, pChars, _text.Length);
                 }
 
@@ -319,16 +321,17 @@ public unsafe class TextEditSession
             // Chốt và giải phóng ITfComposition
             CompositionManager.EndComposition();
         }
-        return HRESULT.S_OK;
+        return HResult.Ok;
     }
 
     private int PerformCancelComposition(uint ec)
     {
+        _ = ec; // reserved for future rollback logic
         if (CompositionManager.HasActiveComposition())
         {
             CompositionManager.EndComposition();
         }
-        return HRESULT.S_OK;
+        return HResult.Ok;
     }
 }
 ```
@@ -347,7 +350,7 @@ using BambooMintKey.NativeBridge.Common;
 namespace BambooMintKey.NativeBridge.TSF;
 
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct ITfContextCompositionVTable
+public unsafe struct TfContextCompositionVTable
 {
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
     public delegate* unmanaged[Stdcall]<IntPtr, uint> AddRef;
@@ -371,7 +374,7 @@ public static unsafe class CompositionManager
         if (_pActiveComposition == IntPtr.Zero) return IntPtr.Zero;
 
         IntPtr pRange = IntPtr.Zero;
-        var compVTable = *(ITfCompositionVTable**)_pActiveComposition;
+        var compVTable = *(TfCompositionVTable**)_pActiveComposition;
         compVTable->GetRange(_pActiveComposition, &pRange);
         return pRange;
     }
@@ -381,11 +384,11 @@ public static unsafe class CompositionManager
         if (_pActiveComposition != IntPtr.Zero) return true;
 
         IntPtr pContextComp = IntPtr.Zero;
-        var contextVTable = *(ITfContextCompositionVTable**)pContext;
+        var contextVTable = *(TfContextCompositionVTable**)pContext;
 
         fixed (Guid* riid = &IidITfContextComposition)
         {
-            if (contextVTable->QueryInterface(pContext, riid, &pContextComp) != HRESULT.S_OK)
+            if (contextVTable->QueryInterface(pContext, riid, &pContextComp) != HResult.Ok)
                 return false;
         }
 
@@ -393,7 +396,7 @@ public static unsafe class CompositionManager
         var pRange = TsfSelectionHelper.GetSelectionRange(pContext, ec);
         if (pRange == IntPtr.Zero)
         {
-            var ccVTable = *(ITfContextCompositionVTable**)pContextComp;
+            var ccVTable = *(TfContextCompositionVTable**)pContextComp;
             ccVTable->Release(pContextComp);
             return false;
         }
@@ -401,15 +404,15 @@ public static unsafe class CompositionManager
         IntPtr pCompSink = CompositionSinkImpl.GetOrCreateInstance();
         IntPtr pComposition = IntPtr.Zero;
 
-        var ccVTableFinal = *(ITfContextCompositionVTable**)pContextComp;
+        var ccVTableFinal = *(TfContextCompositionVTable**)pContextComp;
         int hr = ccVTableFinal->StartComposition(pContextComp, ec, pRange, pCompSink, &pComposition);
 
         // Giải phóng COM tạm
-        var rangeVTable = *(ITfRangeVTable**)pRange;
+        var rangeVTable = *(TfRangeVTable**)pRange;
         rangeVTable->Release(pRange);
         ccVTableFinal->Release(pContextComp);
 
-        if (hr == HRESULT.S_OK && pComposition != IntPtr.Zero)
+        if (hr == HResult.Ok && pComposition != IntPtr.Zero)
         {
             _pActiveComposition = pComposition;
             return true;
@@ -422,7 +425,7 @@ public static unsafe class CompositionManager
     {
         if (_pActiveComposition == IntPtr.Zero) return;
 
-        var compVTable = *(ITfCompositionVTable**)_pActiveComposition;
+        var compVTable = *(TfCompositionVTable**)_pActiveComposition;
         compVTable->EndComposition(_pActiveComposition, 0);
         compVTable->Release(_pActiveComposition);
         _pActiveComposition = IntPtr.Zero;
@@ -432,7 +435,7 @@ public static unsafe class CompositionManager
     {
         if (_pActiveComposition != IntPtr.Zero)
         {
-            var compVTable = *(ITfCompositionVTable**)_pActiveComposition;
+            var compVTable = *(TfCompositionVTable**)_pActiveComposition;
             compVTable->Release(_pActiveComposition);
             _pActiveComposition = IntPtr.Zero;
         }
@@ -467,10 +470,10 @@ public static unsafe class CompositionManager
         var pSession = session.CreateNativeInstance();
 
         int hrSession = 0;
-        var contextVTable = *(ITfContextVTable**)pContext;
-        contextVTable->RequestEditSession(pContext, service.ClientId, pSession, TsfEditFlags.TF_ES_SYNC | TsfEditFlags.TF_ES_READWRITE, &hrSession);
+        var contextVTable = *(TfContextVTable**)pContext;
+        contextVTable->RequestEditSession(pContext, service.ClientId, pSession, TsfEditFlags.TfEsSync | TsfEditFlags.TfEsReadWrite, &hrSession);
 
-        var sessionPunk = *(ITfEditSessionVTable**)pSession;
+        var sessionPunk = *(TfEditSessionVTable**)pSession;
         sessionPunk->Release(pSession);
     }
 }
@@ -489,16 +492,18 @@ using BambooMintKey.NativeBridge.Common;
 namespace BambooMintKey.NativeBridge.TSF;
 
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct ITfPropertyVTable
+public unsafe struct TfPropertyVTable
 {
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
     public delegate* unmanaged[Stdcall]<IntPtr, uint> AddRef;
     public delegate* unmanaged[Stdcall]<IntPtr, uint> Release;
 
-    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> GetType;
-    public delegate* unmanaged[Stdcall]<IntPtr, uint, IntPtr, IntPtr*, int> EnumRanges;
+    // ITfProperty::GetType trùng tên với object.GetType(), dùng 'new' để suppress warning
+    public new delegate* unmanaged[Stdcall]<IntPtr, Guid*, int> GetType;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint, IntPtr*, IntPtr, int> EnumRanges;
     public delegate* unmanaged[Stdcall]<IntPtr, uint, IntPtr, IntPtr*, int> GetValue;
-    public delegate* unmanaged[Stdcall]<IntPtr, uint, IntPtr, IntPtr*, int> Clear;
+    // ITfProperty::Clear chỉ có 2 tham số sau this: ec và pRange
+    public delegate* unmanaged[Stdcall]<IntPtr, uint, IntPtr, int> Clear;
     public delegate* unmanaged[Stdcall]<IntPtr, uint, IntPtr, IntPtr, int> SetValueStore;
     public delegate* unmanaged[Stdcall]<IntPtr, uint, IntPtr, IntPtr, int> SetValue;
 }
@@ -506,25 +511,25 @@ public unsafe struct ITfPropertyVTable
 public static unsafe class DisplayAttributeHelper
 {
     private static readonly Guid GuidPropDisplayAttribute = new("57D4C09F-3462-4253-833B-8189D8B542F6");
-    public static readonly Guid GuidDisplayAttributeInput = new("E6A93F52-7B42-4F18-A4D2-E6B39218F12D");
+    private static readonly Guid GuidDisplayAttributeInput = new("E6A93F52-7B42-4F18-A4D2-E6B39218F12D");
 
     public static void ApplyCompositionAttribute(IntPtr pContext, uint ec, IntPtr pRange)
     {
         if (pContext == IntPtr.Zero || pRange == IntPtr.Zero) return;
 
         IntPtr pProp = IntPtr.Zero;
-        var contextVTable = *(ITfContextVTable**)pContext;
+        var contextVTable = *(TfContextVTable**)pContext;
 
         fixed (Guid* rguidProp = &GuidPropDisplayAttribute)
         {
-            if (contextVTable->GetProperty(pContext, rguidProp, &pProp) != HRESULT.S_OK) return;
+            if (contextVTable->GetProperty(pContext, rguidProp, &pProp) != HResult.Ok) return;
         }
 
         // Gán Display Attribute GUID (gạch chân nét chấm/nét liền mờ)
-        var propVTable = *(ITfPropertyVTable**)pProp;
+        var propVTable = *(TfPropertyVTable**)pProp;
         
         // Gán giá trị Variant kiểu VT_I4 / GUID
-        IntPtr pVar = CreateGuidVariant(GuidDisplayAttributeInput);
+        IntPtr pVar = CreateGuidVariant();
         propVTable->SetValue(pProp, ec, pRange, pVar);
         Marshal.FreeHGlobal(pVar);
 
@@ -536,21 +541,25 @@ public static unsafe class DisplayAttributeHelper
         if (pContext == IntPtr.Zero || pRange == IntPtr.Zero) return;
 
         IntPtr pProp = IntPtr.Zero;
-        var contextVTable = *(ITfContextVTable**)pContext;
+        var contextVTable = *(TfContextVTable**)pContext;
 
         fixed (Guid* rguidProp = &GuidPropDisplayAttribute)
         {
-            if (contextVTable->GetProperty(pContext, rguidProp, &pProp) != HRESULT.S_OK) return;
+            if (contextVTable->GetProperty(pContext, rguidProp, &pProp) != HResult.Ok) return;
         }
 
-        var propVTable = *(ITfPropertyVTable**)pProp;
+        // Xóa gạch chân composition
+        var propVTable = *(TfPropertyVTable**)pProp;
         propVTable->Clear(pProp, ec, pRange);
         propVTable->Release(pProp);
     }
 
-    private static IntPtr CreateGuidVariant(Guid guid)
+    private static IntPtr CreateGuidVariant()
     {
-        // VARIANT structure: VT_UNKNOWN hoặc VT_I4 chứa Atom ID
+        // VARIANT structure: VT_UNKNOWN hoặc VT_I4 chứa Atom ID.
+        // GuidDisplayAttributeInput được giữ lại để gán vào pVar khi implement đầy đủ.
+        _ = GuidDisplayAttributeInput;
+
         var mem = Marshal.AllocHGlobal(24);
         Marshal.WriteInt16(mem, 0, 13); // VT_UNKNOWN
         return mem;

@@ -113,7 +113,7 @@ public unsafe class Program
             Guid iidFactory = Guids.IidIClassFactory;
 
             int hr = dllGetClassObject(&clsid, &iidFactory, &pClassFactory);
-            if (hr != HRESULT.S_OK || pClassFactory == IntPtr.Zero)
+            if (hr != HResult.Ok || pClassFactory == IntPtr.Zero)
             {
                 Console.WriteLine($"[FAIL] DllGetClassObject thất bại với HRESULT: 0x{hr:X8}");
                 return 1;
@@ -125,10 +125,10 @@ public unsafe class Program
             IntPtr pTextService = IntPtr.Zero;
             Guid iidProcessorEx = Guids.IidITfTextInputProcessorEx;
 
-            var factoryVTable = *(IClassFactoryVTable**)pClassFactory;
+            var factoryVTable = *(ClassFactoryVTable**)pClassFactory;
             hr = factoryVTable->CreateInstance(pClassFactory, IntPtr.Zero, &iidProcessorEx, &pTextService);
 
-            if (hr != HRESULT.S_OK || pTextService == IntPtr.Zero)
+            if (hr != HResult.Ok || pTextService == IntPtr.Zero)
             {
                 Console.WriteLine($"[FAIL] CreateInstance thất bại với HRESULT: 0x{hr:X8}");
                 return 1;
@@ -140,16 +140,16 @@ public unsafe class Program
             IntPtr pKeyEventSink = IntPtr.Zero;
             Guid iidKeySink = Guids.IidITfKeyEventSink;
 
-            var serviceVTable = *(ITfTextInputProcessorExVTable**)pTextService;
+            var serviceVTable = *(TfTextInputProcessorExVTable**)pTextService;
             hr = serviceVTable->QueryInterface(pTextService, &iidKeySink, &pKeyEventSink);
 
-            if (hr == HRESULT.S_OK && pKeyEventSink != IntPtr.Zero)
+            if (hr == HResult.Ok && pKeyEventSink != IntPtr.Zero)
             {
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine("[PASS] Interface ITfKeyEventSink phản hồi chuẩn xác.");
                 Console.ResetColor();
 
-                var keySinkVTable = *(ITfKeyEventSinkVTable**)pKeyEventSink;
+                var keySinkVTable = *(TfKeyEventSinkVTable**)pKeyEventSink;
                 keySinkVTable->Release(pKeyEventSink);
             }
             else
@@ -359,7 +359,7 @@ BambooMintKey/
 │   │   │   └── BridgeStateManager.cs
 │   │   └── Interop/
 │   │       ├── NativeMethods.cs
-│   │       ├── NativeCOM.cs
+│       ├── NativeCom.cs
 │   │       ├── TsfRegistration.cs
 │   │       └── KeyInputTranslator.cs
 │   │

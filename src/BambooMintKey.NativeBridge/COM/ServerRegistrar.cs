@@ -1,17 +1,24 @@
 using Microsoft.Win32;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
 using BambooMintKey.NativeBridge.Common;
 using BambooMintKey.NativeBridge.Interop;
 
 namespace BambooMintKey.NativeBridge.COM;
 
+/// <summary>
+/// Thực hiện đăng ký / gỡ đăng ký COM In-process Server và TSF Language Profile.
+/// Được gọi bởi regsvr32 thông qua các export DllRegisterServer / DllUnregisterServer.
+/// Theo thiết kế 002_01_COM_Registration_and_Exports.md.
+/// </summary>
 public static class ServerRegistrar
 {
+    /// <summary>
+    /// Đăng ký COM server và TSF profile/category cho tiếng Việt.
+    /// Trả về HResult.Ok nếu thành công.
+    /// </summary>
     public static int RegisterServer()
     {
-        var modulePath = Process.GetCurrentProcess().MainModule?.FileName;
-        // Lấy đúng đường dẫn thực của DLL hiện tại
+        // Lấy đúng đường dẫn thực của DLL hiện tại đang được load.
+        // Không dùng Process.GetCurrentProcess().MainModule vì có thể trỏ đến EXE host.
         var dllPath = NativeMethods.GetCurrentDllPath();
 
         if (string.IsNullOrEmpty(dllPath)) return HResult.Fail;
@@ -28,11 +35,15 @@ public static class ServerRegistrar
 
         // 2. Gọi TSF COM API để đăng ký Category & Profile
         var hr = TsfRegistration.RegisterProfiles(dllPath);
-        if (hr != HResult.Ok) return hr;
+        if (!HResult.Succeeded(hr)) return hr;
 
         return TsfRegistration.RegisterCategories();
     }
 
+    /// <summary>
+    /// Gỡ đăng ký COM server và TSF profile/category.
+    /// Trả về HResult.Ok nếu thành công.
+    /// </summary>
     public static int UnregisterServer()
     {
         // 1. Hủy Categories và Profile trong TSF
