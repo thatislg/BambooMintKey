@@ -42,26 +42,12 @@ try {
         exit 1
     }
 
-    # Kiem tra moi truong TSF truoc
-    $tsfProfilesPath = "HKLM:\SOFTWARE\Classes\CLSID\{33C53824-660F-457B-8B3E-5F4A9D87AC47}"
-    $tsfCategoryPath  = "HKLM:\SOFTWARE\Classes\CLSID\{A4B54FC0-ACAA-49FB-BB87-4EB0260080F6}"
-    if (-not (Test-Path $tsfProfilesPath) -or -not (Test-Path $tsfCategoryPath)) {
-        Write-Log "[CANH BAO] Moi truong TSF chua san sang tren may nay (khong tim thay CLSID cua ITfInputProcessorProfiles / ITfCategoryMgr)." "Yellow"
-        Write-Log "Ban co the van tao duoc Registry CLSID cua BambooMintKey, nhung dang ky TSF Profile/Category se that bai voi 0x80040154." "Yellow"
-        Write-Log "Khac phuc: them bat ky input method nao (vi du: Microsoft Bopomofo / Microsoft Pinyin) trong Settings -> Language." "Yellow"
-    }
+    # Dang ky COM & TSF profiles qua DllRegisterServer
 
-    Add-Type -TypeDefinition @"
-using System.Runtime.InteropServices;
-public static class Win32Native {
-    [DllImport(@"$DllPath", EntryPoint = "DllRegisterServer", CallingConvention = CallingConvention.StdCall)]
-    public static extern int DllRegisterServer();
-}
-"@
-
-    Write-Log "Goi DllRegisterServer..." "Cyan"
-    $hr = [Win32Native]::DllRegisterServer()
-    Write-Log "HRESULT: 0x$($hr.ToString('X8')) ($hr)" $(if ($hr -eq 0) { "Green" } else { "Red" })
+    Write-Log "Goi DllRegisterServer qua regsvr32.exe (tranh khoa DLL trong PowerShell)..." "Cyan"
+    $proc = Start-Process regsvr32.exe -ArgumentList "/s `"$DllPath`"" -PassThru -Wait
+    $hr = $proc.ExitCode
+    Write-Log "regsvr32 ExitCode: $hr" $(if ($hr -eq 0) { "Green" } else { "Red" })
 
     $clsidPath = "HKLM:\SOFTWARE\Classes\CLSID\{B8A5A29D-68B1-4A59-B41E-D8B383D6F2C1}"
     if (Test-Path $clsidPath) {
@@ -69,6 +55,19 @@ public static class Win32Native {
     } else {
         Write-Log "[FAIL] Khong tim thay registry CLSID." "Red"
     }
+
+    $tipPath = "HKLM:\SOFTWARE\Microsoft\CTF\TIP\{B8A5A29D-68B1-4A59-B41E-D8B383D6F2C1}"
+    if (Test-Path $tipPath) {
+        Write-Log "[OK] Registry TSF TIP da duoc tao." "Green"
+    } else {
+        Write-Log "[FAIL] Khong tim thay registry TSF TIP." "Red"
+    }
+
+    Write-Log "Luu y: Dang ky TSF Profile/Category da thanh cong o HKLM." "Green"
+    Write-Log "De user hien tai su dung duoc, hay chay trong PowerShell KHONG Admin:" "Yellow"
+    Write-Log "  .\scripts\enable-tip.ps1" "Gray"
+    Write-Log "Sau do restart ctfmon hoac dang xuat/dang nhap lai." "Yellow"
+    Write-Log "  Stop-Process -Name ctfmon -Force; Start-Process ctfmon" "Gray"
 
     Write-Log "Hoan tat." "Cyan"
 } catch {

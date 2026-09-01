@@ -39,12 +39,18 @@ public static class NativeMethods
     // =========================================================================
 
     [DllImport("ole32.dll", ExactSpelling = true)]
-    public static extern int CoCreateInstance(
-        in Guid rclsid,
+    public static unsafe extern int CoCreateInstance(
+        Guid* rclsid,
         IntPtr pUnkOuter,
         uint dwClsContext,
-        in Guid riid,
+        Guid* riid,
         out IntPtr ppv);
+
+    [DllImport("msctf.dll", ExactSpelling = true)]
+    public static extern int TF_CreateInputProcessorProfiles(out IntPtr ppipProfile);
+
+    [DllImport("msctf.dll", ExactSpelling = true)]
+    public static extern int TF_CreateCategoryMgr(out IntPtr ppcat);
 
     [DllImport("ole32.dll", ExactSpelling = true)]
     public static extern int CoInitializeEx(IntPtr pvReserved, uint dwCoInit);
@@ -54,6 +60,9 @@ public static class NativeMethods
 
     public const uint CoinitApartmentthreaded = 0x2;
     public const uint CoinitMultithreaded = 0x0;
+
+    public const uint ClsCtxInprocServer = 0x1;
+    public const uint ClsCtxAll = 0x17; // 23 decimal
 
     // =========================================================================
     // Helper lấy đường dẫn DLL hiện tại

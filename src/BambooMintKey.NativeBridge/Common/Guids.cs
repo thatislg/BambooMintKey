@@ -22,7 +22,7 @@ public static class Guids
     // =========================================================================
 
     /// <summary>GUID_TFCAT_TIP_KEYBOARD - Đăng ký bộ gõ bàn phím.</summary>
-    public static readonly Guid GuidTfCategoryTipKeyboard = new("34745C63-B2F0-4784-8B67-5E12E8701A31");
+    public static readonly Guid GuidTfCategoryTipKeyboard = new("34745C63-B2F0-4784-8B67-5E12C8701A31");
 
     /// <summary>GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER - Cung cấp hiển thị gạch chân composition.</summary>
     public static readonly Guid GuidTfCategoryDisplayAttributeProvider = new("35E7A704-438C-4235-96BC-4A6361C31595");
@@ -42,17 +42,22 @@ public static class Guids
     // =========================================================================
 
     /// <summary>IID_ITfTextInputProcessorEx - Vòng đời TIP chính (002_02).</summary>
-    public static readonly Guid IidITfTextInputProcessorEx = new("AABEC164-429C-4234-A75D-4E90B01D77D1");
+    /// <remarks>Lấy từ Windows SDK msctf.idl: uuid(6e4e2102-f9cd-433d-b496-303ce03a6507).</remarks>
+    public static readonly Guid IidITfTextInputProcessorEx = new("6E4E2102-F9CD-433D-B496-303CE03A6507");
 
     /// <summary>IID_ITfTextInputProcessor - Interface cơ bản của TIP.</summary>
-    public static readonly Guid IidITfTextInputProcessor = new("AA80E7D5-2021-11D2-93E0-0060B067B86E");
+    /// <remarks>Lấy từ Windows SDK msctf.idl: uuid(aa80e7f7-2021-11d2-93e0-0060b067b86e).</remarks>
+    public static readonly Guid IidITfTextInputProcessor = new("AA80E7F7-2021-11D2-93E0-0060B067B86E");
 
     /// <summary>IID_ITfThreadMgrEventSink - Sự kiện thay đổi focus/context (002_02).</summary>
-    public static readonly Guid IidITfThreadMgrEventSink = new("30B573D0-CCFA-11D2-9A86-00AA006EFD5E");
+    /// <remarks>Lấy từ Windows SDK msctf.idl: uuid(aa80e80e-2021-11d2-93e0-0060b067b86e).</remarks>
+    public static readonly Guid IidITfThreadMgrEventSink = new("AA80E80E-2021-11D2-93E0-0060B067B86E");
 
     /// <summary>IID_ITfKeyEventSink - Sự kiện bàn phím (002_03).</summary>
+    /// <remarks>Lấy từ Windows SDK msctf.idl: uuid(aa80e7f5-2021-11d2-93e0-0060b067b86e).</remarks>
     public static readonly Guid IidITfKeyEventSink = new("AA80E7F5-2021-11D2-93E0-0060B067B86E");
 
     /// <summary>IID_ITfEditSession - Thao tác văn bản trong edit cookie (002_04).</summary>
-    public static readonly Guid IidITfEditSession = new("AA80E7FD-2021-11D2-93E0-0060B067B86E");
+    /// <remarks>Lấy từ Windows SDK msctf.idl: uuid(aa80e803-2021-11d2-93e0-0060b067b86e).</remarks>
+    public static readonly Guid IidITfEditSession = new("AA80E803-2021-11D2-93E0-0060B067B86E");
 }

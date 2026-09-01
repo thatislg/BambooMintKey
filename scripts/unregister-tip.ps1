@@ -24,7 +24,13 @@ Write-Host "Đang gỡ đăng ký BambooMintKey khỏi Windows TSF..." -Foregrou
 $process = Start-Process regsvr32.exe -ArgumentList "/u /s `"$DllPath`"" -PassThru -Wait
 
 if ($process.ExitCode -eq 0) {
-    Write-Host "Gỡ đăng ký thành công!" -ForegroundColor Green
+    Write-Host "Gỡ đăng ký HKLM thành công!" -ForegroundColor Green
 } else {
-    Write-Host "[FAIL] Gỡ đăng ký thất bại với mã lỗi: $($process.ExitCode)" -ForegroundColor Red
+    Write-Host "[FAIL] Gỡ đăng ký HKLM thất bại với mã lỗi: $($process.ExitCode)" -ForegroundColor Red
 }
+
+Write-Host "Đang dọn dẹp Registry HKCU và khởi động lại ctfmon..." -ForegroundColor Cyan
+reg delete "HKCU\SOFTWARE\Microsoft\CTF\TIP\{B8A5A29D-68B1-4A59-B41E-D8B383D6F2C1}" /f | Out-Null
+Stop-Process -Name ctfmon -Force -ErrorAction SilentlyContinue
+Start-Process ctfmon
+Write-Host "[OK] Đã gỡ đăng ký hoàn toàn BambooMintKey khỏi Windows." -ForegroundColor Green

@@ -15,10 +15,19 @@ Write-Host "====================================================" -ForegroundCol
 Write-Host "  BambooMintKey NativeAOT Build: $Configuration ($Runtime)" -ForegroundColor Cyan
 Write-Host "====================================================" -ForegroundColor Cyan
 
-# 1. Dọn dẹp thư mục output cũ
-if (Test-Path $OutputDir) {
-    Write-Host "[1/3] Xóa thư mục output cũ..." -ForegroundColor Yellow
-    Remove-Item -Path $OutputDir -Recurse -Force
+# 1. Dọn dẹp thư mục output cũ (Dừng ctfmon & đổi tên file locked nếu cần)
+Stop-Process -Name ctfmon -Force -ErrorAction SilentlyContinue
+$TargetDll = Join-Path $OutputDir "BambooMintKey.dll"
+if (Test-Path $TargetDll) {
+    Write-Host "[1/3] Giải phóng file lock và dọn dẹp thư mục output..." -ForegroundColor Yellow
+    Start-Process regsvr32.exe -ArgumentList "/u /s `"$TargetDll`"" -Wait -ErrorAction SilentlyContinue
+    $OldDll = "$TargetDll.old"
+    if (Test-Path $OldDll) { Remove-Item $OldDll -Force -ErrorAction SilentlyContinue }
+    try {
+        Remove-Item $TargetDll -Force -ErrorAction Stop
+    } catch {
+        Rename-Item -Path $TargetDll -NewName "BambooMintKey.dll.old" -Force -ErrorAction SilentlyContinue
+    }
 }
 
 # 2. Biên dịch NativeAOT DLL
