@@ -19,6 +19,12 @@ type Modifier =
     | Breve     // Trăng: ă (aw)
     | DBar      // Gạch ngang: đ (dd)
 
+// Quy chuẩn đặt vị trí dấu thanh
+[<RequireQualifiedAccess>]
+type TonePlacementStyle =
+    | Modern        // Kiểu mới: hòa, thúy, xòe (dấu trên nguyên âm đầu tiên trong cụm mở)
+    | Traditional   // Kiểu cũ: hoá, thuý, xoè (dấu trên nguyên âm thứ 2 trong cụm mở)
+
 // Định dạng viết hoa / viết thường của từ để bảo toàn sau biến đổi
 type LetterCase =
     | Lower                 // việt
@@ -27,6 +33,7 @@ type LetterCase =
     | Mixed of bool list    // Mảng boolean lưu trạng thái hoa/thường từng ký tự
 
 // Phân loại phím đầu vào được gửi từ TSF Native Bridge
+[<RequireQualifiedAccess>]
 type KeyInput =
     | Char of char          // Ký tự bảng chữ cái (a-z, A-Z)
     | Backspace             // Phím xóa lùi

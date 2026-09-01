@@ -1,74 +1,65 @@
-module BambooMintKey.Core.Engine.SyllableParser
+namespace BambooMintKey.Core.Engine
 
 open System
 open BambooMintKey.Core.Domain.Types
-open BambooMintKey.Core.Domain.UnicodeTables.UnicodeTables
+open BambooMintKey.Core.Domain.UnicodeTables
 
 module SyllableParser =
 
-    /// Tách chuỗi thô thành (InitialConsonant, VowelNucleus, FinalConsonant)
     let parse (input: string) : Syllable option =
-        if String.IsNullOrEmpty(input) then None
+        if String.IsNullOrEmpty input then None
         else
-            let chars = input.ToLowerInvariant().ToCharArray() |> Array.toList
+            let resolved = ModifierRules.resolveInlineModifiers input
+            let lower = resolved.ToLowerInvariant()
+            
+            // 1. Tách phụ âm đầu (Initial Consonant)
+            let initialConsonants = [
+                "ngh"; "ng"; "nh"; "ch"; "gh"; "gi"; "kh"; "ph"; "qu"; "th"; "tr";
+                "b"; "c"; "d"; "đ"; "g"; "h"; "k"; "l"; "m"; "n"; "p"; "r"; "s"; "t"; "v"; "x"
+            ]
+            let initial =
+                initialConsonants
+                |> List.tryFind (fun ic -> lower.StartsWith ic)
+                |> Option.defaultValue ""
 
-            // 1. Tách phụ âm đầu (Tìm prefix dài nhất khớp phụ âm hợp lệ)
-            let rec extractInitial acc remaining =
-                match remaining with
-                | [] -> (acc, [])
-                | c :: rest ->
-                    if isVowel c then (acc, remaining)
-                    else extractInitial (acc + string c) rest
-
-            let initialRaw, afterInitial = extractInitial "" chars
-
-            // Xử lý đặc biệt cho 'qu' và 'gi'
-            let initial, afterInitialFixed =
-                if initialRaw = "q" && afterInitial.Length > 0 && afterInitial.Head = 'u' && afterInitial.Tail.Length > 0 && isVowel afterInitial.Tail.Head then
-                    ("qu", afterInitial.Tail)
-                elif initialRaw = "g" && afterInitial.Length > 0 && afterInitial.Head = 'i' && afterInitial.Tail.Length > 0 && isVowel afterInitial.Tail.Head then
-                    ("gi", afterInitial.Tail)
-                else
-                    (initialRaw, afterInitial)
-
-            // Kiểm tra phụ âm đầu có hợp lệ không
-            let isInitialValid = 
-                String.IsNullOrEmpty(initial) || ValidInitialConsonants.Contains(initial)
-
-            if not isInitialValid then None
+            let afterInitial = lower[initial.Length..]
+            if String.IsNullOrEmpty afterInitial then
+                // Chỉ có phụ âm đầu mà không có nguyên âm -> Không phải âm tiết tiếng Việt hợp lệ
+                None
             else
-                // 2. Tách cụm nguyên âm hạt nhân
-                let rec extractVowels acc remaining =
-                    match remaining with
-                    | [] -> (acc, [])
-                    | c :: rest ->
-                        if isVowel c then extractVowels (acc + string c) rest
-                        else (acc, remaining)
+                // 2. Tách phụ âm cuối (Final Consonant)
+                let finalConsonants = [
+                    "ch"; "nh"; "ng"; "c"; "m"; "n"; "p"; "t"
+                ]
+                let final =
+                    finalConsonants
+                    |> List.tryFind (fun fc -> afterInitial.EndsWith fc)
+                    |> Option.defaultValue ""
 
-                let vowelsRaw, afterVowels = extractVowels "" afterInitialFixed
-
-                if String.IsNullOrEmpty(vowelsRaw) then None
+                let vowelsRaw = afterInitial[0 .. afterInitial.Length - 1 - final.Length]
+                
+                if String.IsNullOrEmpty vowelsRaw then None
                 else
-                    // 3. Tách phụ âm cuối
-                    let final = String(Array.ofList afterVowels)
-                    let isFinalValid = 
-                        String.IsNullOrEmpty(final) || ValidFinalConsonants.Contains(final)
+                    // Kiểm tra tất cả ký tự trong vowelsRaw có phải nguyên âm tiếng Việt hợp lệ không
+                    let allVowelsValid =
+                        vowelsRaw.ToCharArray()
+                        |> Array.forall isVowel
 
-                    if not isFinalValid then None
+                    if not allVowelsValid then None
                     else
-                        // Trích xuất Tone và Modifiers hiện tại từ cụm nguyên âm
-                        let mutable currentTone = Tone.None
-                        let mutable mods = []
-
-                        for c in vowelsRaw do
-                            let _, m, t = decomposeChar c
-                            if t <> Tone.None then currentTone <- t
-                            if m <> Modifier.None then mods <- (c, m) :: mods
+                        // Trích xuất Tone hiện tại nếu có trong nguyên âm
+                        let detectedTone =
+                            vowelsRaw.ToCharArray()
+                            |> Array.tryPick (fun c ->
+                                let _, _, t = decomposeChar c
+                                if t <> Tone.None then Some t else None
+                            )
+                            |> Option.defaultValue Tone.None
 
                         Some {
-                            InitialConsonant = initial
+                            InitialConsonant = if initial.Length > 0 then resolved[0..initial.Length - 1] else ""
                             VowelNucleus = vowelsRaw
-                            FinalConsonant = final
-                            Tone = currentTone
-                            Modifiers = mods
+                            FinalConsonant = if final.Length > 0 then resolved[resolved.Length - final.Length..] else ""
+                            Tone = detectedTone
+                            Modifiers = []
                         }

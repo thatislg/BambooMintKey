@@ -24,6 +24,9 @@
     <Compile Include="TonePlacementTests.fs" />
     <Compile Include="RestoreAndUndoTests.fs" />
     <Compile Include="EnglishFallbackTests.fs" />
+    <Compile Include="SyllableParserTests.fs" />
+    <Compile Include="EngineLifecycleTests.fs" />
+    <Compile Include="UnicodeAndBufferTests.fs" />
   </ItemGroup>
 
 </Project>

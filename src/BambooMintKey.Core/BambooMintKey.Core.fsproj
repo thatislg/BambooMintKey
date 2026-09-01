@@ -9,8 +9,8 @@
     <Compile Include="Domain\Types.fs" />
     <Compile Include="Domain\EngineConfig.fs" />
     <Compile Include="Domain\UnicodeTables.fs" />
-    <Compile Include="Engine\SyllableParser.fs" />
     <Compile Include="Engine\ModifierRules.fs" />
+    <Compile Include="Engine\SyllableParser.fs" />
     <Compile Include="Engine\ToneRules.fs" />
     <Compile Include="Engine\WordBuffer.fs" />
     <Compile Include="Engine\TelexEngine.fs" />

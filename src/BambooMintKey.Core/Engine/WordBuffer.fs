@@ -1,42 +1,42 @@
-module BambooMintKey.Core.Engine.WordBuffer
+namespace BambooMintKey.Core.Engine
 
 open System
+open BambooMintKey.Core.Domain
 open BambooMintKey.Core.Domain.Types
 
 module WordBuffer =
 
-    /// Xác định kiểu viết hoa/viết thường từ chuỗi phím thô
-    let detectCase (rawChars: char list) : LetterCase =
-        match rawChars with
-        | [] -> LetterCase.Lower
-        | [ c ] when Char.IsUpper(c) -> LetterCase.Title
-        | chars ->
-            let isAllUpper = chars |> List.forall Char.IsUpper
-            let isAllLower = chars |> List.forall Char.IsLower
-            let isTitle = Char.IsUpper(chars.Head) && (chars.Tail |> List.forall Char.IsLower)
+    let detectCase (rawKeys: char list) : LetterCase =
+        if rawKeys.IsEmpty then LetterCase.Lower
+        else
+            let letters = rawKeys |> List.filter Char.IsLetter
+            if letters.IsEmpty then LetterCase.Lower
+            elif letters |> List.forall Char.IsUpper then LetterCase.Upper
+            elif Char.IsUpper letters.Head && (letters.Tail |> List.forall Char.IsLower) then LetterCase.Title
+            elif letters |> List.forall Char.IsLower then LetterCase.Lower
+            else
+                LetterCase.Mixed (rawKeys |> List.map Char.IsUpper)
 
-            if isAllUpper then LetterCase.Upper
-            elif isAllLower then LetterCase.Lower
-            elif isTitle then LetterCase.Title
-            else LetterCase.Mixed (chars |> List.map Char.IsUpper)
-
-    /// Áp dụng định dạng viết hoa/thường lên chuỗi kết quả đã biến đổi
-    let applyCase (letterCase: LetterCase) (text: string) : string =
-        if String.IsNullOrEmpty(text) then text
+    let applyCase (letterCase: LetterCase) (transformed: string) : string =
+        if String.IsNullOrEmpty transformed then transformed
         else
             match letterCase with
-            | LetterCase.Lower -> text.ToLowerInvariant()
-            | LetterCase.Upper -> text.ToUpperInvariant()
+            | LetterCase.Lower -> transformed.ToLowerInvariant()
+            | LetterCase.Upper -> transformed.ToUpperInvariant()
             | LetterCase.Title ->
-                let first = Char.ToUpperInvariant(text[0])
-                let rest = if text.Length > 1 then text.Substring(1).ToLowerInvariant() else ""
-                string first + rest
-            | LetterCase.Mixed masks ->
-                let chars = text.ToCharArray()
-                let applied =
-                    chars
-                    |> Array.mapi (fun i c ->
-                        if i < masks.Length && masks[i] then Char.ToUpperInvariant(c)
-                        else Char.ToLowerInvariant(c)
-                    )
-                String(applied)
+                if transformed.Length = 1 then transformed.ToUpperInvariant()
+                else
+                    string (Char.ToUpperInvariant transformed[0]) + transformed[1..].ToLowerInvariant()
+            | LetterCase.Mixed pattern ->
+                let chars = transformed.ToCharArray()
+                let len = chars.Length
+                for i = 0 to min (len - 1) (pattern.Length - 1) do
+                    if pattern[i] then
+                        chars[i] <- Char.ToUpperInvariant chars[i]
+                    else
+                        chars[i] <- Char.ToLowerInvariant chars[i]
+                
+                // Nếu có phụ âm cuối viết hoa trước phím dấu thanh (ví dụ vIeeTj -> vIệT)
+                if len > 0 && pattern.Length >= 2 && pattern[pattern.Length - 2] && not pattern[pattern.Length - 1] then
+                    chars[len - 1] <- Char.ToUpperInvariant chars[len - 1]
+                String chars
