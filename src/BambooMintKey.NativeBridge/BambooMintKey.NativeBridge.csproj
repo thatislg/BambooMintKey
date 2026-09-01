@@ -1,14 +1,26 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!-- NativeAOT configuration for in-process COM server -->
+    <PublishAot>true</PublishAot>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>BambooMintKey</AssemblyName>
+    <NativeLib>Shared</NativeLib>
+
+    <!-- COM DLL metadata -->
+    <Product>BambooMintKey Vietnamese Input</Product>
+    <Description>NativeAOT TSF Text Input Processor (TIP) for Vietnamese Telex input</Description>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\BambooMintKey.Core\BambooMintKey.Core.fsproj" />
     <ProjectReference Include="..\BambooMintKey.Shared\BambooMintKey.Shared.fsproj" />
   </ItemGroup>
-
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
 
 </Project>

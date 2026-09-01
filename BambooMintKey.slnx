@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/BambooMintKey.Core/BambooMintKey.Core.fsproj" />
+    <Project Path="src/BambooMintKey.DevHarness/BambooMintKey.DevHarness.csproj" />
     <Project Path="src/BambooMintKey.NativeBridge/BambooMintKey.NativeBridge.csproj" />
     <Project Path="src/BambooMintKey.Shared/BambooMintKey.Shared.fsproj" />
     <Project Path="src/BambooMintKey.UI/BambooMintKey.UI.fsproj" />

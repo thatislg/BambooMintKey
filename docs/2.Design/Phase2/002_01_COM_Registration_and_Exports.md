@@ -30,6 +30,7 @@ C#
 ```c#
 namespace BambooMintKey.NativeBridge.Common;
 
+// Ở 1 file riêng
 public static class Guids
 {
     // CLSID của Text Service chính (BambooMintKey TIP)
@@ -50,6 +51,7 @@ public static class Guids
     public static readonly Guid IidITfTextInputProcessorEx = new("AABEC164-429C-4234-A75D-4E90B01D77D1");
 }
 
+// Ở 1 file riêng
 public static class Constants
 {
     public const ushort LangIdVietnamese = 0x042A; // Vietnamese (Vietnam)
