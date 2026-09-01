@@ -285,7 +285,7 @@ public static class ServerRegistrar
         // Lấy đúng đường dẫn thực của DLL hiện tại
         var dllPath = NativeMethods.GetCurrentDllPath();
 
-        if (string.IsNullOrEmpty(dllPath)) return HRESULT.E_FAIL;
+        if (string.IsNullOrEmpty(dllPath)) return HResult.Fail;
 
         // 1. Ghi Registry InprocServer32
         var clsidKeyPath = $@"CLSID\{{{Guids.TextServiceClsid}}}";
@@ -299,7 +299,7 @@ public static class ServerRegistrar
 
         // 2. Gọi TSF COM API để đăng ký Category & Profile
         var hr = TsfRegistration.RegisterProfiles(dllPath);
-        if (hr != HRESULT.S_OK) return hr;
+        if (hr != HResult.Ok) return hr;
 
         return TsfRegistration.RegisterCategories();
     }
@@ -314,7 +314,270 @@ public static class ServerRegistrar
         var clsidKeyPath = $@"CLSID\{{{Guids.TextServiceClsid}}}";
         Registry.ClassesRoot.DeleteSubKeyTree(clsidKeyPath, throwOnMissingSubKey: false);
 
-        return HRESULT.S_OK;
+        return HResult.Ok;
+    }
+}
+```
+
+### Mã nguồn `NativeMethods.cs`:
+
+`NativeMethods` cung cấp các P/Invoke cơ bản để COM server tự nhận diện đường dẫn DLL đang thực thi (`GetCurrentDllPath`) và tạo các đối tượng TSF COM (`CoCreateInstance`).
+
+```c#
+using System.Runtime.InteropServices;
+
+namespace BambooMintKey.NativeBridge.Interop;
+
+public static class NativeMethods
+{
+    private const uint GetModuleHandleExFlagFromAddress = 0x00000004;
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern bool GetModuleHandleExW(
+        uint dwFlags,
+        IntPtr lpModuleName,
+        out IntPtr phModule);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern uint GetModuleFileNameW(
+        IntPtr hModule,
+        [Out] char[] lpFilename,
+        uint nSize);
+
+    [DllImport("ole32.dll", ExactSpelling = true)]
+    public static extern int CoCreateInstance(
+        in Guid rclsid,
+        IntPtr pUnkOuter,
+        uint dwClsContext,
+        in Guid riid,
+        out IntPtr ppv);
+
+    /// <summary>
+    /// Lấy đường dẫn tuyệt đối của file DLL hiện tại đang thực thi trong bộ nhớ.
+    /// </summary>
+    public static string GetCurrentDllPath()
+    {
+        // Dùng một con trỏ hàm trong chính assembly này để tìm Module Handle của DLL
+        var dummyDelegate = (Action)DummyMethod;
+        IntPtr functionPtr = Marshal.GetFunctionPointerForDelegate(dummyDelegate);
+        if (!GetModuleHandleExW(GetModuleHandleExFlagFromAddress, functionPtr, out IntPtr hModule) || hModule == IntPtr.Zero)
+        {
+            return string.Empty;
+        }
+
+        char[] buffer = new char[260]; // MAX_PATH
+        uint length = GetModuleFileNameW(hModule, buffer, (uint)buffer.Length);
+
+        // Xử lý nếu đường dẫn dài hơn MAX_PATH
+        if (length >= buffer.Length)
+        {
+            buffer = new char[32768];
+            length = GetModuleFileNameW(hModule, buffer, (uint)buffer.Length);
+        }
+
+        GC.KeepAlive(dummyDelegate);
+        return length > 0 ? new string(buffer, 0, (int)length) : string.Empty;
+    }
+
+    private static void DummyMethod() { }
+}
+```
+
+> **Lưu ý khi sửa warning:**
+> - Giữ delegate `dummyDelegate` trong biến local và gọi `GC.KeepAlive(dummyDelegate)` để tránh cảnh báo *"Value assigned is not used in any execution path"* do delegate bị GC thu hồi sớm trước khi Win32 sử dụng.
+> - Không dùng `GCHandle.Alloc` rồi chỉ `Free` mà không sử dụng giá trị, vì analyzer sẽ báo biến không được dùng.
+
+### Mã nguồn `TsfRegistration.cs`:
+
+`TsfRegistration` thực hiện các cuộc gọi COM thủ công tới `ITfInputProcessorProfiles` và `ITfCategoryMgr` thông qua VTable. Theo quy ước đặt tên .NET, các struct VTable **bỏ tiền tố `I`** để tránh cảnh báo *"Name does not match rule 'Types and namespaces'"*.
+
+```c#
+using System.Runtime.InteropServices;
+using BambooMintKey.NativeBridge.Common;
+
+namespace BambooMintKey.NativeBridge.Interop;
+
+// VTable định nghĩa cho ITfInputProcessorProfiles
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct TfInputProcessorProfilesVTable
+{
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint> AddRef;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint> Release;
+
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, int> Register;
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, int> Unregister;
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, ushort, Guid*, char*, int, char*, int, uint, int> AddLanguageProfile;
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, ushort, Guid*, int> RemoveLanguageProfile;
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, ushort, Guid*, int, int> EnableLanguageProfile;
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, ushort, Guid*, int*, int> IsEnabledLanguageProfile;
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, ushort, Guid*, int, int> EnableLanguageProfileByDefault;
+}
+
+// VTable định nghĩa cho ITfCategoryMgr
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct TfCategoryMgrVTable
+{
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint> AddRef;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint> Release;
+
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, Guid*, Guid*, int> RegisterCategory;
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, Guid*, Guid*, int> UnregisterCategory;
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> EnumCategoriesInItem;
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> EnumItemsInCategory;
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, Guid*, IntPtr*, int> FindClosestCategory;
+    public delegate* unmanaged[Stdcall]<IntPtr, char*, uint*, int> RegisterGUIDDescription;
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, int> UnregisterGUIDDescription;
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, char**, int> GetGUIDDescription;
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, uint*, int> RegisterGUID;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint, Guid*, int> GetGUID;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint, uint, int> RegisterGUIDDWORD;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint, uint*, int> GetGUIDDWORD;
+}
+
+public static unsafe class TsfRegistration
+{
+    // CLSIDs chuẩn của Windows TSF COM Manager
+    private static readonly Guid ClsidTfInputProcessorProfiles = new("33C53824-660F-457B-8B3E-5F4A9D87AC47");
+    private static readonly Guid IidITfInputProcessorProfiles = new("1F02B6C5-7842-4EE6-8A0B-9A24183A95CA");
+
+    private static readonly Guid ClsidTfCategoryMgr = new("A4B54FC0-ACAA-49FB-BB87-4EB0260080F6");
+    private static readonly Guid IidITfCategoryMgr = new("C3ECEE2E-1C3D-4E3B-9A4D-0B86E03471AC");
+
+    private const uint ClsCtxInprocServer = 0x1;
+
+    public static int RegisterProfiles(string dllPath)
+    {
+        int hr = NativeMethods.CoCreateInstance(
+            ClsidTfInputProcessorProfiles,
+            IntPtr.Zero,
+            ClsCtxInprocServer,
+            IidITfInputProcessorProfiles,
+            out IntPtr pProfiles);
+
+        if (!HResult.Succeeded(hr) || pProfiles == IntPtr.Zero) return hr;
+
+        var vtable = *(TfInputProcessorProfilesVTable**)pProfiles;
+        try
+        {
+            Guid clsid = Guids.TextServiceClsid;
+            Guid profileGuid = Guids.ProfileGuid;
+
+            hr = vtable->Register(pProfiles, &clsid);
+            if (!HResult.Succeeded(hr)) return hr;
+
+            fixed (char* pDesc = Constants.TextServiceName)
+            fixed (char* pIconFile = dllPath)
+            {
+                hr = vtable->AddLanguageProfile(
+                    pProfiles,
+                    &clsid,
+                    Constants.LangIdVietnamese,
+                    &profileGuid,
+                    pDesc,
+                    Constants.TextServiceName.Length,
+                    pIconFile,
+                    dllPath.Length,
+                    0);
+            }
+
+            if (!HResult.Succeeded(hr)) return hr;
+
+            vtable->EnableLanguageProfileByDefault(
+                pProfiles, &clsid, Constants.LangIdVietnamese, &profileGuid, 1);
+
+            return HResult.Ok;
+        }
+        finally
+        {
+            vtable->Release(pProfiles);
+        }
+    }
+
+    public static int UnregisterProfiles()
+    {
+        int hr = NativeMethods.CoCreateInstance(
+            ClsidTfInputProcessorProfiles,
+            IntPtr.Zero,
+            ClsCtxInprocServer,
+            IidITfInputProcessorProfiles,
+            out IntPtr pProfiles);
+
+        if (!HResult.Succeeded(hr) || pProfiles == IntPtr.Zero) return hr;
+
+        var vtable = *(TfInputProcessorProfilesVTable**)pProfiles;
+        try
+        {
+            Guid clsid = Guids.TextServiceClsid;
+            Guid profileGuid = Guids.ProfileGuid;
+
+            vtable->RemoveLanguageProfile(pProfiles, &clsid, Constants.LangIdVietnamese, &profileGuid);
+            vtable->Unregister(pProfiles, &clsid);
+            return HResult.Ok;
+        }
+        finally
+        {
+            vtable->Release(pProfiles);
+        }
+    }
+
+    public static int RegisterCategories()
+    {
+        int hr = NativeMethods.CoCreateInstance(
+            ClsidTfCategoryMgr,
+            IntPtr.Zero,
+            ClsCtxInprocServer,
+            IidITfCategoryMgr,
+            out IntPtr pCatMgr);
+
+        if (!HResult.Succeeded(hr) || pCatMgr == IntPtr.Zero) return hr;
+
+        var vtable = *(TfCategoryMgrVTable**)pCatMgr;
+        try
+        {
+            Guid clsid = Guids.TextServiceClsid;
+            Guid catTip = Guids.GuidTfCategoryTipKeyboard;
+            Guid catDisplay = Guids.GuidTfCategoryDisplayAttributeProvider;
+
+            vtable->RegisterCategory(pCatMgr, &clsid, &catTip, &clsid);
+            vtable->RegisterCategory(pCatMgr, &clsid, &catDisplay, &clsid);
+
+            return HResult.Ok;
+        }
+        finally
+        {
+            vtable->Release(pCatMgr);
+        }
+    }
+
+    public static int UnregisterCategories()
+    {
+        int hr = NativeMethods.CoCreateInstance(
+            ClsidTfCategoryMgr,
+            IntPtr.Zero,
+            ClsCtxInprocServer,
+            IidITfCategoryMgr,
+            out IntPtr pCatMgr);
+
+        if (!HResult.Succeeded(hr) || pCatMgr == IntPtr.Zero) return hr;
+
+        var vtable = *(TfCategoryMgrVTable**)pCatMgr;
+        try
+        {
+            Guid clsid = Guids.TextServiceClsid;
+            Guid catTip = Guids.GuidTfCategoryTipKeyboard;
+            Guid catDisplay = Guids.GuidTfCategoryDisplayAttributeProvider;
+
+            vtable->UnregisterCategory(pCatMgr, &clsid, &catTip, &clsid);
+            vtable->UnregisterCategory(pCatMgr, &clsid, &catDisplay, &clsid);
+
+            return HResult.Ok;
+        }
+        finally
+        {
+            vtable->Release(pCatMgr);
+        }
     }
 }
 ```

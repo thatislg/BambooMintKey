@@ -19,7 +19,7 @@ public static unsafe class Exports
         }
 
         var factory = TextServiceClassFactory.GetInstance();
-        var punk = *(IClassFactoryVTable**)factory;
+        var punk = *(ClassFactoryVTable**)factory;
         return punk->QueryInterface(factory, riid, ppv);
     }
 
