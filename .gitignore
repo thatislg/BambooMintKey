@@ -1,0 +1,33 @@
+## .NET & Build Outputs
+bin/
+obj/
+publish/
+*.aot.json
+
+## NativeAOT Compilation Artifacts
+*.exp
+*.lib
+*.ilk
+*.map
+*.pdb
+
+## JetBrains Rider & Visual Studio
+.idea/
+*.sln.iml
+.vs/
+*.user
+*.userosscache
+*.suo
+
+## OS Generated Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+## Logs, Crash Dumps & Temp Files
+*.log
+*.tmp
+*.dmp
+_ReSharper*/

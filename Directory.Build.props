@@ -1,0 +1,14 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    
+    <!-- Thông tin bản quyền & Metadata -->
+    <Company>BambooMintKey</Company>
+    <Authors>BambooMintKey Contributors</Authors>
+    <Product>BambooMintKey Vietnamese Input</Product>
+    <Copyright>Copyright © 2026</Copyright>
+  </PropertyGroup>
+</Project>
