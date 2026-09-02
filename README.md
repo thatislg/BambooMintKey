@@ -10,6 +10,8 @@
 
 BambooMintKey là một Text Input Processor (TIP) viết bằng .NET 10 + NativeAOT, chạy như một In-Process COM Server bên trong tiến trình ứng dụng đích. Dự án kết hợp lõi xử lý ngôn ngữ thuần chức năng (F#) với lớp cầu nối hệ thống Windows (C# NativeAOT) để mang lại trải nghiệm gõ tiếng Việt nhẹ, nhanh và tương thích rộng.
 
+![Demo gõ tiếng Việt với BambooMintKey](DemoBogo.gif)
+
 ---
 
 ## Tính Năng
