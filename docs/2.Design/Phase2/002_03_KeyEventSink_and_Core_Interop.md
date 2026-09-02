@@ -1,3 +1,9 @@
+<!--
+  BambooMintKey - Vietnamese Telex Input Method Editor for Windows
+  Copyright (c) 2026 Dương Gia Long and LMO contributors
+  SPDX-License-Identifier: MIT
+-->
+
 # Thiết Kế Chi Tiết: Đánh Chặn Phím Hệ Thống & Cầu Nối F# TelexEngine
 
 **Mã tài liệu:** `002_03_KeyEventSink_and_Core_Interop`
@@ -10,7 +16,9 @@
 
   
 
-**Trạng thái:** Sẵn sàng thực thi (Ready for Implementation)
+**Trạng thái:** ✅ Hoàn thành (Closed)
+
+> **Lưu ý:** Tài liệu này phản ánh thiết kế xử lý phím. Code triển khai cuối cùng nằm trong `src/BambooMintKey.NativeBridge/TSF/KeyEventSinkImpl.cs`, `KeyEventSinkHelper.cs` và `Interop/KeyInputTranslator.cs`.
 
 ## 1. Mục Tiêu Kỹ Thuật
 

@@ -1,3 +1,9 @@
+<!--
+  BambooMintKey - Vietnamese Telex Input Method Editor for Windows
+  Copyright (c) 2026 Dương Gia Long and LMO contributors
+  SPDX-License-Identifier: MIT
+-->
+
 Dưới đây là tài liệu thiết kế chi tiết đầu tiên theo đúng danh mục: **`002_01_COM_Registration_and_Exports.md`**.  
 
 # Thiết Kế Chi Tiết: Đăng Ký COM, Xuất Hàm C-ABI & TSF Category Manager
@@ -12,7 +18,9 @@ Dưới đây là tài liệu thiết kế chi tiết đầu tiên theo đúng d
 
   
 
-**Trạng thái:** Sẵn sàng thực thi (Ready for Implementation)
+**Trạng thái:** ✅ Hoàn thành (Closed)
+
+> **Lưu ý cập nhật theo code hiện tại:** Các đoạn mã chi tiết trong tài liệu này phản ánh thiết kế ban đầu. Trong quá trình triển khai thực tế, một số chi tiết đã được điều chỉnh để BambooMintKey đăng ký thành công trên Windows TSF. Các điểm điều chỉnh quan trọng được tổng hợp trong phần "Cập nhật theo triển khai thực tế" ở cuối tài liệu.
 
 ## 1. Mục Tiêu Kỹ Thuật
 
@@ -619,7 +627,7 @@ src/BambooMintKey.NativeBridge/
 ├── BambooMintKey.NativeBridge.csproj
 ├── Exports.cs                     # 4 điểm nhập chuẩn C-ABI ([UnmanagedCallersOnly])
 ├── Common/
-│   ├── Guids.cs                   # Định nghĩa CLSID, Profile GUID, Category GUID
+│   ├── Guids.cs                   # Định nghĩa CLSID, Profile GUID, Category GUID, IID TSF
 │   ├── Constants.cs               # Ngôn ngữ 0x042A, ThreadingModel, Tên hiển thị
 │   └── HResult.cs                 # Mã lỗi chuẩn HRESULT (S_OK, E_POINTER,...)
 ├── COM/
@@ -628,6 +636,61 @@ src/BambooMintKey.NativeBridge/
 │   └── ServerRegistrar.cs         # Đăng ký Registry & TSF Category
 └── Interop/
     ├── NativeMethods.cs           # P/Invoke Win32 GetModuleFileName
-    └── TsfRegistration.cs         # ITfInputProcessorProfiles & ITfCategoryMgr COM call
+    ├── NativeCom.cs               # Helpers AddRef/Release qua vtable
+    └── TsfRegistration.cs         # Đăng ký TSF: COM API + registry fallback
 ```
+
+---
+
+## 7. Cập Nhật Theo Triển Khai Thực Tế
+
+Trong quá trình phát triển Phase 2, một số chi tiết trong tài liệu thiết kế ban đầu đã được điều chỉnh để BambooMintKey đăng ký thành công trên Windows TSF:
+
+### 7.1. GUID Interface TSF Theo Windows SDK
+
+GUID của các interface TSF (`ITfTextInputProcessorEx`, `ITfTextInputProcessor`, `ITfThreadMgrEventSink`, `ITfEditSession`) đã được cập nhật đúng theo file `C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\um\msctf.idl`, thay vì copy từ các nguồn thứ cấp. Ví dụ:
+
+| Interface | GUID đúng |
+|-----------|-----------|
+| `ITfTextInputProcessorEx` | `6E4E2102-F9CD-433D-B496-303CE03A6507` |
+| `ITfTextInputProcessor` | `AA80E7F7-2021-11D2-93E0-0060B067B86E` |
+| `ITfThreadMgrEventSink` | `AA80E80E-2021-11D2-93E0-0060B067B86E` |
+
+### 7.2. Registry Fallback Khi COM API TSF Không Khả Dụng
+
+Trên một số bản Windows 10 Home Core, `CoCreateInstance` cho `ITfInputProcessorProfiles` (`{33C53824-660F-457B-8B3E-5F4A9D87AC47}`) và `ITfCategoryMgr` (`{A4B54FC0-ACAA-49FB-BB87-4EB0260080F6}`) trả về `0x80040154` (`REGDB_E_CLASSNOTREG`). Do đó, `TsfRegistration.cs` triển khai **registry fallback**, ghi trực tiếp vào `HKLM\SOFTWARE\Microsoft\CTF\TIP\{CLSID}`.
+
+### 7.3. Cấu Trúc Registry Category Chuẩn
+
+Cấu trúc category trong registry được sửa để khớp chuẩn TSF:
+
+```
+HKLM\SOFTWARE\Microsoft\CTF\TIP\{CLSID}\Category\Category\{34745C63-B2F0-4784-8B67-5E12C8701A31}
+HKLM\SOFTWARE\Microsoft\CTF\TIP\{CLSID}\Category\Category\{35E7A704-438C-4235-96BC-4A6361C31595}
+HKLM\SOFTWARE\Microsoft\CTF\TIP\{CLSID}\Category\Item\{CLSID}
+```
+
+### 7.4. Giá Trị Language Profile Đầy Đủ
+
+Language Profile key bao gồm đầy đủ các giá trị để Windows Settings hiển thị và giữ lại TIP:
+
+```
+HKLM\SOFTWARE\Microsoft\CTF\TIP\{CLSID}\LanguageProfile\0x0000042A\{ProfileGuid}
+    (Default)            : BambooMintKey Vietnamese Input
+    Description          : BambooMintKey Vietnamese Input
+    Display Description  : BambooMintKey Vietnamese Input
+    Enable               : 1
+    IconFile             : D:\...\publish\win-x64\BambooMintKey.dll
+    IconIndex            : 0
+```
+
+Thiếu `Description` / `Display Description` là nguyên nhân chính khiến TIP bị Windows tự động loại bỏ khi thêm từ Settings.
+
+### 7.5. Xác Định Đường Dẫn DLL Trong NativeAOT
+
+`Marshal.GetFunctionPointerForDelegate` không đảm bảo trả về địa chỉ nằm trong DLL publish. `ServerRegistrar.GetDllPath()` sử dụng địa chỉ của hàm export `[UnmanagedCallersOnly]` (`Exports.DllRegisterServer`) để xác định chính xác đường dẫn `BambooMintKey.dll`.
+
+### 7.6. Quy Trình Đăng Ký & Kích Hoạt Chuẩn
+
+Xem tài liệu tổng kết [002_06_Closure.md](002_06_Closure.md) để có quy trình đăng ký (admin) và kích hoạt (user) chi tiết nhất.
 

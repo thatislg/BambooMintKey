@@ -1,3 +1,9 @@
+<!--
+  BambooMintKey - Vietnamese Telex Input Method Editor for Windows
+  Copyright (c) 2026 Dương Gia Long and LMO contributors
+  SPDX-License-Identifier: MIT
+-->
+
 # Thiết Kế Chi Tiết: Công Cụ Kiểm Thử Dev Harness & Script Tự Động Đăng Ký TSF
 
 **Mã tài liệu:** `002_05_DevHarness_and_RegistrationScript`
@@ -8,7 +14,9 @@
 
 **Thuộc module:** `BambooMintKey.DevHarness` & `scripts/`
 
-**Trạng thái:** Sẵn sàng thực thi (Ready for Implementation)
+**Trạng thái:** ✅ Hoàn thành (Closed)
+
+> **Lưu ý cập nhật theo code hiện tại:** Danh sách script đã thay đổi trong quá trình phát triển. Xem phần "Cập nhật theo triển khai thực tế" ở cuối tài liệu để biết danh sách script hiện tại.
 
 ## 1. Mục Tiêu Kỹ Thuật
 
@@ -386,3 +394,41 @@ BambooMintKey/
 ```
 
 Toàn bộ 5 tài liệu thiết kế kỹ thuật của **Phase 2 (Windows TSF & NativeAOT Integration)** đã được hoàn thiện đầy đủ.
+
+---
+
+## 5. Cập Nhật Theo Triển Khai Thực Tế
+
+### 5.1. Danh Sách Script Hiện Tại
+
+Trong quá trình phát triển, danh sách script đã được điều chỉnh:
+
+| Script | Mục Đích | Quyền |
+|--------|----------|-------|
+| `scripts/build-native.ps1` | Publish NativeAOT DLL | User |
+| `scripts/test-register.ps1` | Đăng ký COM + TSF, tạo registry HKLM | Administrator |
+| `scripts/unregister-tip.ps1` | Gỡ đăng ký COM + TSF | Administrator |
+| `scripts/enable-tip.ps1` | Kích hoạt TIP cho user hiện tại, thêm vào language list | User |
+| `scripts/debug-cocreate.ps1` | Kiểm tra `CoCreateInstance` + `QueryInterface` từ PowerShell | User |
+| `scripts/add-license-headers.ps1` | Thêm license header MIT vào source files | User |
+
+Script `register-tip.ps1` đã được thay thế bằng `test-register.ps1` để phân biệt rõ chức năng test/đăng ký.
+
+### 5.2. Quy Trình Đăng Ký Chuẩn
+
+```powershell
+# 1. Publish (User)
+.\scripts\build-native.ps1
+
+# 2. Đăng ký (Administrator)
+pwsh -File scripts/test-register.ps1
+
+# 3. Kích hoạt cho user hiện tại (User)
+pwsh -File scripts/enable-tip.ps1
+
+# 4. Restart ctfmon
+Stop-Process -Name ctfmon -Force -ErrorAction SilentlyContinue
+Start-Process ctfmon
+```
+
+Xem thêm chi tiết tại [002_06_Closure.md](002_06_Closure.md).

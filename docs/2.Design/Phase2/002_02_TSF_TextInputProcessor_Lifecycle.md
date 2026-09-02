@@ -1,3 +1,9 @@
+<!--
+  BambooMintKey - Vietnamese Telex Input Method Editor for Windows
+  Copyright (c) 2026 Dương Gia Long and LMO contributors
+  SPDX-License-Identifier: MIT
+-->
+
 # Thiết Kế Chi Tiết: Quản Lý Vòng Đời TSF Text Input Processor
 
 **Mã tài liệu:** `002_02_TSF_TextInputProcessor_Lifecycle`
@@ -10,7 +16,9 @@
 
   
 
-**Trạng thái:** Sẵn sàng thực thi (Ready for Implementation)
+**Trạng thái:** ✅ Hoàn thành (Closed)
+
+> **Lưu ý:** Tài liệu này phản ánh thiết kế vòng đời TIP. Code triển khai cuối cùng nằm trong `src/BambooMintKey.NativeBridge/TSF/BambooMintKeyTextService.cs` và đã được tích hợp thành công với Windows TSF.
 
 ## 1. Mục Tiêu Kỹ Thuật
 

@@ -1,3 +1,9 @@
+<!--
+  BambooMintKey - Vietnamese Telex Input Method Editor for Windows
+  Copyright (c) 2026 Dương Gia Long and LMO contributors
+  SPDX-License-Identifier: MIT
+-->
+
 # Thiết Kế Chi Tiết: Quản Lý Phiên Gõ TSF Composition, Text Range & Display Attribute
 
 **Mã tài liệu:** `002_04_Composition_and_TextRange`
@@ -10,7 +16,9 @@
 
   
 
-**Trạng thái:** Sẵn sàng thực thi (Ready for Implementation)
+**Trạng thái:** ✅ Hoàn thành (Closed)
+
+> **Lưu ý:** Tài liệu này phản ánh thiết kế composition và text range. Code triển khai cuối cùng nằm trong `src/BambooMintKey.NativeBridge/TSF/CompositionManager.cs`, `TextEditSession.cs`, `TsfSelectionHelper.cs` và `DisplayAttributeHelper.cs`.
 
 ## 1. Mục Tiêu Kỹ Thuật
 

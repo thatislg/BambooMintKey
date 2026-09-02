@@ -1,7 +1,13 @@
+<!--
+  BambooMintKey - Vietnamese Telex Input Method Editor for Windows
+  Copyright (c) 2026 Dương Gia Long and LMO contributors
+  SPDX-License-Identifier: MIT
+-->
+
 # Thiết Kế Tổng Quan Kiến Trúc: C# NativeBridge & Windows TSF Integration
 **Mã tài liệu:** `002_00_Overview_Architecture`  
 **Giai đoạn:** Phase 2 - Tích hợp Hệ Điều Hành (Windows TSF & NativeAOT)  
-**Trạng thái:** Bản thảo kỹ thuật (Draft)
+**Trạng thái:** ✅ Hoàn thành (Closed)
 
 ---
 
@@ -14,7 +20,7 @@ Theo lộ trình phát triển [002_Roadmap.md](file:///D:/Kojin/BambooMintKey/d
   - Xuất hiện trên thanh chuyển đổi ngôn ngữ Windows (`Language Bar` / `Win + Space`).
 - **Gõ trực tiếp không cần giả lập Backspace (Direct Inline Replacement):**
   - Chặn phím mức hệ thống qua `ITfKeyEventSink`.
-  - Gọi trực tiếp vào F# Pure Engine trong cùng không gian bộ nhớ tiến trình (In-Memory Fast Call $\approx 0$ms).
+  - Gọi trực tiếp vào F# Pure Engine trong cùng không gian bộ nhớ tiến trình (In-Memory Fast Call ≈ 0ms).
   - Quản lý phiên gõ tạm `ITfComposition` và cập nhật văn bản nguyên tử qua `ITfRange::SetText`.
 
 ---
@@ -60,13 +66,14 @@ Theo lộ trình phát triển [002_Roadmap.md](file:///D:/Kojin/BambooMintKey/d
 
 ## 3. Danh Mục Các Tài Liệu Thiết Kế Chi Tiết (Phase 2 Design Index)
 
-| Mã Tài Liệu | Tên Tài Liệu | Nội Dung Trọng Tâm |
-| :--- | :--- | :--- |
-| **002_01** | `002_01_COM_Registration_and_Exports.md` | Xuất hàm C-ABI, tạo ClassFactory, đăng ký Registry và TSF Category/Language Profile |
-| **002_02** | `002_02_TSF_TextInputProcessor_Lifecycle.md` | Vòng đời Text Service (`ActivateEx`, `Deactivate`), quản lý ThreadMgr & Client ID |
-| **002_03** | `002_03_KeyEventSink_and_Core_Interop.md` | Đánh chặn phím (`ITfKeyEventSink`), nuốt phím (`pfEaten`), gọi vào F# `TelexEngine` |
-| **002_04** | `002_04_Composition_and_TextRange.md` | Khởi tạo/kết thúc `ITfComposition`, thao tác `ITfRange`, vẽ gạch chân `DisplayAttribute` |
-| **002_05** | `002_05_DevHarness_and_RegistrationScript.md` | Chương trình Console Dev Harness kiểm thử trước khi inject & Script PowerShell đăng ký TIP |
+| Mã Tài Liệu | Tên Tài Liệu | Nội Dung Trọng Tâm | Trạng Thái |
+| :--- | :--- | :--- | :--- |
+| **002_01** | `002_01_COM_Registration_and_Exports.md` | Xuất hàm C-ABI, tạo ClassFactory, đăng ký Registry và TSF Category/Language Profile | ✅ |
+| **002_02** | `002_02_TSF_TextInputProcessor_Lifecycle.md` | Vòng đời Text Service (`ActivateEx`, `Deactivate`), quản lý ThreadMgr & Client ID | ✅ |
+| **002_03** | `002_03_KeyEventSink_and_Core_Interop.md` | Đánh chặn phím (`ITfKeyEventSink`), nuốt phím (`pfEaten`), gọi vào F# `TelexEngine` | ✅ |
+| **002_04** | `002_04_Composition_and_TextRange.md` | Khởi tạo/kết thúc `ITfComposition`, thao tác `ITfRange`, vẽ gạch chân `DisplayAttribute` | ✅ |
+| **002_05** | `002_05_DevHarness_and_RegistrationScript.md` | Chương trình Console Dev Harness kiểm thử trước khi inject & Script PowerShell đăng ký TIP | ✅ |
+| **002_06** | `002_06_Closure.md` | Tổng kết Phase 2: các vấn đề đã gặp, cách khắc phục, trạng thái cuối cùng | ✅ |
 
 ---
 
@@ -75,3 +82,5 @@ Theo lộ trình phát triển [002_Roadmap.md](file:///D:/Kojin/BambooMintKey/d
 1. **Build NativeAOT thành công:** `dotnet publish -c Release -r win-x64` sinh ra file `BambooMintKey.dll` độc lập.
 2. **Đăng ký TSF thành công:** Chạy script đăng ký xuất hiện biểu tượng **BambooMintKey Vietnamese Input (VIE)** trên Taskbar / thanh chuyển đổi `Win + Space`.
 3. **Gõ thực tế hoàn chỉnh:** Kích hoạt bộ gõ và gõ được đầy đủ tiếng Việt có dấu (`việt`, `tiếng`, `trường`, `hoàng`) trên **Notepad**, **Microsoft Word**, và **Google Chrome** mà không bị lỗi nuốt chữ, mất dấu hay xung đột con trỏ.
+
+**Trạng thái DoD:** Đã đạt trong quá trình phát triển giai đoạn 2. Mọi lỗi đã được ghi nhận và khắc phục trong `002_06_Closure.md`.

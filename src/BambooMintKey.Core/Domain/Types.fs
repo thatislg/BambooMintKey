@@ -1,3 +1,6 @@
+// BambooMintKey - Vietnamese Telex Input Method Editor for Windows
+// Copyright (c) 2026 Dương Gia Long and LMO contributors
+// SPDX-License-Identifier: MIT
 module BambooMintKey.Core.Domain.Types
 
 // Biểu diễn 5 dấu thanh trong tiếng Việt + Thanh ngang (None)
