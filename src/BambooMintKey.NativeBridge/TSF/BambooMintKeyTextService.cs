@@ -228,7 +228,11 @@ public unsafe class BambooMintKeyTextService
         BridgeStateManager.InitializeEngine();
 
         // 5. Đăng ký Language Bar Item Button vào Taskbar
-        LangBarItemButton.Register(pThreadMgr);
+        LangBarItemButton.Register(pThreadMgr, tfClientId);
+
+        // 6. Đồng bộ trạng thái Input Mode Compartment với Windows Shell Taskbar
+        TsfCompartmentHelper.SetConversionMode(pThreadMgr, tfClientId, BridgeStateManager.IsVietnameseMode);
+
         DebugLog.Write("ActivateExImpl completed");
 
         return HResult.Ok;

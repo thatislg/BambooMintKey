@@ -65,6 +65,10 @@ public static unsafe class SharedMemoryManager
     public static extern bool SetEvent(IntPtr hEvent);
 
     [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool ResetEvent(IntPtr hEvent);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
     public static extern uint WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
 
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
@@ -146,13 +150,14 @@ public static unsafe class SharedMemoryManager
                             _pShared[2] = 1; // AutoRestoreEnglishWords
                             _pShared[3] = 1; // AllowRepeatKeyUndo
                             _pShared[4] = 0; // AllowLeadingWAsU
+                            *(uint*)(_pShared + 8) = 1; // StateSequence ban đầu
                         }
                     }
                 }
 
                 if (_hEvent == IntPtr.Zero)
                 {
-                    _hEvent = CreateEventW(pSaPtr, false /* AutoReset */, false, EventName);
+                    _hEvent = CreateEventW(pSaPtr, true /* ManualReset */, false, EventName);
                 }
             }
             finally
@@ -175,12 +180,32 @@ public static unsafe class SharedMemoryManager
         }
     }
 
+    /// <summary>Số đếm phiên bản trạng thái (Sequence Number) để các tiến trình phát hiện thay đổi.</summary>
+    public static uint StateSequence
+    {
+        get
+        {
+            EnsureInitialized();
+            if (_pShared != null)
+            {
+                return *(uint*)(_pShared + 8);
+            }
+            return 0;
+        }
+    }
+
     /// <summary>Phát tín hiệu cho tất cả tiến trình khác biết cấu hình đã thay đổi.</summary>
     public static void SignalStateChanged()
     {
+        if (_pShared != null)
+        {
+            System.Threading.Interlocked.Increment(ref *(int*)(_pShared + 8));
+        }
         if (_hEvent != IntPtr.Zero)
         {
+            // Đánh thức TẤT CẢ các tiến trình đang chờ đợi (Manual-Reset Broadcast)
             SetEvent(_hEvent);
+            ResetEvent(_hEvent);
         }
     }
 

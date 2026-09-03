@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 using System;
 using System.Runtime.InteropServices;
+using System.Text;
 using BambooMintKey.NativeBridge.Interop;
 
 namespace BambooMintKey.NativeBridge.TSF;
@@ -51,9 +52,24 @@ public static class IconHelper
     /// <summary>Chữ trắng ngà (#fbf8f9 -> RGB 251, 248, 249 -> BGR 0x00F9F8FB).</summary>
     public const uint ColorText = 0x00F9F8FB;
 
+    /// <summary>Đếm số lần tạo HICON để debug leak / race condition.</summary>
+    public static long CreationCount = 0;
+
+    /// <summary>Số lần tạo HICON thất bại (trả về NULL).</summary>
+    public static long FailureCount = 0;
+
+    /// <summary>Lỗi Win32 lần thất bại gần nhất.</summary>
+    public static int LastWin32Error = 0;
+
     // =========================================================================
     // Win32 GDI & User32 P/Invoke
     // =========================================================================
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetLastError();
+
+    [DllImport("kernel32.dll")]
+    private static extern void SetLastError(uint dwErrCode);
 
     [DllImport("user32.dll", ExactSpelling = true)]
     private static extern int GetSystemMetrics(int nIndex);
@@ -113,6 +129,15 @@ public static class IconHelper
     [DllImport("user32.dll", ExactSpelling = true, SetLastError = true)]
     public static extern bool DestroyIcon(IntPtr hIcon);
 
+    [DllImport("user32.dll", ExactSpelling = true, SetLastError = true)]
+    public static extern IntPtr CopyIcon(IntPtr hIcon);
+
+    private static IntPtr _cachedIconV = IntPtr.Zero;
+    private static IntPtr _cachedIconE = IntPtr.Zero;
+    private static int _cachedWidth = 0;
+    private static int _cachedHeight = 0;
+    private static readonly object _cacheLock = new();
+
     [StructLayout(LayoutKind.Sequential)]
     private struct ICONINFO
     {
@@ -136,12 +161,52 @@ public static class IconHelper
     }
 
     /// <summary>
+    /// Cung cấp một bản sao HICON độc lập cho Windows Taskbar từ cache tĩnh.
+    /// Tránh cấp phát GDI liên tục và triệt tiêu flicker.
+    /// </summary>
+    public static IntPtr GetBambooIconHandle(string text)
+    {
+        var (w, h) = GetTrayIconMetrics();
+        lock (_cacheLock)
+        {
+            if (_cachedIconV == IntPtr.Zero || _cachedIconE == IntPtr.Zero || _cachedWidth != w || _cachedHeight != h)
+            {
+                if (_cachedIconV != IntPtr.Zero) DestroyIcon(_cachedIconV);
+                if (_cachedIconE != IntPtr.Zero) DestroyIcon(_cachedIconE);
+
+                _cachedIconV = CreateBambooIcon("V", w, h);
+                _cachedIconE = CreateBambooIcon("E", w, h);
+                _cachedWidth = w;
+                _cachedHeight = h;
+            }
+
+            IntPtr source = (text == "V") ? _cachedIconV : _cachedIconE;
+            if (source != IntPtr.Zero)
+            {
+                IntPtr copy = CopyIcon(source);
+                if (copy != IntPtr.Zero)
+                {
+                    return copy;
+                }
+            }
+        }
+
+        return CreateBambooIcon(text, w, h);
+    }
+
+    /// <summary>
     /// Tạo một HICON động chứa ký tự text ("V" hoặc "E") với nền xanh lá bo góc BambooMintKey.
     /// </summary>
     /// <param name="text">Ký tự cần vẽ ("V" hoặc "E")</param>
+    /// <param name="width">Chiều rộng icon (0 = tự nhận theo DPI)</param>
+    /// <param name="height">Chiều cao icon (0 = tự nhận theo DPI)</param>
     /// <returns>IntPtr trỏ tới HICON hợp lệ (cần được giải phóng bằng DestroyIcon khi tắt app)</returns>
     public static IntPtr CreateBambooIcon(string text, int width = 0, int height = 0)
     {
+        long seq = System.Threading.Interlocked.Increment(ref CreationCount);
+        var sb = new StringBuilder();
+        sb.AppendLine($"[ICON {seq}] CreateBambooIcon ENTER text='{text}', requested={width}x{height}");
+
         if (width <= 0 || height <= 0)
         {
             var metrics = GetTrayIconMetrics();
@@ -150,8 +215,10 @@ public static class IconHelper
         }
 
         int cornerRadius = Math.Max(4, width / 4);
+        sb.AppendLine($"[ICON {seq}] Will draw at {width}x{height}, cornerRadius={cornerRadius}");
 
         IntPtr hScreenDC = GetDC(IntPtr.Zero);
+        sb.AppendLine($"[ICON {seq}] GetDC(0)={hScreenDC}");
 
         // ---------------------------------------------------------------------
         // 1. Tạo Color Bitmap (Nền xanh lá #16a34a, viền mint #86efac, chữ trắng)
@@ -159,12 +226,14 @@ public static class IconHelper
         IntPtr hColorDC = CreateCompatibleDC(hScreenDC);
         IntPtr hColorBmp = CreateCompatibleBitmap(hScreenDC, width, height);
         IntPtr hOldColorBmp = SelectObject(hColorDC, hColorBmp);
+        sb.AppendLine($"[ICON {seq}] Color DC={hColorDC}, BMP={hColorBmp}, OldBMP={hOldColorBmp}");
 
         // Tạo Brush nền xanh và Pen viền mint
         IntPtr hBrushBg = CreateSolidBrush(ColorBackground);
         IntPtr hPenBorder = CreatePen(0 /* PS_SOLID */, 1, ColorBorder);
         IntPtr hOldBrush = SelectObject(hColorDC, hBrushBg);
         IntPtr hOldPen = SelectObject(hColorDC, hPenBorder);
+        sb.AppendLine($"[ICON {seq}] BrushBg={hBrushBg}, PenBorder={hPenBorder}, OldBrush={hOldBrush}, OldPen={hOldPen}");
 
         // Vẽ hình chữ nhật bo góc
         RoundRect(hColorDC, 0, 0, width, height, cornerRadius, cornerRadius);
@@ -177,6 +246,7 @@ public static class IconHelper
             0, 0, 5 /* CLEARTYPE_QUALITY */,
             0, "Segoe UI");
         IntPtr hOldFont = SelectObject(hColorDC, hFont);
+        sb.AppendLine($"[ICON {seq}] Font={hFont}, OldFont={hOldFont}, fontHeight={fontHeight}");
 
         SetBkMode(hColorDC, BkModeTransparent);
         SetTextColor(hColorDC, ColorText);
@@ -190,12 +260,14 @@ public static class IconHelper
         IntPtr hMaskDC = CreateCompatibleDC(hScreenDC);
         IntPtr hMaskBmp = CreateBitmap(width, height, 1, 1, IntPtr.Zero);
         IntPtr hOldMaskBmp = SelectObject(hMaskDC, hMaskBmp);
+        sb.AppendLine($"[ICON {seq}] Mask DC={hMaskDC}, BMP={hMaskBmp}, OldBMP={hOldMaskBmp}");
 
         // Phủ toàn bộ Mask màu trắng (0x00FFFFFF -> Trong suốt hoàn toàn)
         IntPtr hBrushWhite = CreateSolidBrush(0x00FFFFFF);
         IntPtr hPenWhite = CreatePen(0, 1, 0x00FFFFFF);
         IntPtr hOldMaskBrush = SelectObject(hMaskDC, hBrushWhite);
         IntPtr hOldMaskPen = SelectObject(hMaskDC, hPenWhite);
+        sb.AppendLine($"[ICON {seq}] BrushWhite={hBrushWhite}, PenWhite={hPenWhite}, OldBrush={hOldMaskBrush}, OldPen={hOldMaskPen}");
         RoundRect(hMaskDC, -1, -1, width + 1, height + 1, 0, 0);
 
         // Vẽ hình chữ nhật bo góc màu đen (0x00000000 -> Đục/Hiển thị Color)
@@ -217,7 +289,16 @@ public static class IconHelper
             hbmColor = hColorBmp
         };
 
+        SetLastError(0);
         IntPtr hIcon = CreateIconIndirect(ref iconInfo);
+        uint err = GetLastError();
+        sb.AppendLine($"[ICON {seq}] CreateIconIndirect hIcon={hIcon}, GetLastError={err}");
+
+        if (hIcon == IntPtr.Zero)
+        {
+            System.Threading.Interlocked.Increment(ref FailureCount);
+            LastWin32Error = (int)err;
+        }
 
         // ---------------------------------------------------------------------
         // 4. Dọn dẹp tài nguyên trung gian (Tránh GDI Leak)
@@ -243,6 +324,9 @@ public static class IconHelper
         DeleteDC(hMaskDC);
 
         ReleaseDC(IntPtr.Zero, hScreenDC);
+
+        sb.AppendLine($"[ICON {seq}] CreateBambooIcon EXIT hIcon={hIcon}");
+        DebugLog.Write(sb.ToString());
 
         return hIcon;
     }

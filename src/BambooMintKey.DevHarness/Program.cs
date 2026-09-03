@@ -1,6 +1,9 @@
 // BambooMintKey - Vietnamese Telex Input Method Editor for Windows
 // Copyright (c) 2026 Dương Gia Long and LMO contributors
 // SPDX-License-Identifier: MIT
+using System;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using BambooMintKey.NativeBridge.COM;
 using BambooMintKey.NativeBridge.Common;
@@ -23,8 +26,81 @@ public unsafe class Program
     [DllImport("ole32.dll")]
     private static extern int CoCreateInstance(Guid* rclsid, IntPtr pUnkOuter, uint dwClsContext, Guid* riid, IntPtr* ppv);
 
-    [DllImport("ole32.dll")]
-    private static extern int CoInitialize(IntPtr pvReserved);
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool DestroyIcon(IntPtr hIcon);
+
+    [DllImport("user32.dll")]
+    private static extern int GetGuiResources(IntPtr hProcess, uint uiFlags);
+
+    private const uint GR_GDIOBJECTS = 0;
+    private const uint GR_USEROBJECTS = 1;
+
+    private static int GetGdiCount()
+    {
+        using var proc = Process.GetCurrentProcess();
+        return GetGuiResources(proc.Handle, GR_GDIOBJECTS);
+    }
+
+    private static void StressTestIconHelper()
+    {
+        Console.WriteLine("\n[STRESS] Bắt đầu stress test IconHelper...");
+        int initialGdi = GetGdiCount();
+        Console.WriteLine($"[STRESS] GDI objects ban đầu: {initialGdi}");
+
+        int failures = 0;
+        long startCount = IconHelper.CreationCount;
+
+        for (int i = 0; i < 500; i++)
+        {
+            string text = (i % 2 == 0) ? "V" : "E";
+            IntPtr hIcon = IconHelper.CreateBambooIcon(text);
+            if (hIcon == IntPtr.Zero)
+            {
+                failures++;
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"[STRESS] Lỗi tạo icon tại lần {i}: text={text}, LastWin32Error={IconHelper.LastWin32Error}");
+                Console.ResetColor();
+            }
+            else
+            {
+                DestroyIcon(hIcon);
+            }
+
+            if (i > 0 && i % 100 == 0)
+            {
+                int gdiNow = GetGdiCount();
+                Console.WriteLine($"[STRESS] Iteration {i}: GDI={gdiNow}, delta={gdiNow - initialGdi}, failures={failures}");
+            }
+        }
+
+        int finalGdi = GetGdiCount();
+        Console.WriteLine($"[STRESS] Hoàn tất 500 lần. GDI cuối: {finalGdi}, delta={finalGdi - initialGdi}, failures={failures}, totalCreated={IconHelper.CreationCount - startCount}");
+    }
+
+    private static void ParallelIconTest()
+    {
+        Console.WriteLine("\n[PARALLEL] Bắt đầu parallel IconHelper test...");
+        int initialGdi = GetGdiCount();
+        int failures = 0;
+        object failLock = new object();
+
+        System.Threading.Tasks.Parallel.For(0, 200, i =>
+        {
+            string text = (i % 2 == 0) ? "V" : "E";
+            IntPtr hIcon = IconHelper.CreateBambooIcon(text);
+            if (hIcon == IntPtr.Zero)
+            {
+                lock (failLock) failures++;
+            }
+            else
+            {
+                DestroyIcon(hIcon);
+            }
+        });
+
+        int finalGdi = GetGdiCount();
+        Console.WriteLine($"[PARALLEL] Hoàn tất 200 thread. GDI delta={finalGdi - initialGdi}, failures={failures}");
+    }
 
     private delegate int DllGetClassObjectDelegate(Guid* rclsid, Guid* riid, IntPtr* ppv);
 
@@ -287,6 +363,12 @@ public unsafe class Program
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine("[PASS] Milestone M2 (IconHelper & GetIcon) đạt tiêu chuẩn!");
             Console.ResetColor();
+
+            // 5.2 Stress test IconHelper
+            StressTestIconHelper();
+
+            // 5.3 Parallel test IconHelper
+            ParallelIconTest();
 
             // 6. Giải phóng COM Pointers
             serviceVTable->Release(pTextService);

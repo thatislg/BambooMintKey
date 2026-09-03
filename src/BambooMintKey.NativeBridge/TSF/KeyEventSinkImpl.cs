@@ -150,6 +150,11 @@ public static unsafe class KeyEventSinkImpl
         {
             bool newMode = BridgeStateManager.ToggleVietnameseMode();
             LangBarItemButton.NotifyStateChanged();
+            var target = BambooMintKeyTextService.GetTarget(thisPtr - (sizeof(IntPtr) * 2));
+            if (target != null && target.ThreadMgr != IntPtr.Zero)
+            {
+                TsfCompartmentHelper.SetConversionMode(target.ThreadMgr, target.ClientId, newMode);
+            }
             DebugLog.Write($"OnKeyDown ToggleHotkey triggered! New IsVietnameseMode={newMode}");
             *pfEaten = 1;
             return HResult.Ok;
@@ -234,6 +239,11 @@ public static unsafe class KeyEventSinkImpl
         {
             bool newMode = BridgeStateManager.ToggleVietnameseMode();
             LangBarItemButton.NotifyStateChanged();
+            var target = BambooMintKeyTextService.GetTarget(thisPtr - (sizeof(IntPtr) * 2));
+            if (target != null && target.ThreadMgr != IntPtr.Zero)
+            {
+                TsfCompartmentHelper.SetConversionMode(target.ThreadMgr, target.ClientId, newMode);
+            }
             DebugLog.Write($"OnPreservedKey Toggle triggered! New IsVietnameseMode={newMode}");
             *pfEaten = 1;
             return HResult.Ok;

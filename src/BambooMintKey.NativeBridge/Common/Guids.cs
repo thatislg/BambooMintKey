@@ -122,4 +122,24 @@ public static class Guids
 
     /// <summary>GUID định danh cho Preserved Key chuyển đổi chế độ V/E trong TSF.</summary>
     public static readonly Guid GuidPreservedKeyToggle = new("E58A4372-B147-49D6-8C45-76DF53E65B01");
+
+    // =========================================================================
+    // TSF Compartment GUIDs (Windows SDK msctf.h & ctffunc.h)
+    // =========================================================================
+
+    /// <summary>IID_ITfCompartmentMgr - Quản lý các compartment trong TSF.</summary>
+    /// <remarks>Lấy từ Windows SDK msctf.idl: uuid(7dcf57ac-18ad-438b-824d-979bffb74b7c).</remarks>
+    public static readonly Guid IidITfCompartmentMgr = new("7DCF57AC-18AD-438B-824D-979BFFB74B7C");
+
+    /// <summary>IID_ITfCompartment - Truy cập và gán giá trị một compartment cụ thể.</summary>
+    /// <remarks>Lấy từ Windows SDK msctf.idl: uuid(bb80d7d3-0144-42b3-8419-5a90924c7823).</remarks>
+    public static readonly Guid IidITfCompartment = new("BB80D7D3-0144-42B3-8419-5A90924C7823");
+
+    /// <summary>GUID_COMPARTMENT_KEYBOARD_INPUTMODE_CONVERSION - Trạng thái Conversion mode (V/E).</summary>
+    /// <remarks>Lấy từ Windows SDK ctffunc.h: uuid(ccf05dd7-4a87-11d7-a6e2-00065b84435c).</remarks>
+    public static readonly Guid GuidCompartmentKeyboardInputModeConversion = new("CCF05DD7-4A87-11D7-A6E2-00065B84435C");
+
+    /// <summary>GUID_COMPARTMENT_KEYBOARD_OPENCLOSE - Trạng thái Open/Close của bộ gõ.</summary>
+    /// <remarks>Lấy từ Windows SDK ctffunc.h: uuid(a3ce0321-4a8c-11d7-a6e2-00065b84435c).</remarks>
+    public static readonly Guid GuidCompartmentKeyboardOpenClose = new("A3CE0321-4A8C-11D7-A6E2-00065B84435C");
 }

@@ -1,6 +1,8 @@
 # 003_04_IconHelper_DynamicRendering.md
 
-> Tài liệu kỹ thuật chi tiết về cơ chế vẽ `HICON` động qua Win32 GDI trong bộ nhớ, tạo icon nền xanh lá bo góc mang nhận diện thương hiệu BambooMintKey, xử lý trong suốt (transparency mask), quản lý bộ nhớ đệm cache và tích hợp phím tắt chuyển chế độ (`Ctrl + Shift` / `Alt + Z`).
+> Tài liệu kỹ thuật chi tiết về cơ chế vẽ `HICON` động qua Win32 GDI trong bộ nhớ, tạo icon nền xanh lá bo góc mang nhận diện thương hiệu BambooMintKey, xử lý trong suốt (transparency mask), quản lý bộ nhớ đệm cache, đồng bộ trạng thái Taskbar qua TSF Compartment và phím tắt chuyển chế độ (`Ctrl + Shift + Q` / `Alt + Z`).
+> 
+> Đã triển khai theo: `003_09_IssuesSolution.md`, `009_10_DelayOnMouseChangeDelaySolution.md`.
 
 ---
 
@@ -16,18 +18,18 @@ Theo yêu cầu thiết kế và quy chuẩn từ các tài nguyên:
 * File gốc chữ **E**: [`src/media/bamboo_mint_key_ico_e.svg`](file:///D:/Kojin/BambooMintKey/src/media/bamboo_mint_key_ico_e.svg)
 
 Cả hai icon đều tuân theo hệ màu thương hiệu:
-* **Màu nền (Background):** Xanh lá cây Bamboo `#16a34a` (RGB: 22, 163, 74 $\rightarrow$ Win32 COLORREF: `0x004AA316`).
-* **Màu viền (Border):** Xanh mint nhạt `#86efac` (RGB: 134, 239, 172 $\rightarrow$ Win32 COLORREF: `0x00ACEF86`).
-* **Màu chữ (Text/Glyph):** Trắng ngà `#fbf8f9` (RGB: 251, 248, 249 $\rightarrow$ Win32 COLORREF: `0x00F9F8FB`).
+* **Màu nền (Background):** Xanh lá cây Bamboo `#16a34a` (RGB: 22, 163, 74 → Win32 COLORREF: `0x004AA316`).
+* **Màu viền (Border):** Xanh mint nhạt `#86efac` (RGB: 134, 239, 172 → Win32 COLORREF: `0x00ACEF86`).
+* **Màu chữ (Text/Glyph):** Trắng ngà `#fbf8f9` (RGB: 251, 248, 249 → Win32 COLORREF: `0x00F9F8FB`).
 * **Hình dạng:** Khung hình chữ nhật bo tròn 4 góc (Rounded Rectangle).
 
 ### 1.3. Cơ chế Khử Răng cưa & Độ trong suốt (Win32 Masking Architecture)
 Một Win32 `HICON` chuẩn được tạo thông qua `CreateIconIndirect` với cấu trúc `ICONINFO`:
 * `hbmColor`: Bitmap 32-bit màu RGB chứa hình vẽ nút (nền xanh `#16a34a`, viền mint `#86efac`, chữ trắng đậm).
 * `hbmMask`: Bitmap đơn sắc 1-bit monochrome:
-  * Bit = `0` (Màu đen trong mask): **Opaque** $\rightarrow$ Điểm ảnh tương ứng trong `hbmColor` được vẽ đè lên màn hình.
-  * Bit = `1` (Màu trắng trong mask): **Transparent** $\rightarrow$ Điểm ảnh trên màn hình được giữ nguyên (trong suốt).
-* **Xử lý 4 góc bo tròn:** 
+  * Bit = `0` (Màu đen trong mask): **Opaque** → Điểm ảnh tương ứng trong `hbmColor` được vẽ đè lên màn hình.
+  * Bit = `1` (Màu trắng trong mask): **Transparent** → Điểm ảnh trên màn hình được giữ nguyên (trong suốt).
+* **Xử lý 4 góc bo tròn:**
   * Trong `hbmMask`, ta quét toàn bộ nền bằng màu trắng (`1` - trong suốt), sau đó vẽ một hình chữ nhật bo góc bằng màu đen (`0` - đục).
   * Nhờ vậy, 4 góc bên ngoài hình bo tròn sẽ hoàn toàn trong suốt, hiển thị liền mạch trên cả giao diện Taskbar Dark Theme lẫn Light Theme của Windows.
 
@@ -36,11 +38,17 @@ Thay vì cố định cứng 16x16 pixel (sẽ bị mờ hoặc vỡ nét trên 
 * `GetSystemMetrics(SmCxSmIcon = 49)` và `GetSystemMetrics(SmCySmIcon = 50)`.
 * Tự động tính toán kích cỡ font chữ và bán kính bo góc tỷ lệ theo kích thước DPI.
 
+### 1.5. Chiến lược Cache tĩnh + `CopyIcon`
+Thay vì tạo mới toàn bộ HICON mỗi lần Windows gọi `GetIcon` (gây áp lực GDI handle pool và flicker), giải pháp hiện tại:
+* Giữ sẵn **2 HICON mẫu** `_cachedIconV` và `_cachedIconE` theo DPI hiện tại.
+* Khi Windows gọi `GetIcon`, trả về `CopyIcon(_cachedIconX)` — bản sao độc lập mà Windows tự do `DestroyIcon`.
+* Cache chỉ được vẽ lại khi DPI thay đổi hoặc lần đầu gọi.
+
 ---
 
 ## 2. Đặc tả Chi tiết `IconHelper.cs`
 
-Tạo file mới tại `src/BambooMintKey.NativeBridge/TSF/IconHelper.cs`:
+Mã nguồn tại [`src/BambooMintKey.NativeBridge/TSF/IconHelper.cs`](file:///d:/Kojin/BambooMintKey/src/BambooMintKey.NativeBridge/TSF/IconHelper.cs):
 
 ```csharp
 // BambooMintKey - Vietnamese Telex Input Method Editor for Windows
@@ -48,6 +56,7 @@ Tạo file mới tại `src/BambooMintKey.NativeBridge/TSF/IconHelper.cs`:
 // SPDX-License-Identifier: MIT
 using System;
 using System.Runtime.InteropServices;
+using System.Text;
 using BambooMintKey.NativeBridge.Interop;
 
 namespace BambooMintKey.NativeBridge.TSF;
@@ -96,9 +105,24 @@ public static class IconHelper
     /// <summary>Chữ trắng ngà (#fbf8f9 -> RGB 251, 248, 249 -> BGR 0x00F9F8FB).</summary>
     public const uint ColorText = 0x00F9F8FB;
 
+    /// <summary>Đếm số lần tạo HICON để debug leak / race condition.</summary>
+    public static long CreationCount = 0;
+
+    /// <summary>Số lần tạo HICON thất bại (trả về NULL).</summary>
+    public static long FailureCount = 0;
+
+    /// <summary>Lỗi Win32 lần thất bại gần nhất.</summary>
+    public static int LastWin32Error = 0;
+
     // =========================================================================
     // Win32 GDI & User32 P/Invoke
     // =========================================================================
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetLastError();
+
+    [DllImport("kernel32.dll")]
+    private static extern void SetLastError(uint dwErrCode);
 
     [DllImport("user32.dll", ExactSpelling = true)]
     private static extern int GetSystemMetrics(int nIndex);
@@ -158,6 +182,15 @@ public static class IconHelper
     [DllImport("user32.dll", ExactSpelling = true, SetLastError = true)]
     public static extern bool DestroyIcon(IntPtr hIcon);
 
+    [DllImport("user32.dll", ExactSpelling = true, SetLastError = true)]
+    public static extern IntPtr CopyIcon(IntPtr hIcon);
+
+    private static IntPtr _cachedIconV = IntPtr.Zero;
+    private static IntPtr _cachedIconE = IntPtr.Zero;
+    private static int _cachedWidth = 0;
+    private static int _cachedHeight = 0;
+    private static readonly object _cacheLock = new();
+
     [StructLayout(LayoutKind.Sequential)]
     private struct ICONINFO
     {
@@ -181,14 +214,52 @@ public static class IconHelper
     }
 
     /// <summary>
+    /// Cung cấp một bản sao HICON độc lập cho Windows Taskbar từ cache tĩnh.
+    /// Tránh cấp phát GDI liên tục và triệt tiêu flicker.
+    /// </summary>
+    public static IntPtr GetBambooIconHandle(string text)
+    {
+        var (w, h) = GetTrayIconMetrics();
+        lock (_cacheLock)
+        {
+            if (_cachedIconV == IntPtr.Zero || _cachedIconE == IntPtr.Zero || _cachedWidth != w || _cachedHeight != h)
+            {
+                if (_cachedIconV != IntPtr.Zero) DestroyIcon(_cachedIconV);
+                if (_cachedIconE != IntPtr.Zero) DestroyIcon(_cachedIconE);
+
+                _cachedIconV = CreateBambooIcon("V", w, h);
+                _cachedIconE = CreateBambooIcon("E", w, h);
+                _cachedWidth = w;
+                _cachedHeight = h;
+            }
+
+            IntPtr source = (text == "V") ? _cachedIconV : _cachedIconE;
+            if (source != IntPtr.Zero)
+            {
+                IntPtr copy = CopyIcon(source);
+                if (copy != IntPtr.Zero)
+                {
+                    return copy;
+                }
+            }
+        }
+
+        return CreateBambooIcon(text, w, h);
+    }
+
+    /// <summary>
     /// Tạo một HICON động chứa ký tự text ("V" hoặc "E") với nền xanh lá bo góc BambooMintKey.
     /// </summary>
     /// <param name="text">Ký tự cần vẽ ("V" hoặc "E")</param>
-    /// <param name="width">Chiều rộng tùy chọn (mặc định 0 để tự lấy theo DPI)</param>
-    /// <param name="height">Chiều cao tùy chọn (mặc định 0 để tự lấy theo DPI)</param>
-    /// <returns>IntPtr trỏ tới HICON hợp lệ</returns>
+    /// <param name="width">Chiều rộng icon (0 = tự nhận theo DPI)</param>
+    /// <param name="height">Chiều cao icon (0 = tự nhận theo DPI)</param>
+    /// <returns>IntPtr trỏ tới HICON hợp lệ (cần được giải phóng bằng DestroyIcon khi tắt app)</returns>
     public static IntPtr CreateBambooIcon(string text, int width = 0, int height = 0)
     {
+        long seq = System.Threading.Interlocked.Increment(ref CreationCount);
+        var sb = new StringBuilder();
+        sb.AppendLine($"[ICON {seq}] CreateBambooIcon ENTER text='{text}', requested={width}x{height}");
+
         if (width <= 0 || height <= 0)
         {
             var metrics = GetTrayIconMetrics();
@@ -197,8 +268,10 @@ public static class IconHelper
         }
 
         int cornerRadius = Math.Max(4, width / 4);
+        sb.AppendLine($"[ICON {seq}] Will draw at {width}x{height}, cornerRadius={cornerRadius}");
 
         IntPtr hScreenDC = GetDC(IntPtr.Zero);
+        sb.AppendLine($"[ICON {seq}] GetDC(0)={hScreenDC}");
 
         // ---------------------------------------------------------------------
         // 1. Tạo Color Bitmap (Nền xanh lá #16a34a, viền mint #86efac, chữ trắng)
@@ -206,12 +279,14 @@ public static class IconHelper
         IntPtr hColorDC = CreateCompatibleDC(hScreenDC);
         IntPtr hColorBmp = CreateCompatibleBitmap(hScreenDC, width, height);
         IntPtr hOldColorBmp = SelectObject(hColorDC, hColorBmp);
+        sb.AppendLine($"[ICON {seq}] Color DC={hColorDC}, BMP={hColorBmp}, OldBMP={hOldColorBmp}");
 
         // Tạo Brush nền xanh và Pen viền mint
         IntPtr hBrushBg = CreateSolidBrush(ColorBackground);
         IntPtr hPenBorder = CreatePen(0 /* PS_SOLID */, 1, ColorBorder);
         IntPtr hOldBrush = SelectObject(hColorDC, hBrushBg);
         IntPtr hOldPen = SelectObject(hColorDC, hPenBorder);
+        sb.AppendLine($"[ICON {seq}] BrushBg={hBrushBg}, PenBorder={hPenBorder}, OldBrush={hOldBrush}, OldPen={hOldPen}");
 
         // Vẽ hình chữ nhật bo góc
         RoundRect(hColorDC, 0, 0, width, height, cornerRadius, cornerRadius);
@@ -224,6 +299,7 @@ public static class IconHelper
             0, 0, 5 /* CLEARTYPE_QUALITY */,
             0, "Segoe UI");
         IntPtr hOldFont = SelectObject(hColorDC, hFont);
+        sb.AppendLine($"[ICON {seq}] Font={hFont}, OldFont={hOldFont}, fontHeight={fontHeight}");
 
         SetBkMode(hColorDC, BkModeTransparent);
         SetTextColor(hColorDC, ColorText);
@@ -237,12 +313,14 @@ public static class IconHelper
         IntPtr hMaskDC = CreateCompatibleDC(hScreenDC);
         IntPtr hMaskBmp = CreateBitmap(width, height, 1, 1, IntPtr.Zero);
         IntPtr hOldMaskBmp = SelectObject(hMaskDC, hMaskBmp);
+        sb.AppendLine($"[ICON {seq}] Mask DC={hMaskDC}, BMP={hMaskBmp}, OldBMP={hOldMaskBmp}");
 
         // Phủ toàn bộ Mask màu trắng (0x00FFFFFF -> Trong suốt hoàn toàn)
         IntPtr hBrushWhite = CreateSolidBrush(0x00FFFFFF);
         IntPtr hPenWhite = CreatePen(0, 1, 0x00FFFFFF);
         IntPtr hOldMaskBrush = SelectObject(hMaskDC, hBrushWhite);
         IntPtr hOldMaskPen = SelectObject(hMaskDC, hPenWhite);
+        sb.AppendLine($"[ICON {seq}] BrushWhite={hBrushWhite}, PenWhite={hPenWhite}, OldBrush={hOldMaskBrush}, OldPen={hOldMaskPen}");
         RoundRect(hMaskDC, -1, -1, width + 1, height + 1, 0, 0);
 
         // Vẽ hình chữ nhật bo góc màu đen (0x00000000 -> Đục/Hiển thị Color)
@@ -264,7 +342,16 @@ public static class IconHelper
             hbmColor = hColorBmp
         };
 
+        SetLastError(0);
         IntPtr hIcon = CreateIconIndirect(ref iconInfo);
+        uint err = GetLastError();
+        sb.AppendLine($"[ICON {seq}] CreateIconIndirect hIcon={hIcon}, GetLastError={err}");
+
+        if (hIcon == IntPtr.Zero)
+        {
+            System.Threading.Interlocked.Increment(ref FailureCount);
+            LastWin32Error = (int)err;
+        }
 
         // ---------------------------------------------------------------------
         // 4. Dọn dẹp tài nguyên trung gian (Tránh GDI Leak)
@@ -291,6 +378,9 @@ public static class IconHelper
 
         ReleaseDC(IntPtr.Zero, hScreenDC);
 
+        sb.AppendLine($"[ICON {seq}] CreateBambooIcon EXIT hIcon={hIcon}");
+        DebugLog.Write(sb.ToString());
+
         return hIcon;
     }
 }
@@ -302,7 +392,42 @@ public static class IconHelper
 
 Mã nguồn tại [`src/BambooMintKey.NativeBridge/TSF/LangBarItemButton.cs`](file:///d:/Kojin/BambooMintKey/src/BambooMintKey.NativeBridge/TSF/LangBarItemButton.cs):
 
-### 3.1. Cung cấp Icon qua `ITfLangBarItemButton::GetIcon`
+### 3.1. Trường dữ liệu & Khởi tạo
+
+```csharp
+public static unsafe class LangBarItemButton
+{
+    private static ITfLangBarItemButtonVTable* _buttonVTable;
+    private static TfSourceVTable* _sourceVTable;
+    private static IntPtr _comInstance;
+
+    // Con trỏ tới ITfLangBarItemSink mà Windows cung cấp qua ITfSource::AdviseSink
+    private static volatile IntPtr _pLangBarSink = IntPtr.Zero;
+    private static uint _sinkCookie = 0;
+    private static IntPtr _langBarMgr = IntPtr.Zero;
+    private static readonly object _sinkLock = new();
+    private static IntPtr _pThreadMgr = IntPtr.Zero;
+    private static uint _clientId = 0;
+
+    private static bool _listenerStarted = false;
+
+    static LangBarItemButton()
+    {
+        InitializeVTables();
+
+        // Cấp phát vùng nhớ Native Layout kép (Slot 0: Button, Slot 1: Source)
+        var layout = (LangBarButtonNativeLayout*)NativeMemory.Alloc((nuint)sizeof(LangBarButtonNativeLayout));
+        layout->VTableButton = (IntPtr)_buttonVTable;
+        layout->VTableSource = (IntPtr)_sourceVTable;
+        _comInstance = (IntPtr)layout;
+    }
+
+    /// <summary>Con trỏ COM Instance của LangBarItemButton.</summary>
+    public static IntPtr Instance => _comInstance;
+}
+```
+
+### 3.2. Cung cấp Icon qua `ITfLangBarItemButton::GetIcon`
 
 ```csharp
 /// <summary>[WinSDK: ITfLangBarItemButton::GetIcon] - Cung cấp con trỏ HICON để Windows vẽ icon Taskbar.</summary>
@@ -311,68 +436,210 @@ private static int GetIcon(IntPtr thisPtr, IntPtr* phIcon)
 {
     if (phIcon == null) return HResult.InvalidArgument;
 
-    // Theo đặc tả Microsoft WinSDK cho ITfLangBarItemButton::GetIcon:
-    // "The caller is responsible for destroying this icon when it is no longer required."
+    // Cung cấp bản sao HICON độc lập từ cache tĩnh qua IconHelper.GetBambooIconHandle.
     // Windows Taskbar Shell sẽ tự động gọi DestroyIcon sau khi vẽ.
-    // Bắt buộc phải tạo HICON mới mỗi lần để tránh cung cấp handle đã bị hủy.
     string text = BridgeStateManager.IsVietnameseMode ? "V" : "E";
-    *phIcon = IconHelper.CreateBambooIcon(text);
-    DebugLog.Write($"LangBarItemButton.GetIcon: Created fresh HICON for '{text}' -> {*phIcon}");
+    DebugLog.Write($"LangBarItemButton.GetIcon ENTER requested='{text}', IsVietnameseMode={BridgeStateManager.IsVietnameseMode}, thread={Environment.CurrentManagedThreadId}");
+    *phIcon = IconHelper.GetBambooIconHandle(text);
+    DebugLog.Write($"LangBarItemButton.GetIcon EXIT text='{text}' -> {*phIcon}");
 
     return HResult.Ok;
 }
 ```
 
-### 3.2. Xử lý Sự kiện Click Chuột Trái (`OnClick`)
+### 3.3. Cấu hình Nút (`GetInfo`) dùng Toggle Button
+
+```csharp
+/// <summary>[WinSDK: ITfLangBarItem::GetInfo] - Cung cấp thông tin cấu hình nút cho Windows.</summary>
+[UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+private static int GetInfo(IntPtr thisPtr, TF_LANGBARITEMINFO* pInfo)
+{
+    if (pInfo == null) return HResult.InvalidArgument;
+
+    pInfo->clsidService = Guids.TextServiceClsid;
+    pInfo->guidItem = Guids.GuidLbiInputMode;
+    // Dùng TfLbiStyleBtnToggle | TfLbiStyleShownInTray để Taskbar xử lý đảo trạng thái hai chiều tức thì
+    pInfo->dwStyle = TsfLangBarFlags.TfLbiStyleBtnToggle |
+                     TsfLangBarFlags.TfLbiStyleShownInTray;
+    pInfo->ulSort = 0;
+
+    string desc = "BambooMintKey Mode";
+    fixed (char* src = desc)
+    {
+        for (int i = 0; i < desc.Length && i < 31; i++)
+        {
+            pInfo->szDescription[i] = src[i];
+        }
+        pInfo->szDescription[Math.Min(desc.Length, 31)] = '\0';
+    }
+
+    return HResult.Ok;
+}
+```
+
+### 3.4. Xử lý Sự kiện Click Chuột (`OnClick`)
 
 ```csharp
 /// <summary>[WinSDK: ITfLangBarItemButton::OnClick] - Xử lý sự kiện click chuột từ người dùng.</summary>
 [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
 private static int OnClick(IntPtr thisPtr, uint click, POINT pt, RECT* prcArea)
 {
-    DebugLog.Write($"LangBarItemButton OnClick received click={click}");
-    // Chỉ xử lý khi đúng là click chuột trái (TF_LBI_CLK_LEFT = 2)
-    if (click == TsfLangBarFlags.TfLbiClkLeft)
+    DebugLog.Write($"LangBarItemButton OnClick ENTER click={click}, thread={Environment.CurrentManagedThreadId}");
+    // Bắt mọi click chuột trái (hoặc bất kỳ click nào không phải chuột phải)
+    if (click != TsfLangBarFlags.TfLbiClkRight)
     {
         bool newMode = BridgeStateManager.ToggleVietnameseMode();
+
+        // 1. Gửi thông báo OnUpdate tới Sink để vẽ lại Icon ngay
         NotifyStateChanged();
-        DebugLog.Write($"LangBarItemButton OnClick toggled IsVietnameseMode={newMode}");
+
+        // 2. Đồng bộ lập tức tới TSF Input Mode Compartment của Windows 10/11 Shell
+        if (_pThreadMgr != IntPtr.Zero)
+        {
+            TsfCompartmentHelper.SetConversionMode(_pThreadMgr, _clientId, newMode);
+        }
+
+        DebugLog.Write($"LangBarItemButton OnClick toggled IsVietnameseMode={newMode} (Sink + Compartment synchronized)");
     }
+    DebugLog.Write($"LangBarItemButton OnClick EXIT click={click}");
     return HResult.Ok;
 }
 ```
 
-### 3.3. Đồng bộ Liên tiến trình qua `StartEventListener`
-
-Để khi một tiến trình ứng dụng thay đổi trạng thái (hoặc phím tắt được bấm ở bất kỳ ứng dụng nào), Taskbar Language Bar nhận diện và vẽ lại:
+### 3.5. Quản lý Sink An toàn (`AdviseSink` / `UnadviseSink`)
 
 ```csharp
-private static bool _listenerStarted = false;
+/// <summary>[WinSDK: ITfSource::AdviseSink] - Windows gọi để trao con trỏ ITfLangBarItemSink cho bộ gõ.</summary>
+[UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+private static int AdviseSink(IntPtr thisPtr, Guid* riid, IntPtr punk, uint* pdwCookie)
+{
+    DebugLog.Write($"LangBarItemButton.AdviseSink ENTER thisPtr={thisPtr}, punk={punk}, thread={Environment.CurrentManagedThreadId}");
+    if (riid == null || punk == IntPtr.Zero || pdwCookie == null)
+    {
+        DebugLog.Write("LangBarItemButton.AdviseSink invalid args");
+        return HResult.InvalidArgument;
+    }
 
+    DebugLog.Write($"LangBarItemButton.AdviseSink riid={*riid}");
+
+    if (*riid == Guids.IidITfLangBarItemSink)
+    {
+        Guid iidSink = Guids.IidITfLangBarItemSink;
+        IntPtr pSink = IntPtr.Zero;
+        var unk = *(TfSourceVTable**)punk;
+        int hrQi = unk->QueryInterface(punk, &iidSink, &pSink);
+        DebugLog.Write($"LangBarItemButton.AdviseSink QI ITfLangBarItemSink hr=0x{hrQi:X8}, pSink={pSink}");
+
+        if (hrQi == HResult.Ok && pSink != IntPtr.Zero)
+        {
+            lock (_sinkLock)
+            {
+                if (_pLangBarSink != IntPtr.Zero)
+                {
+                    NativeCom.Release(_pLangBarSink);
+                }
+                _pLangBarSink = pSink;
+                _sinkCookie = 1;
+                *pdwCookie = _sinkCookie;
+            }
+            DebugLog.Write($"LangBarItemButton.AdviseSink: ITfLangBarItemSink connected via QI pSink={pSink}");
+            return HResult.Ok;
+        }
+
+        *pdwCookie = 0;
+        DebugLog.Write($"LangBarItemButton.AdviseSink: QI ITfLangBarItemSink failed (0x{hrQi:X8})");
+        return hrQi != HResult.Ok ? hrQi : HResult.NoInterface;
+    }
+
+    *pdwCookie = 0;
+    DebugLog.Write($"LangBarItemButton.AdviseSink: unsupported riid={*riid}, returning E_INVALIDARG");
+    return HResult.InvalidArgument;
+}
+
+/// <summary>[WinSDK: ITfSource::UnadviseSink] - Windows gọi để hủy đăng ký Sink khi tắt ứng dụng hoặc gỡ nút.</summary>
+[UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+private static int UnadviseSink(IntPtr thisPtr, uint dwCookie)
+{
+    DebugLog.Write($"LangBarItemButton.UnadviseSink ENTER dwCookie={dwCookie}, _sinkCookie={_sinkCookie}, _pLangBarSink={_pLangBarSink}");
+    lock (_sinkLock)
+    {
+        if (dwCookie == _sinkCookie && _pLangBarSink != IntPtr.Zero)
+        {
+            NativeCom.Release(_pLangBarSink);
+            _pLangBarSink = IntPtr.Zero;
+            _sinkCookie = 0;
+            DebugLog.Write("LangBarItemButton.UnadviseSink: ITfLangBarItemSink disconnected");
+            return HResult.Ok;
+        }
+    }
+    DebugLog.Write("LangBarItemButton.UnadviseSink: cookie mismatch or no sink");
+    return HResult.InvalidArgument;
+}
+```
+
+### 3.6. Gửi Thông báo Cập nhật (`NotifyStateChanged`)
+
+```csharp
+public static void NotifyStateChanged()
+{
+    DebugLog.Write($"LangBarItemButton.NotifyStateChanged ENTER _pLangBarSink={_pLangBarSink}, thread={Environment.CurrentManagedThreadId}");
+    if (_pLangBarSink != IntPtr.Zero)
+    {
+        var sinkVTable = *(ITfLangBarItemSinkVTable**)_pLangBarSink;
+        // [WinSDK: ITfLangBarItemSink::OnUpdate]
+        int hr = sinkVTable->OnUpdate(
+            _pLangBarSink,
+            TsfLangBarFlags.TfLbiIcon | TsfLangBarFlags.TfLbiText | TsfLangBarFlags.TfLbiTooltip);
+        DebugLog.Write($"LangBarItemButton.NotifyStateChanged: OnUpdate sent to Windows Taskbar hr=0x{hr:X8}");
+    }
+    else
+    {
+        DebugLog.Write("LangBarItemButton.NotifyStateChanged: _pLangBarSink is NULL, cannot notify");
+    }
+}
+```
+
+### 3.7. Đồng bộ Liên tiến trình qua `StartEventListener`
+
+Background thread theo dõi `StateSequence` trong shared memory. Khi sequence tăng (bất kỳ tiến trình nào đổi mode), tiến trình hiện tại gọi `NotifyStateChanged()` nếu đang nắm Sink.
+
+```csharp
 private static void StartEventListener()
 {
     var thread = new System.Threading.Thread(() =>
     {
         IntPtr hEv = SharedMemoryManager.StateChangedEventHandle;
+        uint localSeq = SharedMemoryManager.StateSequence;
         bool lastMode = BridgeStateManager.IsVietnameseMode;
+        DebugLog.Write($"StartEventListener thread started. hEv={hEv}, initialMode={lastMode}, initialSeq={localSeq}, thread={Environment.CurrentManagedThreadId}");
 
         while (true)
         {
-            // Chờ event tối đa 100ms
+            // Chờ event Manual-Reset broadcast (timeout 250ms phòng trường hợp trễ)
             if (hEv != IntPtr.Zero)
             {
-                SharedMemoryManager.WaitForSingleObject(hEv, 100);
+                uint wr = SharedMemoryManager.WaitForSingleObject(hEv, 250);
+                if (wr != 0 /* WAIT_OBJECT_0 */ && wr != 258 /* WAIT_TIMEOUT */)
+                {
+                    DebugLog.Write($"StartEventListener WaitForSingleObject returned unexpected {wr}, exiting loop");
+                    break;
+                }
             }
             else
             {
-                System.Threading.Thread.Sleep(100);
+                System.Threading.Thread.Sleep(250);
             }
 
-            // Kiểm tra trạng thái thực tế trong Shared Memory để luôn đồng bộ Taskbar
+            // Kiểm tra StateSequence để phát hiện mọi thay đổi từ bất kỳ tiến trình nào
+            uint currentSeq = SharedMemoryManager.StateSequence;
             bool currentMode = BridgeStateManager.IsVietnameseMode;
-            if (currentMode != lastMode)
+
+            if (currentSeq != localSeq || currentMode != lastMode)
             {
+                DebugLog.Write($"StartEventListener detected change: seq {localSeq}->{currentSeq}, mode {lastMode}->{currentMode}");
+                localSeq = currentSeq;
                 lastMode = currentMode;
+
                 NotifyStateChanged();
             }
         }
@@ -385,13 +652,200 @@ private static void StartEventListener()
 }
 ```
 
+### 3.8. Đăng ký Nút Taskbar (`Register`)
+
+```csharp
+/// <summary>
+/// Đăng ký nút Language Bar vào hệ thống thông qua ITfLangBarItemMgr.
+/// </summary>
+public static void Register(IntPtr pThreadMgr, uint clientId = 0)
+{
+    if (pThreadMgr == IntPtr.Zero)
+    {
+        DebugLog.Write("LangBarItemButton.Register: pThreadMgr is NULL");
+        return;
+    }
+
+    _pThreadMgr = pThreadMgr;
+    _clientId = clientId;
+
+    if (!_listenerStarted)
+    {
+        _listenerStarted = true;
+        StartEventListener();
+    }
+
+    Guid iidMgr = Guids.IidITfLangBarItemMgr;
+    IntPtr pMgr = IntPtr.Zero;
+
+    var unk = *(TfSourceVTable**)pThreadMgr;
+    int hrQi = unk->QueryInterface(pThreadMgr, &iidMgr, &pMgr);
+    DebugLog.Write($"LangBarItemButton.Register QI ITfLangBarItemMgr hr=0x{hrQi:X8}, pMgr={pMgr}");
+
+    if (hrQi != HResult.Ok || pMgr == IntPtr.Zero)
+    {
+        // Fallback sang CoCreateInstance với CLSID_TF_LangBarItemMgr nếu pThreadMgr không hỗ trợ QI trực tiếp
+        Guid clsidMgr = Guids.ClsidTfLangBarItemMgr;
+        const uint CLSCTX_INPROC_SERVER = 1;
+        hrQi = NativeCom.CoCreateInstance(&clsidMgr, IntPtr.Zero, CLSCTX_INPROC_SERVER, &iidMgr, &pMgr);
+        DebugLog.Write($"LangBarItemButton.Register CoCreateInstance ITfLangBarItemMgr hr=0x{hrQi:X8}, pMgr={pMgr}");
+    }
+
+    if (pMgr != IntPtr.Zero)
+    {
+        _langBarMgr = pMgr;
+        var mgrVTable = *(ITfLangBarItemMgrVTable**)_langBarMgr;
+
+        // [WinSDK: ITfLangBarItemMgr::AddItem]
+        // Windows sẽ tự gọi QI(ITfSource) -> AdviseSink trên _comInstance để trao Sink
+        int hr = mgrVTable->AddItem(_langBarMgr, _comInstance);
+        DebugLog.Write($"LangBarItemButton.Register AddItem result=0x{hr:X8}");
+        NotifyStateChanged();
+    }
+    else
+    {
+        DebugLog.Write("LangBarItemButton.Register: Failed to obtain ITfLangBarItemMgr");
+    }
+}
+```
+
 ---
 
-## 4. Tích hợp Phím tắt Chuyển chế độ vào `KeyInputTranslator.cs` và `KeyEventSinkImpl.cs`
+## 4. Đồng bộ TSF Input Mode Compartment (`TsfCompartmentHelper.cs`)
+
+Mã nguồn tại [`src/BambooMintKey.NativeBridge/TSF/TsfCompartmentHelper.cs`](file:///d:/Kojin/BambooMintKey/src/BambooMintKey.NativeBridge/TSF/TsfCompartmentHelper.cs):
+
+```csharp
+// BambooMintKey - Vietnamese Telex Input Method Editor for Windows
+// Copyright (c) 2026 Dương Gia Long and LMO contributors
+// SPDX-License-Identifier: MIT
+using System;
+using System.Runtime.InteropServices;
+using BambooMintKey.NativeBridge.Common;
+using BambooMintKey.NativeBridge.Interop;
+
+namespace BambooMintKey.NativeBridge.TSF;
+
+/// <summary>
+/// Cấu trúc VARIANT Win32 dùng cho ITfCompartment::SetValue/GetValue.
+/// </summary>
+[StructLayout(LayoutKind.Explicit, Size = 24)]
+public struct VARIANT
+{
+    [FieldOffset(0)]
+    public ushort vt;
+    [FieldOffset(2)]
+    public ushort wReserved1;
+    [FieldOffset(4)]
+    public ushort wReserved2;
+    [FieldOffset(6)]
+    public ushort wReserved3;
+    [FieldOffset(8)]
+    public int lVal;
+    [FieldOffset(8)]
+    public IntPtr byref;
+}
+
+/// <summary>VTable cho ITfCompartmentMgr (msctf.h)</summary>
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct ITfCompartmentMgrVTable
+{
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint> AddRef;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint> Release;
+
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> GetCompartment;
+    public delegate* unmanaged[Stdcall]<IntPtr, IntPtr*, int> ClearCompartment;
+    public delegate* unmanaged[Stdcall]<IntPtr, IntPtr*, int> EnumCompartments;
+}
+
+/// <summary>VTable cho ITfCompartment (msctf.h)</summary>
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct ITfCompartmentVTable
+{
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint> AddRef;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint> Release;
+
+    public delegate* unmanaged[Stdcall]<IntPtr, uint, VARIANT*, int> SetValue;
+    public delegate* unmanaged[Stdcall]<IntPtr, VARIANT*, int> GetValue;
+}
+
+/// <summary>
+/// Trợ thủ đồng bộ trạng thái Input Mode Compartment với Windows 10/11 Taskbar Input Indicator.
+/// </summary>
+public static unsafe class TsfCompartmentHelper
+{
+    public const ushort VtI4 = 3;
+
+    /// <summary>
+    /// Đồng bộ chế độ gõ V (Conversion On = 1) hoặc E (Conversion Off = 0) vào Thread Manager Compartment.
+    /// </summary>
+    public static int SetConversionMode(IntPtr pThreadMgr, uint clientId, bool isVietnamese)
+    {
+        if (pThreadMgr == IntPtr.Zero) return HResult.InvalidArgument;
+
+        Guid iidCompMgr = Guids.IidITfCompartmentMgr;
+        IntPtr pCompMgr = IntPtr.Zero;
+
+        var unk = *(ITfCompartmentMgrVTable**)pThreadMgr;
+        int hr = unk->QueryInterface(pThreadMgr, &iidCompMgr, &pCompMgr);
+        if (hr != HResult.Ok || pCompMgr == IntPtr.Zero)
+        {
+            return hr;
+        }
+
+        try
+        {
+            var compMgrVTable = *(ITfCompartmentMgrVTable**)pCompMgr;
+            Guid guidConversion = Guids.GuidCompartmentKeyboardInputModeConversion;
+            IntPtr pComp = IntPtr.Zero;
+
+            hr = compMgrVTable->GetCompartment(pCompMgr, &guidConversion, &pComp);
+            if (hr != HResult.Ok || pComp == IntPtr.Zero)
+            {
+                return hr;
+            }
+
+            try
+            {
+                var compVTable = *(ITfCompartmentVTable**)pComp;
+                VARIANT varVal = new()
+                {
+                    vt = VtI4,
+                    lVal = isVietnamese ? 1 : 0
+                };
+                int setHr = compVTable->SetValue(pComp, clientId, &varVal);
+                DebugLog.Write($"TsfCompartmentHelper.SetConversionMode isVietnamese={isVietnamese}, hr=0x{setHr:X8}");
+                return setHr;
+            }
+            finally
+            {
+                NativeCom.Release(pComp);
+            }
+        }
+        finally
+        {
+            NativeCom.Release(pCompMgr);
+        }
+    }
+}
+```
+
+`GuidCompartmentKeyboardInputModeConversion` được khai báo trong `Guids.cs`:
+
+```csharp
+/// <summary>GUID_COMPARTMENT_KEYBOARD_INPUTMODE_CONVERSION - Trạng thái Conversion mode (V/E).</summary>
+public static readonly Guid GuidCompartmentKeyboardInputModeConversion = new("CCF05DD7-4A87-11D7-A6E2-00065B84435C");
+```
+
+---
+
+## 5. Tích hợp Phím tắt Chuyển chế độ vào `KeyInputTranslator.cs` và `KeyEventSinkImpl.cs`
 
 Mã nguồn hiện tại đã cập nhật phím tắt chính là **`Ctrl + Shift + Q`** (thay vì `Ctrl + Shift` để tránh trùng lặp với phím tắt mặc định chuyển ngôn ngữ của Windows), kèm phím tắt phụ **`Alt + Z`**.
 
-### 4.1. Mã nguồn Kiểm tra Phím tắt trong `KeyInputTranslator.cs`
+### 5.1. Mã nguồn Kiểm tra Phím tắt trong `KeyInputTranslator.cs`
 
 Mã nguồn tại [`src/BambooMintKey.NativeBridge/Interop/KeyInputTranslator.cs`](file:///d:/Kojin/BambooMintKey/src/BambooMintKey.NativeBridge/Interop/KeyInputTranslator.cs):
 
@@ -441,7 +895,7 @@ public static bool IsToggleHotkeyPressed(UIntPtr wParam, IntPtr lParam)
 }
 ```
 
-### 4.2. Mã nguồn Bắt Phím trong `KeyEventSinkImpl.cs`
+### 5.2. Mã nguồn Bắt Phím trong `KeyEventSinkImpl.cs`
 
 Mã nguồn tại [`src/BambooMintKey.NativeBridge/TSF/KeyEventSinkImpl.cs`](file:///d:/Kojin/BambooMintKey/src/BambooMintKey.NativeBridge/TSF/KeyEventSinkImpl.cs):
 
@@ -472,6 +926,11 @@ private static int OnKeyDown(IntPtr thisPtr, IntPtr pic, UIntPtr wParam, IntPtr 
     {
         bool newMode = BridgeStateManager.ToggleVietnameseMode();
         LangBarItemButton.NotifyStateChanged();
+        var target = BambooMintKeyTextService.GetTarget(thisPtr - (sizeof(IntPtr) * 2));
+        if (target != null && target.ThreadMgr != IntPtr.Zero)
+        {
+            TsfCompartmentHelper.SetConversionMode(target.ThreadMgr, target.ClientId, newMode);
+        }
         DebugLog.Write($"OnKeyDown ToggleHotkey triggered! New IsVietnameseMode={newMode}");
         *pfEaten = 1;
         return HResult.Ok;
@@ -480,7 +939,7 @@ private static int OnKeyDown(IntPtr thisPtr, IntPtr pic, UIntPtr wParam, IntPtr 
 }
 ```
 
-### 4.3. Bắt Phím tắt Chuẩn TSF qua `PreserveKey` và `OnPreservedKey`
+### 5.3. Bắt Phím tắt Chuẩn TSF qua `PreserveKey` và `OnPreservedKey`
 
 Để đảm bảo phím tắt hoạt động độc lập 100% không phụ thuộc vào trạng thái hàng đợi thông điệp của cửa sổ ứng dụng:
 1. Trong `KeyEventSinkHelper.cs`: Đăng ký các phím tắt (`Ctrl + Shift + Q`, `Alt + Z`, `Ctrl + Space`, `Ctrl + Shift` KeyUp) với `ITfKeystrokeMgr::PreserveKey`.
@@ -498,6 +957,11 @@ private static int OnPreservedKey(IntPtr thisPtr, IntPtr pic, Guid* rguid, int* 
     {
         bool newMode = BridgeStateManager.ToggleVietnameseMode();
         LangBarItemButton.NotifyStateChanged();
+        var target = BambooMintKeyTextService.GetTarget(thisPtr - (sizeof(IntPtr) * 2));
+        if (target != null && target.ThreadMgr != IntPtr.Zero)
+        {
+            TsfCompartmentHelper.SetConversionMode(target.ThreadMgr, target.ClientId, newMode);
+        }
         DebugLog.Write($"OnPreservedKey Toggle triggered! New IsVietnameseMode={newMode}");
         *pfEaten = 1;
         return HResult.Ok;
@@ -507,131 +971,48 @@ private static int OnPreservedKey(IntPtr thisPtr, IntPtr pic, Guid* rguid, int* 
 }
 ```
 
----
+### 5.4. Tích hợp vào Vòng đời TIP
 
-## 5. Phân tích Nguyên nhân & Cơ chế Lỗi Thực tế (Root Cause Analysis)
-
-Qua quá trình chạy kiểm thử thực tế và phân tích chi tiết log thời gian thực (`BambooMintKey_Runtime.log`), phát hiện hai nguyên nhân kỹ thuật cốt lõi sau:
-
-### 5.1. Nguyên nhân Lỗi 1: Click chuột trực tiếp vào Icon E/V thường chỉ đổi được đúng 1 lần
-
-#### Cơ chế của Windows TSF đối với `HICON`:
-* Theo quy định kỹ thuật của Microsoft Windows SDK cho interface `ITfLangBarItemButton::GetIcon`:
-  > *"phIcon: [out] Pointer to an HICON value that receives the icon handle. **The caller is responsible for destroying this icon when it is no longer required**."*
-* Shell của Windows (Taskbar Explorer) là bên gọi (`caller`). Sau khi nhận `HICON` và vẽ icon lên khay hệ thống, **Windows tự động gọi `DestroyIcon(hIcon)`** để giải phóng tài nguyên GDI.
-
-#### Nguyên nhân gây lỗi:
-1. Ban đầu ở trạng thái **V**: `GetIcon` cấp phát `_hIconV` (ví dụ con trỏ `0x1000`). Windows nhận `0x1000`, vẽ chữ V, sau đó Windows gọi `DestroyIcon(0x1000)`. Con trỏ `0x1000` **đã bị hủy hoàn toàn trong bảng GDI của Windows**!
-2. Người dùng click lần 1 (đổi sang **E**): `GetIcon` cấp phát `_hIconE` (ví dụ `0x2000`). Windows nhận `0x2000`, vẽ chữ E, sau đó gọi `DestroyIcon(0x2000)`.
-3. Người dùng click lần 2 (muốn đổi lại **V**): `GetIcon` thấy `_hIconV != IntPtr.Zero`, nên **trả lại con trỏ cũ `0x1000`**!
-4. Do `0x1000` đã bị Windows hủy ở bước 1, Windows gặp lỗi GDI Handle không hợp lệ (`ERROR_INVALID_HANDLE`) nên **không thể vẽ lại icon, icon bị đơ/đứng hình hoặc biến mất**!
-5. **Giải pháp khắc phục:** Không lưu cache vĩnh viễn con trỏ `HICON`. Mỗi lần Windows gọi `GetIcon`, hàm phải tạo mới một `HICON` tươi (`IconHelper.CreateBambooIcon(...)`) để trao quyền sở hữu cho Windows giải phóng, hoặc tạo bản sao độc lập.
-
----
-
-### 5.2. Nguyên nhân Lỗi 2: Phím tắt `Ctrl + Shift + Q` không đổi được E/V
-
-#### Phân tích luồng bắt phím từ Runtime Log:
-Log thực tế ghi nhận khi người dùng bấm `Ctrl + Shift + Q`:
-```text
-[15:10:31.221] OnKeyDown ENTER vk=17  (VK_CONTROL)
-[15:10:31.781] OnKeyDown ENTER vk=16  (VK_SHIFT)
-[15:10:31.956] OnKeyDown ENTER vk=81  (VK_Q)
-[15:10:31.957] RequestEdit: action=UpdateText, text=Q
-[15:10:31.964] OnKeyDown ProcessKey char=Q, text=Q
-```
-Khi mã phím `vk=81` ('Q') vào `OnKeyDown`, hệ thống gõ ra chữ **'Q'** thay vì kích hoạt phím tắt vì những lý do sau:
-
-1. **Trạng thái Modifier trong TSF Message Pump không đồng bộ:**
-   * `KeyInputTranslator` dùng `GetKeyState` và `GetAsyncKeyState`.
-   * `GetKeyState` kiểm tra trạng thái phím trong hàng đợi thông điệp (`message queue`) của thread hiện tại.
-   * `ToUnicode` tại thời điểm `vk=81` trả về ký tự in hoa `'Q'`. Điều này chứng minh tại thời điểm phím `Q` được gửi đến `OnKeyDown`, cờ `VK_CONTROL` trong thread message queue đã là `0` (không còn được tính là đang giữ `Ctrl`).
-2. **Xung đột phím hệ thống Windows (`Ctrl + Shift`):**
-   * Trong Windows 10 & 11, phím tắt mặc định toàn hệ thống để chuyển đổi ngôn ngữ nhập liệu (Input Language Switching) chính là **`Ctrl + Shift`** (hoặc `Left Alt + Shift`).
-   * Khi người dùng ấn giữ `Ctrl` rồi ấn tiếp `Shift`, Windows Shell lập tức đánh chặn tổ hợp này trước khi người dùng kịp ấn đến `Q`, khiến chuỗi trạng thái phím bị nuốt hoặc làm mất trạng thái modifier của thread.
-3. **Quy tắc nuốt phím của TSF (`OnTestKeyDown` -> `OnKeyDown`):**
-   * Trong Windows TSF, nếu `ITfKeyEventSink::OnTestKeyDown` trả về `*pfEaten = 0`, Windows coi như IME không xử lý phím đó và **sẽ không gọi `OnKeyDown`**, mà gửi thẳng `WM_KEYDOWN` đến ứng dụng.
-   * Khi đang ở chế độ Tiếng Anh (`E`), nếu `IsToggleHotkeyPressed` trả về `false` trong `OnTestKeyDown`, `*pfEaten` bị gán bằng `0`. Sau đó `OnKeyDown` không bao giờ được gọi nữa, khiến người dùng **không thể chuyển từ E ngược lại V**.
-4. **Giải pháp chuẩn TSF (Preserved Key):**
-   * Trong TSF, chuẩn để đăng ký phím tắt IME là dùng API **`ITfKeystrokeMgr::PreserveKey`** và callback **`ITfKeyEventSink::OnPreservedKey`**.
-   * Khi đăng ký qua `PreserveKey`, Windows TSF sẽ chịu trách nhiệm giám sát toàn cục tổ hợp phím và kích hoạt trực tiếp `OnPreservedKey`, khắc phục triệt để việc sai lệch trạng thái phím modifier do hàng đợi thông điệp.
-
----
-
-### 5.3. Nguyên nhân Lỗi 3: Icon hiển thị E nhưng vẫn gõ ra dấu tiếng Việt (Lệch pha giữa Icon và Bộ gõ)
-
-#### Cơ chế bảo mật Sandbox của Windows (Low Integrity & AppContainer):
-* Các ứng dụng hiện đại như **Google Chrome, Microsoft Edge, Electron (Antigravity IDE, VS Code, Discord, Slack)** và **UWP/XAML Input Host** chạy ở mức đặc quyền **Low Integrity** hoặc bên trong môi trường cách ly **AppContainer**.
-* Khi tạo Named File Mapping (`Local\BambooMintKey_SharedConfig_v1`) và Named Event với `lpFileMappingAttributes = IntPtr.Zero`, Windows gán DACL mặc định của tiến trình tạo (Medium Integrity).
-* Hậu quả: Khi ứng dụng sandbox/AppContainer cố gắng mở vùng nhớ dùng chung, Windows trả về mã lỗi **`ERROR_ACCESS_DENIED` (5)**. Con trỏ `_pShared` bị `null`, khiến ứng dụng đó luôn fallback về giá trị mặc định (`IsVietnameseMode = true`), hoàn toàn không thấy được lệnh chuyển sang `E` từ Taskbar!
-* Ngoài ra, trong `BridgeStateManager.ProcessKey`, tham số truyền vào hàm `TelexEngine.processKey` trước đây sử dụng trường tĩnh `_currentConfig` thay vì property `Config` có đồng bộ trạng thái.
-
-#### Giải pháp khắc phục:
-1. **Thiết lập Universal SDDL:** Sử dụng chuỗi SDDL chuẩn Win32:
-   ```csharp
-   "D:(A;;GA;;;WD)(A;;GA;;;AC)S:(ML;;NW;;;LW)"
-   ```
-   Cấp quyền `Generic All` cho Everyone (`WD`), ALL APPLICATION PACKAGES (`AC` - AppContainer) và gán nhãn toàn vẹn Low Integrity (`LW`). Nhờ đó, 100% ứng dụng sandbox đều có thể đọc/ghi vùng nhớ chia sẻ mà không bị Access Denied.
-2. **Fallback an toàn:** Khi `_pShared == null`, sử dụng biến tĩnh `_fallbackVietnameseMode` cho phép đảo trạng thái cục bộ thay vì cố định luôn là `true`.
-3. **Đồng bộ Config trong Engine:** Đổi tất cả các lệnh gọi `ProcessKey`, `ProcessBackspace`, `ProcessWordBreak` sang sử dụng trực tiếp `Config`.
-
-#### Mã nguồn tham chiếu `SharedMemoryManager.cs`
+Trong `BambooMintKeyTextService.ActivateExImpl`, sau khi đăng ký Language Bar Item, đồng bộ Compartment ngay lập tức:
 
 ```csharp
-// BambooMintKey - Vietnamese Telex Input Method Editor for Windows
-// Copyright (c) 2026 Dương Gia Long and LMO contributors
-// SPDX-License-Identifier: MIT
-using System;
-using System.Runtime.InteropServices;
+// 5. Đăng ký Language Bar Item Button vào Taskbar
+LangBarItemButton.Register(pThreadMgr, tfClientId);
 
-namespace BambooMintKey.NativeBridge.Common;
+// 6. Đồng bộ trạng thái Input Mode Compartment với Windows Shell Taskbar
+TsfCompartmentHelper.SetConversionMode(pThreadMgr, tfClientId, BridgeStateManager.IsVietnameseMode);
+```
 
-/// <summary>
-/// Quản lý vùng nhớ dùng chung liên tiến trình (Cross-Process Shared Memory) qua Win32 Named File Mapping.
-/// Đảm bảo trạng thái gõ tiếng Việt (V/E) và cấu hình engine đồng bộ tức thì (0 microseconds)
-/// giữa taskbar (ctfmon/explorer) và tất cả ứng dụng đang gõ (Notepad, Word, Browser, VS Code,...).
-/// </summary>
+---
+
+## 6. Quản lý Shared Memory (`SharedMemoryManager.cs`)
+
+Mã nguồn tại [`src/BambooMintKey.NativeBridge/Common/SharedMemoryManager.cs`](file:///d:/Kojin/BambooMintKey/src/BambooMintKey.NativeBridge/Common/SharedMemoryManager.cs):
+
+### 6.1. Layout bộ nhớ dùng chung (64 bytes)
+
+| Offset | Kích thước | Kiểu dữ liệu | Ý nghĩa |
+|---|---|---|---|
+| `0` | 1 byte | `byte` | `IsVietnameseMode` (1 = V, 0 = E) |
+| `1` | 1 byte | `byte` | `ToneStyle` (0 = Mới, 1 = Cũ) |
+| `2` | 1 byte | `byte` | `AutoRestoreEnglishWords` |
+| `3` | 1 byte | `byte` | `AllowRepeatKeyUndo` |
+| `4` | 1 byte | `byte` | `AllowLeadingWAsU` |
+| `5 - 7` | 3 bytes | - | Reserved / Padding |
+| `8 - 11` | 4 bytes | `uint` | `StateSequence`: Số đếm phiên bản trạng thái |
+| `12 - 63` | 52 bytes | - | Reserved cho cấu hình mở rộng |
+
+### 6.2. Khởi tạo Manual-Reset Event & StateSequence
+
+```csharp
 public static unsafe class SharedMemoryManager
 {
     private const string MapName = @"Local\BambooMintKey_SharedConfig_v1";
     private const string EventName = @"Local\BambooMintKey_StateChangedEvent_v1";
-    // Universal SDDL cho phép Everyone (WD), ALL APPLICATION PACKAGES/AppContainer (AC) và Low Integrity (LW)
     private const string UniversalSddl = "D:(A;;GA;;;WD)(A;;GA;;;AC)S:(ML;;NW;;;LW)";
     private const uint PageReadWrite = 0x04;
     private const uint FileMapWrite = 0x02;
     private const int SharedSize = 64;
-
-    private static IntPtr _hMap = IntPtr.Zero;
-    private static IntPtr _hEvent = IntPtr.Zero;
-    private static byte* _pShared = null;
-    private static bool _fallbackVietnameseMode = true;
-    private static readonly object _initLock = new();
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct SECURITY_ATTRIBUTES
-    {
-        public int nLength;
-        public IntPtr lpSecurityDescriptor;
-        [MarshalAs(UnmanagedType.Bool)]
-        public bool bInheritHandle;
-    }
-
-    [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool ConvertStringSecurityDescriptorToSecurityDescriptorW(
-        string StringSecurityDescriptor,
-        uint StringSDRevision,
-        out IntPtr SecurityDescriptor,
-        IntPtr SecurityDescriptorSize);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern IntPtr LocalFree(IntPtr hMem);
-
-    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern IntPtr OpenFileMappingW(
-        uint dwDesiredAccess,
-        [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle,
-        string lpName);
 
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     private static extern IntPtr CreateEventW(
@@ -645,158 +1026,75 @@ public static unsafe class SharedMemoryManager
     public static extern bool SetEvent(IntPtr hEvent);
 
     [DllImport("kernel32.dll", SetLastError = true)]
-    public static extern uint WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
-
-    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern IntPtr CreateFileMappingW(
-        IntPtr hFile,
-        IntPtr lpFileMappingAttributes,
-        uint flProtect,
-        uint dwMaximumSizeHigh,
-        uint dwMaximumSizeLow,
-        string lpName);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern void* MapViewOfFile(
-        IntPtr hFileMappingObject,
-        uint dwDesiredAccess,
-        uint dwFileOffsetHigh,
-        uint dwFileOffsetLow,
-        nuint dwNumberOfBytesToMap);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool UnmapViewOfFile(void* lpBaseAddress);
+    public static extern bool ResetEvent(IntPtr hEvent);
 
-    [DllImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool CloseHandle(IntPtr hObject);
+    // ... (các P/Invoke khác giữ nguyên)
 
-    static SharedMemoryManager()
-    {
-        EnsureInitialized();
-    }
-
-    /// <summary>
-    /// Khởi tạo hoặc kết nối vào vùng nhớ FileMapping chung của phiên người dùng.
-    /// Hỗ trợ cả ứng dụng thường, Chromium sandbox (Low Integrity) và UWP (AppContainer).
-    /// </summary>
     public static void EnsureInitialized()
     {
-        if (_pShared != null) return;
+        // ... (tạo FileMapping)
 
-        lock (_initLock)
+        if (_hMap != IntPtr.Zero)
         {
-            if (_pShared != null) return;
-
-            SECURITY_ATTRIBUTES sa = new();
-            sa.nLength = Marshal.SizeOf<SECURITY_ATTRIBUTES>();
-            sa.bInheritHandle = false;
-
-            IntPtr pSd = IntPtr.Zero;
-            bool hasSd = ConvertStringSecurityDescriptorToSecurityDescriptorW(UniversalSddl, 1, out pSd, IntPtr.Zero);
-            if (hasSd && pSd != IntPtr.Zero)
+            bool isCreator = (Marshal.GetLastWin32Error() == 0);
+            void* pView = MapViewOfFile(_hMap, FileMapWrite, 0, 0, SharedSize);
+            if (pView != null)
             {
-                sa.lpSecurityDescriptor = pSd;
-            }
+                _pShared = (byte*)pView;
 
-            try
-            {
-                IntPtr pSaPtr = (hasSd && pSd != IntPtr.Zero) ? (IntPtr)(&sa) : IntPtr.Zero;
-                _hMap = CreateFileMappingW(new IntPtr(-1), pSaPtr, PageReadWrite, 0, SharedSize, MapName);
-
-                if (_hMap == IntPtr.Zero)
+                if (isCreator)
                 {
-                    _hMap = OpenFileMappingW(FileMapWrite, false, MapName);
-                }
-
-                if (_hMap != IntPtr.Zero)
-                {
-                    bool isCreator = (Marshal.GetLastWin32Error() == 0);
-                    void* pView = MapViewOfFile(_hMap, FileMapWrite, 0, 0, SharedSize);
-                    if (pView != null)
-                    {
-                        _pShared = (byte*)pView;
-
-                        // Nếu là tiến trình đầu tiên tạo ra map, khởi tạo giá trị mặc định (Bật Tiếng Việt)
-                        if (isCreator)
-                        {
-                            _pShared[0] = 1; // 1 = IsVietnameseMode On (V)
-                            _pShared[1] = 0; // 0 = ToneStyle New
-                            _pShared[2] = 1; // AutoRestoreEnglishWords
-                            _pShared[3] = 1; // AllowRepeatKeyUndo
-                            _pShared[4] = 0; // AllowLeadingWAsU
-                        }
-                    }
-                }
-
-                if (_hEvent == IntPtr.Zero)
-                {
-                    _hEvent = CreateEventW(pSaPtr, false /* AutoReset */, false, EventName);
+                    _pShared[0] = 1; // IsVietnameseMode On (V)
+                    _pShared[1] = 0; // ToneStyle New
+                    _pShared[2] = 1; // AutoRestoreEnglishWords
+                    _pShared[3] = 1; // AllowRepeatKeyUndo
+                    _pShared[4] = 0; // AllowLeadingWAsU
+                    *(uint*)(_pShared + 8) = 1; // StateSequence ban đầu
                 }
             }
-            finally
-            {
-                if (pSd != IntPtr.Zero)
-                {
-                    LocalFree(pSd);
-                }
-            }
+        }
+
+        if (_hEvent == IntPtr.Zero)
+        {
+            _hEvent = CreateEventW(pSaPtr, true /* ManualReset */, false, EventName);
         }
     }
 
     /// <summary>Handle của Win32 Event đồng bộ trạng thái V/E.</summary>
-    public static IntPtr StateChangedEventHandle
+    public static IntPtr StateChangedEventHandle => EnsureAndReturn(ref _hEvent);
+
+    /// <summary>Số đếm phiên bản trạng thái (Sequence Number) để các tiến trình phát hiện thay đổi.</summary>
+    public static uint StateSequence
     {
         get
         {
             EnsureInitialized();
-            return _hEvent;
+            if (_pShared != null)
+            {
+                return *(uint*)(_pShared + 8);
+            }
+            return 0;
         }
     }
 
     /// <summary>Phát tín hiệu cho tất cả tiến trình khác biết cấu hình đã thay đổi.</summary>
     public static void SignalStateChanged()
     {
+        if (_pShared != null)
+        {
+            System.Threading.Interlocked.Increment(ref *(int*)(_pShared + 8));
+        }
         if (_hEvent != IntPtr.Zero)
         {
+            // Đánh thức TẤT CẢ các tiến trình đang chờ đợi (Manual-Reset Broadcast)
             SetEvent(_hEvent);
+            ResetEvent(_hEvent);
         }
     }
 
-    /// <summary>
-    /// Trạng thái bật/tắt gõ tiếng Việt đồng bộ xuyên suốt mọi tiến trình người dùng.
-    /// true = V (Tiếng Việt), false = E (Tiếng Anh).
-    /// </summary>
-    public static bool IsVietnameseMode
-    {
-        get
-        {
-            EnsureInitialized();
-            if (_pShared != null)
-            {
-                return _pShared[0] != 0;
-            }
-            return _fallbackVietnameseMode;
-        }
-        set
-        {
-            EnsureInitialized();
-            if (_pShared != null)
-            {
-                _pShared[0] = (byte)(value ? 1 : 0);
-                SignalStateChanged();
-            }
-            else
-            {
-                _fallbackVietnameseMode = value;
-            }
-        }
-    }
+    public static bool IsVietnameseMode { /* ... */ }
 
-    /// <summary>
-    /// Đảo trạng thái V/E và trả về giá trị mới.
-    /// </summary>
     public static bool ToggleVietnameseMode()
     {
         EnsureInitialized();
@@ -814,171 +1112,97 @@ public static unsafe class SharedMemoryManager
 }
 ```
 
-#### Mã nguồn tham chiếu `BridgeStateManager.cs`
+---
 
-```csharp
-// BambooMintKey - Vietnamese Telex Input Method Editor for Windows
-// Copyright (c) 2026 Dương Gia Long and LMO contributors
-// SPDX-License-Identifier: MIT
-using BambooMintKey.Core.Domain;
-using BambooMintKey.Core.Engine;
-using BambooMintKey.NativeBridge.Common;
+## 7. Phân tích Nguyên nhân & Cơ chế Lỗi Thực tế (Root Cause Analysis)
 
-namespace BambooMintKey.NativeBridge.TSF;
+### 7.1. Lỗi 1: Click chuột trực tiếp vào Icon E/V thường chỉ đổi được đúng 1 lần
 
-/// <summary>
-/// Cầu nối in-memory giữa TSF COM server và F# Pure Telex Engine.
-/// Duy trì WordState hiện tại và điều phối các lệnh gọi đến TelexEngine.processKey.
-/// </summary>
-public static class BridgeStateManager
-{
-    private static Types.WordState _currentState = Types.WordState.Empty;
-    private static EngineConfig.EngineConfig _currentConfig = EngineConfig.EngineConfig.Default;
+**Cơ chế của Windows TSF đối với `HICON`:**
+Theo quy định kỹ thuật của Microsoft Windows SDK cho interface `ITfLangBarItemButton::GetIcon`:
+> *"phIcon: [out] Pointer to an HICON value that receives the icon handle. **The caller is responsible for destroying this icon when it is no longer required**."*
 
-    /// <summary>Trạng thái word hiện tại của engine.</summary>
-    public static Types.WordState CurrentState => _currentState;
+Shell của Windows (Taskbar Explorer) là bên gọi (`caller`). Sau khi nhận `HICON` và vẽ icon lên khay hệ thống, **Windows tự động gọi `DestroyIcon(hIcon)`** để giải phóng tài nguyên GDI.
 
-    /// <summary>Cấu hình engine hiện tại (đồng bộ trạng thái IsEnabled với SharedMemoryManager).</summary>
-    public static EngineConfig.EngineConfig Config
-    {
-        get
-        {
-            bool isVn = SharedMemoryManager.IsVietnameseMode;
-            if (_currentConfig.IsEnabled != isVn)
-            {
-                _currentConfig = new EngineConfig.EngineConfig(
-                    isVn,
-                    _currentConfig.AutoRestoreEnglishWords,
-                    _currentConfig.AllowRepeatKeyUndo,
-                    _currentConfig.AllowLeadingWAsU,
-                    _currentConfig.ToneStyle
-                );
-            }
-            return _currentConfig;
-        }
-    }
+**Nguyên nhân gây lỗi trong bản cũ:**
+1. Ban đầu ở trạng thái **V**: `GetIcon` cấp phát `_hIconV` (ví dụ con trỏ `0x1000`). Windows nhận `0x1000`, vẽ chữ V, sau đó Windows gọi `DestroyIcon(0x1000)`. Con trỏ `0x1000` **đã bị hủy hoàn toàn trong bảng GDI của Windows**!
+2. Người dùng click lần 1 (đổi sang **E**): `GetIcon` cấp phát `_hIconE` mới.
+3. Người dùng click lần 2 (muốn đổi lại **V**): nếu code cache `_hIconV`, nó sẽ trả lại con trỏ cũ đã bị hủy.
+4. Do handle đã hủy, Windows gặp lỗi GDI (`ERROR_INVALID_HANDLE`) nên **không thể vẽ lại icon, icon bị đơ hoặc biến mất**.
 
-    /// <summary>Kiểm tra xem chế độ gõ tiếng Việt hiện đang bật (V) hay tắt (E) qua Shared Memory.</summary>
-    public static bool IsVietnameseMode
-    {
-        get => SharedMemoryManager.IsVietnameseMode;
-        set => SharedMemoryManager.IsVietnameseMode = value;
-    }
+**Giải pháp đã triển khai:**
+* Không lưu cache vĩnh viễn con trỏ `HICON` mà Windows đã hủy.
+* Dùng **2 HICON mẫu tĩnh** `_cachedIconV` / `_cachedIconE` do bộ gõ tự quản lý.
+* Mỗi lần Windows gọi `GetIcon`, trả về `CopyIcon(_cachedIconX)` — bản sao độc lập mà Windows tự do `DestroyIcon` mà không ảnh hưởng cache.
 
-    /// <summary>Đảo trạng thái gõ tiếng Việt / tiếng Anh trong Shared Memory và trả về trạng thái mới.</summary>
-    public static bool ToggleVietnameseMode()
-    {
-        bool newMode = SharedMemoryManager.ToggleVietnameseMode();
-        _currentConfig = new EngineConfig.EngineConfig(
-            newMode,
-            _currentConfig.AutoRestoreEnglishWords,
-            _currentConfig.AllowRepeatKeyUndo,
-            _currentConfig.AllowLeadingWAsU,
-            _currentConfig.ToneStyle
-        );
-        return newMode;
-    }
+### 7.2. Lỗi 2: Độ trễ 500–1000ms khi click chuột đổi icon
 
-    /// <summary>Khởi tạo lại engine state về empty (KHÔNG đè trạng thái IsEnabled của người dùng).</summary>
-    public static void InitializeEngine()
-    {
-        _currentState = Types.WordState.Empty;
-    }
+**Nguyên nhân:**
+* Bản cũ chỉ gọi `NotifyStateChanged()` (tức `ITfLangBarItemSink::OnUpdate`) trong `OnClick`.
+* Windows 10/11 Taskbar Input Indicator ưu tiên giám sát **TSF Compartment** `GUID_COMPARTMENT_KEYBOARD_INPUTMODE_CONVERSION`.
+* Khi compartment không được cập nhật ngay, Taskbar phải đợi chu kỳ polling định kỳ (500–1000ms) mới vẽ lại.
 
-    /// <summary>Reset state về empty (dùng khi chuyển focus hoặc composition kết thúc).</summary>
-    public static void ResetState()
-    {
-        _currentState = Types.WordState.Empty;
-    }
+**Giải pháp đã triển khai:**
+* Trong `OnClick`, sau `NotifyStateChanged()`, gọi thêm `TsfCompartmentHelper.SetConversionMode(_pThreadMgr, _clientId, newMode)`.
+* Kết hợp với style `TF_LBI_STYLE_BTN_TOGGLE` trong `GetInfo`, giúp Taskbar coi nút là công tắc hai chiều, sẵn sàng nhận click tiếp theo ngay.
+* Nới lỏng điều kiện click: `if (click != TsfLangBarFlags.TfLbiClkRight)` thay vì `== TfLbiClkLeft`, tránh bỏ qua các cú click liên tiếp nhanh.
 
-    /// <summary>Xử lý một ký tự bàn phím thông thường.</summary>
-    public static (Types.WordState NewState, Types.EngineAction Action) ProcessKey(char c)
-    {
-        var input = Types.KeyInput.NewChar(c);
-        var result = TelexEngine.processKey(_currentState, input, Config);
-        _currentState = result.Item1;
-        return (result.Item1, result.Item2);
-    }
+### 7.3. Lỗi 3: Phím tắt `Ctrl + Shift + Q` không đổi được E/V
 
-    /// <summary>Xử lý phím Backspace.</summary>
-    public static (Types.WordState NewState, Types.EngineAction Action) ProcessBackspace()
-    {
-        var input = Types.KeyInput.Backspace;
-        var result = TelexEngine.processKey(_currentState, input, Config);
-        _currentState = result.Item1;
-        return (result.Item1, result.Item2);
-    }
-
-    /// <summary>Xử lý ký tự ngắt từ (space, dấu câu, ...).</summary>
-    public static (Types.WordState NewState, Types.EngineAction Action) ProcessWordBreak(char breakChar)
-    {
-        var input = Types.KeyInput.NewWordBreak(breakChar);
-        var result = TelexEngine.processKey(_currentState, input, Config);
-        _currentState = result.Item1;
-        return (result.Item1, result.Item2);
-    }
-}
+**Phân tích luồng bắt phím từ Runtime Log:**
+```text
+[15:10:31.221] OnKeyDown ENTER vk=17  (VK_CONTROL)
+[15:10:31.781] OnKeyDown ENTER vk=16  (VK_SHIFT)
+[15:10:31.956] OnKeyDown ENTER vk=81  (VK_Q)
+[15:10:31.957] RequestEdit: action=UpdateText, text=Q
+[15:10:31.964] OnKeyDown ProcessKey char=Q, text=Q
 ```
 
----
+**Nguyên nhân:**
+1. `GetKeyState` / `GetAsyncKeyState` trong thread message pump của TSF có thể không đồng bộ với cờ modifier khi Windows Shell đã chặn `Ctrl + Shift` trước.
+2. Nếu `OnTestKeyDown` trả về `*pfEaten = 0`, Windows sẽ không gọi `OnKeyDown` nữa.
 
-### 5.4. Nguyên nhân Lỗi 4: Sau vài lần tắt bật thì không đổi được chữ (Kẹt Event Đồng bộ Đa tiến trình)
+**Giải pháp đã triển khai:**
+* Đăng ký phím tắt qua `ITfKeystrokeMgr::PreserveKey` trong `KeyEventSinkHelper.RegisterPreservedKeys`.
+* Callback `OnPreservedKey` được Windows TSF gọi trực tiếp toàn cục, không phụ thuộc message queue của ứng dụng.
+* Cả `OnKeyDown` và `OnPreservedKey` đều cập nhật `BridgeStateManager`, `NotifyStateChanged()` và `TsfCompartmentHelper.SetConversionMode`.
 
-#### Cơ chế tranh chấp Win32 AutoReset Event:
-* Ban đầu, `SharedMemoryManager` sử dụng một Win32 Named Event kiểu **AutoReset** (`bManualReset = false`).
-* Khi có nhiều tiến trình cùng chạy (Explorer, ctfmon, Notepad, Chrome, VS Code...), mỗi tiến trình đều có một thread chạy `WaitForSingleObject(_hEvent, INFINITE)`.
-* Khi một tiến trình gọi `SetEvent(_hEvent)`, Win32 AutoReset Event **chỉ đánh thức duy nhất 1 thread của 1 tiến trình bất kỳ** rồi tự động chuyển về trạng thái `non-signaled`.
-* Nếu một tiến trình nền (ví dụ Notepad) "nhặt" mất tín hiệu này, thì tiến trình Taskbar của Windows (`explorer.exe`) sẽ **vẫn tiếp tục ngủ (block vĩnh viễn)**, khiến Taskbar không hề biết cấu hình đã đổi và không gọi `OnUpdate` để vẽ lại icon!
+### 7.4. Lỗi 4: Icon hiển thị E nhưng vẫn gõ ra dấu tiếng Việt (Lệch pha giữa Icon và Bộ gõ)
 
-#### Giải pháp khắc phục:
-* Trong `LangBarItemButton.StartEventListener`, chuyển sang cơ chế kiểm tra định kỳ (polling) với timeout 100ms:
-  ```csharp
-  private static void StartEventListener()
-  {
-      var thread = new System.Threading.Thread(() =>
-      {
-          IntPtr hEv = SharedMemoryManager.StateChangedEventHandle;
-          bool lastMode = BridgeStateManager.IsVietnameseMode;
+**Nguyên nhân:**
+* Ứng dụng sandbox (Chrome, Edge, VS Code, UWP) chạy ở Low Integrity / AppContainer.
+* Named File Mapping mặc định của tiến trình Medium Integrity chặn access từ Low Integrity (`ERROR_ACCESS_DENIED`).
+* Con trỏ `_pShared` bị `null`, ứng dụng sandbox fallback về `_fallbackVietnameseMode = true` cố định, không thấy lệnh chuyển `E`.
 
-          while (true)
-          {
-              // Chờ event tối đa 100ms
-              if (hEv != IntPtr.Zero)
-              {
-                  SharedMemoryManager.WaitForSingleObject(hEv, 100);
-              }
-              else
-              {
-                  System.Threading.Thread.Sleep(100);
-              }
+**Giải pháp đã triển khai:**
+1. **Universal SDDL:** `"D:(A;;GA;;;WD)(A;;GA;;;AC)S:(ML;;NW;;;LW)"` — cấp quyền Generic All cho Everyone (`WD`), ALL APPLICATION PACKAGES (`AC`) và nhãn toàn vẹn Low Integrity (`LW`).
+2. **Fallback an toàn:** Khi `_pShared == null`, dùng `_fallbackVietnameseMode` cho phép đảo trạng thái cục bộ.
+3. **Đồng bộ Config trong Engine:** `BridgeStateManager.Config` luôn đọc từ `SharedMemoryManager.IsVietnameseMode` trước khi truyền vào `TelexEngine.processKey`.
 
-              // Kiểm tra trạng thái thực tế trong Shared Memory để luôn đồng bộ Taskbar
-              bool currentMode = BridgeStateManager.IsVietnameseMode;
-              if (currentMode != lastMode)
-              {
-                  lastMode = currentMode;
-                  NotifyStateChanged();
-              }
-          }
-      })
-      {
-          IsBackground = true,
-          Name = "BambooMintKey_StateEventListener"
-      };
-      thread.Start();
-  }
-  ```
-* Dù Win32 Event có bị tiến trình khác nhận mất, thread của Taskbar vẫn thức dậy sau tối đa 100ms, đọc trực tiếp byte trạng thái từ RAM trong Shared Memory và cập nhật icon ngay lập tức. Đảm bảo icon Taskbar không bao giờ bị kẹt hay mất đồng bộ.
+### 7.5. Lỗi 5: Sau vài lần tắt bật thì không đổi được chữ (Kẹt Event Đồng bộ Đa tiến trình)
+
+**Nguyên nhân:**
+* Bản cũ dùng Win32 **AutoReset** Event (`bManualReset = false`).
+* `SetEvent` chỉ đánh thức đúng **1 thread của 1 tiến trình bất kỳ** rồi tự reset.
+* Nếu tiến trình nền (Notepad/Chrome) "nhặt" mất tín hiệu, tiến trình Taskbar (`explorer.exe`) sẽ tiếp tục block, không gọi `OnUpdate`.
+
+**Giải pháp đã triển khai:**
+* Chuyển sang **Manual-Reset Event** (`bManualReset = true`) kết hợp `StateSequence` trong shared memory.
+* `SignalStateChanged()` tăng `StateSequence` an toàn đa luồng (`Interlocked.Increment`), sau đó `SetEvent` + `ResetEvent` để broadcast đến tất cả tiến trình.
+* `StartEventListener` không chỉ dựa vào event mà còn so sánh `StateSequence` mỗi 250ms. Dù event bị trễ/mất, thread vẫn đồng bộ đúng phiên bản trạng thái mới nhất.
 
 ---
 
-## 6. Kế hoạch Kiểm thử & Nghiệm thu (Verification Matrix)
+## 8. Kế hoạch Kiểm thử & Nghiệm thu (Verification Matrix)
 
 | Bước kiểm thử | Thao tác thực hiện | Kết quả mong đợi |
 | :--- | :--- | :--- |
 | **1. DevHarness Test** | Chạy `dotnet run --project src/BambooMintKey.DevHarness` | `CreateBambooIcon("V")` và `"E"` trả về `HICON != IntPtr.Zero`. `GetIcon` phản hồi đúng icon theo trạng thái. Không rò rỉ bộ nhớ. |
 | **2. NativeAOT Build** | Chạy `pwsh scripts/build-native.ps1` | Biên dịch ra DLL `publish/win-x64/BambooMintKey.dll` thành công không cảnh báo calling convention hay AOT trim. |
 | **3. Hiển thị Icon Taskbar** | Đăng ký TIP, chuyển sang BambooMintKey bằng `Win + Space` | Khay Taskbar xuất hiện ngay lập tức icon hình vuông nền xanh lá cây bo góc có chữ **V** màu trắng ngà cạnh chữ `VIE`. |
-| **4. Click Chuột Đổi Icon** | Click chuột trái vào icon chữ **V** | Icon chuyển tức thì sang chữ **E** (nền xanh lá, chữ E màu trắng), tooltip chuyển thành `"BambooMintKey: English"`. Click tiếp đổi lại chữ **V** liên tục không bị đơ. |
-| **5. Phím tắt Toggle** | Bấm `Ctrl + Shift + Q` hoặc `Alt + Z` | Icon trên Taskbar tự động đổi giữa **V** $\leftrightarrow$ **E**. Chế độ gõ tiếng Việt tắt/bật đồng bộ. |
-| **6. GDI Leak Check** | Dùng Task Manager (cột GDI Objects) click toggle 50 lần | Số lượng GDI Objects của tiến trình không tăng lũy tiến (đạt tiêu chuẩn 0 GDI Leak). |
+| **4. Click Chuột Đổi Icon Tức thì** | Click chuột trái vào icon chữ **V** | Icon chuyển tức thì sang chữ **E** (nền xanh lá, chữ E màu trắng), tooltip chuyển thành `"BambooMintKey: English"`. Click tiếp đổi lại chữ **V** liên tục không bị đơ, độ trễ < 30ms. |
+| **5. Click Chuột Liên tiếp Nhanh** | Nhấp chuột liên tục 5–10 lần nhanh | Mỗi cú click đều đổi icon tương ứng, không có cú click nào bị trôi hoặc phải đợi 1 giây. |
+| **6. Phím tắt Toggle** | Bấm `Ctrl + Shift + Q` hoặc `Alt + Z` | Icon trên Taskbar tự động đổi giữa **V** ↔ **E**. Chế độ gõ tiếng Việt tắt/bật đồng bộ. |
+| **7. Đồng bộ Xuyên tiến trình** | Mở Notepad 1 → Mở Notepad 2 → Đóng Notepad 1 → Đổi mode trên Notepad 2 | Icon Taskbar vẫn đồng bộ, không biến mất, không đơ. |
+| **8. GDI Leak Check** | Dùng Task Manager (cột GDI Objects) click toggle 500 lần | Số lượng GDI Objects của tiến trình không tăng lũy tiến (đạt tiêu chuẩn 0 GDI Leak nhờ CopyIcon + cache). |
+| **9. Sandbox AppContainer** | Gõ trong Chrome/Edge/VS Code (Electron) | Trạng thái V/E đồng bộ với Taskbar, không bị Access Denied dẫn đến lệch pha. |

@@ -21,9 +21,12 @@ public static unsafe class LangBarItemButton
     private static IntPtr _comInstance;
 
     // Con trỏ tới ITfLangBarItemSink mà Windows cung cấp qua ITfSource::AdviseSink
-    private static IntPtr _pLangBarSink = IntPtr.Zero;
+    private static volatile IntPtr _pLangBarSink = IntPtr.Zero;
     private static uint _sinkCookie = 0;
     private static IntPtr _langBarMgr = IntPtr.Zero;
+    private static readonly object _sinkLock = new();
+    private static IntPtr _pThreadMgr = IntPtr.Zero;
+    private static uint _clientId = 0;
 
 
     static LangBarItemButton()
@@ -137,8 +140,8 @@ public static unsafe class LangBarItemButton
 
         pInfo->clsidService = Guids.TextServiceClsid;
         pInfo->guidItem = Guids.GuidLbiInputMode;
-        // Chỉ dùng TfLbiStyleBtnButton | TfLbiStyleShownInTray (KHÔNG dùng TfLbiStyleBtnMenu để Windows xử lý click chuột trái làm nút toggle)
-        pInfo->dwStyle = TsfLangBarFlags.TfLbiStyleBtnButton |
+        // Dùng TfLbiStyleBtnToggle | TfLbiStyleShownInTray để Taskbar xử lý đảo trạng thái hai chiều tức thì
+        pInfo->dwStyle = TsfLangBarFlags.TfLbiStyleBtnToggle |
                          TsfLangBarFlags.TfLbiStyleShownInTray;
         pInfo->ulSort = 0;
 
@@ -187,14 +190,24 @@ public static unsafe class LangBarItemButton
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int OnClick(IntPtr thisPtr, uint click, POINT pt, RECT* prcArea)
     {
-        DebugLog.Write($"LangBarItemButton OnClick received click={click}");
-        // Chỉ xử lý khi đúng là click chuột trái (TF_LBI_CLK_LEFT = 2)
-        if (click == TsfLangBarFlags.TfLbiClkLeft)
+        DebugLog.Write($"LangBarItemButton OnClick ENTER click={click}, thread={Environment.CurrentManagedThreadId}");
+        // Bắt mọi click chuột trái (hoặc bất kỳ click nào không phải chuột phải)
+        if (click != TsfLangBarFlags.TfLbiClkRight)
         {
             bool newMode = BridgeStateManager.ToggleVietnameseMode();
+
+            // 1. Gửi thông báo OnUpdate tới Sink để vẽ lại Icon ngay
             NotifyStateChanged();
-            DebugLog.Write($"LangBarItemButton OnClick toggled IsVietnameseMode={newMode}");
+
+            // 2. Đồng bộ lập tức tới TSF Input Mode Compartment của Windows 10/11 Shell
+            if (_pThreadMgr != IntPtr.Zero)
+            {
+                TsfCompartmentHelper.SetConversionMode(_pThreadMgr, _clientId, newMode);
+            }
+
+            DebugLog.Write($"LangBarItemButton OnClick toggled IsVietnameseMode={newMode} (Sink + Compartment synchronized)");
         }
+        DebugLog.Write($"LangBarItemButton OnClick EXIT click={click}");
         return HResult.Ok;
     }
 
@@ -220,13 +233,12 @@ public static unsafe class LangBarItemButton
     {
         if (phIcon == null) return HResult.InvalidArgument;
 
-        // Theo đặc tả Microsoft WinSDK cho ITfLangBarItemButton::GetIcon:
-        // "The caller is responsible for destroying this icon when it is no longer required."
+        // Cung cấp bản sao HICON độc lập từ cache tĩnh qua IconHelper.GetBambooIconHandle
         // Windows Taskbar Shell sẽ tự động gọi DestroyIcon sau khi vẽ.
-        // Bắt buộc phải tạo HICON mới mỗi lần để tránh cung cấp handle đã bị hủy.
         string text = BridgeStateManager.IsVietnameseMode ? "V" : "E";
-        *phIcon = IconHelper.CreateBambooIcon(text);
-        DebugLog.Write($"LangBarItemButton.GetIcon: Created fresh HICON for '{text}' -> {*phIcon}");
+        DebugLog.Write($"LangBarItemButton.GetIcon ENTER requested='{text}', IsVietnameseMode={BridgeStateManager.IsVietnameseMode}, thread={Environment.CurrentManagedThreadId}");
+        *phIcon = IconHelper.GetBambooIconHandle(text);
+        DebugLog.Write($"LangBarItemButton.GetIcon EXIT text='{text}' -> {*phIcon}");
 
         return HResult.Ok;
     }
@@ -250,7 +262,14 @@ public static unsafe class LangBarItemButton
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int AdviseSink(IntPtr thisPtr, Guid* riid, IntPtr punk, uint* pdwCookie)
     {
-        if (riid == null || punk == IntPtr.Zero || pdwCookie == null) return HResult.InvalidArgument;
+        DebugLog.Write($"LangBarItemButton.AdviseSink ENTER thisPtr={thisPtr}, punk={punk}, thread={Environment.CurrentManagedThreadId}");
+        if (riid == null || punk == IntPtr.Zero || pdwCookie == null)
+        {
+            DebugLog.Write("LangBarItemButton.AdviseSink invalid args");
+            return HResult.InvalidArgument;
+        }
+
+        DebugLog.Write($"LangBarItemButton.AdviseSink riid={*riid}");
 
         if (*riid == Guids.IidITfLangBarItemSink)
         {
@@ -258,34 +277,31 @@ public static unsafe class LangBarItemButton
             IntPtr pSink = IntPtr.Zero;
             var unk = *(TfSourceVTable**)punk;
             int hrQi = unk->QueryInterface(punk, &iidSink, &pSink);
+            DebugLog.Write($"LangBarItemButton.AdviseSink QI ITfLangBarItemSink hr=0x{hrQi:X8}, pSink={pSink}");
 
             if (hrQi == HResult.Ok && pSink != IntPtr.Zero)
             {
-                if (_pLangBarSink != IntPtr.Zero)
+                lock (_sinkLock)
                 {
-                    NativeCom.Release(_pLangBarSink);
+                    if (_pLangBarSink != IntPtr.Zero)
+                    {
+                        NativeCom.Release(_pLangBarSink);
+                    }
+                    _pLangBarSink = pSink;
+                    _sinkCookie = 1;
+                    *pdwCookie = _sinkCookie;
                 }
-                _pLangBarSink = pSink;
-                _sinkCookie = 1;
-                *pdwCookie = _sinkCookie;
-                DebugLog.Write($"LangBarItemButton AdviseSink: ITfLangBarItemSink connected via QI pSink={pSink}");
+                DebugLog.Write($"LangBarItemButton.AdviseSink: ITfLangBarItemSink connected via QI pSink={pSink}");
                 return HResult.Ok;
             }
 
-            if (_pLangBarSink != IntPtr.Zero)
-            {
-                NativeCom.Release(_pLangBarSink);
-            }
-
-            _pLangBarSink = punk;
-            NativeCom.AddRef(punk);
-            _sinkCookie = 1;
-            *pdwCookie = _sinkCookie;
-            DebugLog.Write("LangBarItemButton AdviseSink: ITfLangBarItemSink connected directly to punk");
-            return HResult.Ok;
+            *pdwCookie = 0;
+            DebugLog.Write($"LangBarItemButton.AdviseSink: QI ITfLangBarItemSink failed (0x{hrQi:X8})");
+            return hrQi != HResult.Ok ? hrQi : HResult.NoInterface;
         }
 
         *pdwCookie = 0;
+        DebugLog.Write($"LangBarItemButton.AdviseSink: unsupported riid={*riid}, returning E_INVALIDARG");
         return HResult.InvalidArgument;
     }
 
@@ -293,14 +309,19 @@ public static unsafe class LangBarItemButton
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int UnadviseSink(IntPtr thisPtr, uint dwCookie)
     {
-        if (dwCookie == _sinkCookie && _pLangBarSink != IntPtr.Zero)
+        DebugLog.Write($"LangBarItemButton.UnadviseSink ENTER dwCookie={dwCookie}, _sinkCookie={_sinkCookie}, _pLangBarSink={_pLangBarSink}");
+        lock (_sinkLock)
         {
-            NativeCom.Release(_pLangBarSink);
-            _pLangBarSink = IntPtr.Zero;
-            _sinkCookie = 0;
-            DebugLog.Write("LangBarItemButton UnadviseSink: ITfLangBarItemSink disconnected");
-            return HResult.Ok;
+            if (dwCookie == _sinkCookie && _pLangBarSink != IntPtr.Zero)
+            {
+                NativeCom.Release(_pLangBarSink);
+                _pLangBarSink = IntPtr.Zero;
+                _sinkCookie = 0;
+                DebugLog.Write("LangBarItemButton.UnadviseSink: ITfLangBarItemSink disconnected");
+                return HResult.Ok;
+            }
         }
+        DebugLog.Write("LangBarItemButton.UnadviseSink: cookie mismatch or no sink");
         return HResult.InvalidArgument;
     }
 
@@ -315,25 +336,37 @@ public static unsafe class LangBarItemButton
         var thread = new System.Threading.Thread(() =>
         {
             IntPtr hEv = SharedMemoryManager.StateChangedEventHandle;
+            uint localSeq = SharedMemoryManager.StateSequence;
             bool lastMode = BridgeStateManager.IsVietnameseMode;
+            DebugLog.Write($"StartEventListener thread started. hEv={hEv}, initialMode={lastMode}, initialSeq={localSeq}, thread={Environment.CurrentManagedThreadId}");
 
             while (true)
             {
-                // Chờ event tối đa 100ms
+                // Chờ event Manual-Reset broadcast (timeout 250ms phòng trường hợp trễ)
                 if (hEv != IntPtr.Zero)
                 {
-                    SharedMemoryManager.WaitForSingleObject(hEv, 100);
+                    uint wr = SharedMemoryManager.WaitForSingleObject(hEv, 250);
+                    if (wr != 0 /* WAIT_OBJECT_0 */ && wr != 258 /* WAIT_TIMEOUT */)
+                    {
+                        DebugLog.Write($"StartEventListener WaitForSingleObject returned unexpected {wr}, exiting loop");
+                        break;
+                    }
                 }
                 else
                 {
-                    System.Threading.Thread.Sleep(100);
+                    System.Threading.Thread.Sleep(250);
                 }
 
-                // Kiểm tra trạng thái thực tế trong Shared Memory để luôn đồng bộ Taskbar
+                // Kiểm tra StateSequence để phát hiện mọi thay đổi từ bất kỳ tiến trình nào
+                uint currentSeq = SharedMemoryManager.StateSequence;
                 bool currentMode = BridgeStateManager.IsVietnameseMode;
-                if (currentMode != lastMode)
+
+                if (currentSeq != localSeq || currentMode != lastMode)
                 {
+                    DebugLog.Write($"StartEventListener detected change: seq {localSeq}->{currentSeq}, mode {lastMode}->{currentMode}");
+                    localSeq = currentSeq;
                     lastMode = currentMode;
+
                     NotifyStateChanged();
                 }
             }
@@ -348,13 +381,16 @@ public static unsafe class LangBarItemButton
     /// <summary>
     /// Đăng ký nút Language Bar vào hệ thống thông qua ITfLangBarItemMgr.
     /// </summary>
-    public static void Register(IntPtr pThreadMgr)
+    public static void Register(IntPtr pThreadMgr, uint clientId = 0)
     {
         if (pThreadMgr == IntPtr.Zero)
         {
             DebugLog.Write("LangBarItemButton.Register: pThreadMgr is NULL");
             return;
         }
+
+        _pThreadMgr = pThreadMgr;
+        _clientId = clientId;
 
         if (!_listenerStarted)
         {
@@ -418,6 +454,9 @@ public static unsafe class LangBarItemButton
             _pLangBarSink = IntPtr.Zero;
             _sinkCookie = 0;
         }
+
+        _pThreadMgr = IntPtr.Zero;
+        _clientId = 0;
     }
 
     /// <summary>
@@ -426,14 +465,20 @@ public static unsafe class LangBarItemButton
     /// </summary>
     public static void NotifyStateChanged()
     {
-        if (_pLangBarSink != IntPtr.Zero)
+        IntPtr sink = _pLangBarSink;
+        DebugLog.Write($"LangBarItemButton.NotifyStateChanged ENTER _pLangBarSink={sink}, thread={Environment.CurrentManagedThreadId}");
+        if (sink != IntPtr.Zero)
         {
-            var sinkVTable = *(ITfLangBarItemSinkVTable**)_pLangBarSink;
+            var sinkVTable = *(ITfLangBarItemSinkVTable**)sink;
             // [WinSDK: ITfLangBarItemSink::OnUpdate]
             int hr = sinkVTable->OnUpdate(
-                _pLangBarSink,
+                sink,
                 TsfLangBarFlags.TfLbiIcon | TsfLangBarFlags.TfLbiText | TsfLangBarFlags.TfLbiTooltip);
             DebugLog.Write($"LangBarItemButton.NotifyStateChanged: OnUpdate sent to Windows Taskbar hr=0x{hr:X8}");
+        }
+        else
+        {
+            DebugLog.Write("LangBarItemButton.NotifyStateChanged: _pLangBarSink is NULL in this process");
         }
     }
 }
