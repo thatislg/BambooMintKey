@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading;
 using BambooMintKey.NativeBridge.COM;
 using BambooMintKey.NativeBridge.Common;
 using BambooMintKey.NativeBridge.Interop;
@@ -55,6 +56,55 @@ public unsafe class BambooMintKeyTextService
     private uint _threadMgrEventSinkCookie;
     private uint _keyEventSinkCookie;
     private bool _isActivated;
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern uint WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
+
+    private Thread? _stateWatcherThread;
+    private volatile bool _isWatcherActive;
+
+    private void StartStateWatcher()
+    {
+        StopStateWatcher();
+        _isWatcherActive = true;
+        IntPtr pThreadMgr = _pThreadMgr;
+        uint clientId = _clientId;
+
+        _stateWatcherThread = new Thread(() =>
+        {
+            IntPtr hEvent = SharedMemoryManager.EventHandle;
+            while (_isWatcherActive)
+            {
+                if (hEvent != IntPtr.Zero)
+                {
+                    uint res = WaitForSingleObject(hEvent, 1000);
+                    if (res == 0 /* WAIT_OBJECT_0 */)
+                    {
+                        DebugLog.Write("StateWatcher: Sự kiện cấu hình thay đổi đã được kích hoạt!");
+                        KeyEventSinkHelper.UpdatePreservedKeys(pThreadMgr, clientId);
+                        LangBarItemButton.NotifyStateChanged();
+                        TsfCompartmentHelper.SetConversionMode(pThreadMgr, clientId, SharedMemoryManager.IsVietnameseMode);
+                    }
+                }
+                else
+                {
+                    Thread.Sleep(1000);
+                    hEvent = SharedMemoryManager.EventHandle;
+                }
+            }
+        })
+        {
+            IsBackground = true,
+            Name = "BambooMintKey_StateWatcher"
+        };
+        _stateWatcherThread.Start();
+    }
+
+    private void StopStateWatcher()
+    {
+        _isWatcherActive = false;
+        _stateWatcherThread = null;
+    }
 
     // Properties cho các component khác truy cập
     public IntPtr ThreadMgr => _pThreadMgr;
@@ -233,6 +283,9 @@ public unsafe class BambooMintKeyTextService
         // 6. Đồng bộ trạng thái Input Mode Compartment với Windows Shell Taskbar
         TsfCompartmentHelper.SetConversionMode(pThreadMgr, tfClientId, BridgeStateManager.IsVietnameseMode);
 
+        // 7. Khởi động luồng lắng nghe cập nhật cấu hình theo thời gian thực
+        target.StartStateWatcher();
+
         DebugLog.Write("ActivateExImpl completed");
 
         return HResult.Ok;
@@ -262,6 +315,9 @@ public unsafe class BambooMintKeyTextService
     {
         var target = GetTarget(thisPtr);
         if (!target._isActivated) return HResult.Ok;
+
+        // Dừng luồng lắng nghe cấu hình
+        target.StopStateWatcher();
 
         // Lưu ý: Không gọi LangBarItemButton.Unregister() ở đây vì Windows Shell
         // tự quản lý hiển thị/ẩn icon theo trạng thái kích hoạt của TIP.

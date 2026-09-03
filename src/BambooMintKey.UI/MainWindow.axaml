@@ -7,8 +7,246 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        mc:Ignorable="d"
         x:Class="BambooMintKey.UI.MainWindow"
-        Title="BambooMintKey.UI">
-    Welcome to Avalonia!
+        Title="BambooMintKey — Bảng Điều Khiển Cài Đặt"
+        Width="580" Height="540"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        Background="#f8fafc"
+        Foreground="#0f172a"
+        FontFamily="Segoe UI, Inter, sans-serif">
+
+    <Window.Styles>
+        <!-- Style cho TabControl -->
+        <Style Selector="TabItem">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="Foreground" Value="#64748b"/>
+        </Style>
+        <Style Selector="TabItem:selected">
+            <Setter Property="Foreground" Value="#16a34a"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        <!-- Style cho Card Container (Nền trắng, viền xám nhẹ) -->
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="#ffffff"/>
+            <Setter Property="BorderBrush" Value="#e2e8f0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="14"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+        <!-- Style cho Button chính -->
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="#16a34a"/>
+            <Setter Property="Foreground" Value="#ffffff"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="Button.primary:pointerover">
+            <Setter Property="Background" Value="#15803d"/>
+        </Style>
+        <!-- Style cho Button phụ -->
+        <Style Selector="Button.secondary">
+            <Setter Property="Background" Value="#f1f5f9"/>
+            <Setter Property="BorderBrush" Value="#cbd5e1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="#0f172a"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="Button.secondary:pointerover">
+            <Setter Property="Background" Value="#e2e8f0"/>
+        </Style>
+        <!-- Style cho Button nhỏ phím tắt nhanh -->
+        <Style Selector="Button.chip">
+            <Setter Property="Background" Value="#f1f5f9"/>
+            <Setter Property="BorderBrush" Value="#cbd5e1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="#334155"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="CornerRadius" Value="4"/>
+        </Style>
+        <Style Selector="Button.chip:pointerover">
+            <Setter Property="Background" Value="#16a34a15"/>
+            <Setter Property="BorderBrush" Value="#16a34a"/>
+            <Setter Property="Foreground" Value="#16a34a"/>
+        </Style>
+        <!-- RadioButton & CheckBox Text Color -->
+        <Style Selector="RadioButton">
+            <Setter Property="Foreground" Value="#1e293b"/>
+        </Style>
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="#1e293b"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto, *, Auto" Margin="18">
+        <!-- 1. Header Bar -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto, *, Auto" Margin="0,0,0,12">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <TextBlock Text="🎍" FontSize="28" VerticalAlignment="Center"/>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="BambooMintKey" FontSize="19" FontWeight="Bold" Foreground="#16a34a"/>
+                    <TextBlock Text="Bộ Gõ Tiếng Việt Thế Hệ Mới" FontSize="11" Foreground="#64748b"/>
+                </StackPanel>
+            </StackPanel>
+            <Border Grid.Column="2" Background="#16a34a15" BorderBrush="#16a34a40" BorderThickness="1" CornerRadius="12" Padding="12,5" VerticalAlignment="Center">
+                <TextBlock Text="● TSF Active" FontSize="11" FontWeight="Bold" Foreground="#16a34a"/>
+            </Border>
+        </Grid>
+
+        <!-- 2. Tab Content -->
+        <TabControl Grid.Row="1" Name="MainTabs">
+            <!-- TAB 1: BÀN PHÍM & PHÍM TẮT -->
+            <TabItem Header="Bàn phím &amp; Phím tắt">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="6" Margin="0,8,0,0">
+                        <!-- Card: Kiểu gõ -->
+                        <Border Classes="card">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Kiểu gõ chính:" FontWeight="Bold" FontSize="13" Foreground="#16a34a"/>
+                                <StackPanel Orientation="Horizontal" Spacing="24">
+                                    <RadioButton Name="RbTelex" Content="Telex" GroupName="InputMethod" IsChecked="True"/>
+                                    <RadioButton Name="RbVni" Content="VNI" GroupName="InputMethod"/>
+                                    <RadioButton Name="RbSimpleTelex" Content="Simple Telex" GroupName="InputMethod"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Card: Bảng mã -->
+                        <Border Classes="card">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Bảng mã đầu ra:" FontWeight="Bold" FontSize="13" Foreground="#16a34a"/>
+                                <ComboBox Name="CbCharset" HorizontalAlignment="Stretch" SelectedIndex="0" Background="#ffffff" Foreground="#0f172a" BorderBrush="#cbd5e1">
+                                    <ComboBoxItem Content="Unicode dựng sẵn (Quốc tế / Mặc định)"/>
+                                    <ComboBoxItem Content="Unicode tổ hợp (Decomposed)"/>
+                                    <ComboBoxItem Content="TCVN3 (ABC)"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Card: Cài đặt phím tắt tự do (Custom Key Binding) -->
+                        <Border Classes="card">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Phím tắt chuyển đổi chế độ (Việt / Anh):" FontWeight="Bold" FontSize="13" Foreground="#16a34a"/>
+                                
+                                <!-- Khung ghi nhận phím tắt -->
+                                <Grid ColumnDefinitions="*, Auto, Auto" Margin="0,2,0,4">
+                                    <TextBox Grid.Column="0" Name="TxtHotkeyDisplay" IsReadOnly="True"
+                                             FontSize="14" FontWeight="Bold" Foreground="#0f172a"
+                                             Background="#f8fafc" BorderBrush="#16a34a" BorderThickness="1.5"
+                                             CornerRadius="6,0,0,6" Padding="10,8" VerticalContentAlignment="Center"
+                                             Text="Ctrl + Shift"/>
+                                    <Button Grid.Column="1" Name="BtnRecordHotkey" Classes="primary"
+                                            Content="⌨ Bấm để gán phím" CornerRadius="0" Padding="14,8"/>
+                                    <Button Grid.Column="2" Name="BtnClearHotkey" Classes="secondary"
+                                            Content="✕ Gỡ phím" CornerRadius="0,6,6,0" Padding="12,8"/>
+                                </Grid>
+
+                                <TextBlock Name="TxtHotkeyHelp" Text="Bấm nút 'Gán phím' rồi nhấn tổ hợp phím bất kỳ trên bàn phím của bạn." FontSize="11" Foreground="#64748b"/>
+
+                                <!-- Phím tắt mẫu chọn nhanh -->
+                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <TextBlock Text="Chọn nhanh:" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
+                                    <Button Name="ChipCtrlShift" Classes="chip" Content="Ctrl + Shift"/>
+                                    <Button Name="ChipAltZ" Classes="chip" Content="Alt + Z"/>
+                                    <Button Name="ChipCtrlSpace" Classes="chip" Content="Ctrl + Space"/>
+                                    <Button Name="ChipCtrlTilde" Classes="chip" Content="Ctrl + ~"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Card: Khởi động cùng Windows -->
+                        <Border Classes="card">
+                            <CheckBox Name="ChkStartup" Content="Khởi động cùng Windows khi đăng nhập"/>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- TAB 2: TÙY CHỌN GÕ -->
+            <TabItem Header="Tùy chọn gõ">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="6" Margin="0,8,0,0">
+                        <!-- Card: Quy chuẩn đặt dấu thanh -->
+                        <Border Classes="card">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Quy chuẩn đặt vị trí dấu thanh:" FontWeight="Bold" FontSize="13" Foreground="#16a34a"/>
+                                <RadioButton Name="RbToneModern" Content="Kiểu mới: òa, xòe, thủy (Chuẩn ngôn ngữ học hiện đại)" GroupName="ToneStyle" IsChecked="True"/>
+                                <RadioButton Name="RbToneClassic" Content="Kiểu cũ: oà, xoè, thuỷ (Chuẩn truyền thống)" GroupName="ToneStyle"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Card: Các tùy chọn thông minh -->
+                        <Border Classes="card">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Tính năng thông minh:" FontWeight="Bold" FontSize="13" Foreground="#16a34a"/>
+                                <CheckBox Name="ChkAutoRestore" Content="Tự động khôi phục từ tiếng Anh khi gõ sai ngữ pháp (start, word, ...)"/>
+                                <CheckBox Name="ChkRepeatUndo" Content="Gõ lặp dấu để khôi phục ký tự thô (ss -> s, aa -> a, rr -> r)"/>
+                                <CheckBox Name="ChkLeadingW" Content="Phím 'w' đứng đầu từ biến thành 'ư' (w -> ư, wn -> ưn)"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- TAB 3: GÕ THỬ NGHIỆM -->
+            <TabItem Header="Gõ thử nghiệm">
+                <StackPanel Spacing="10" Margin="0,8,0,0">
+                    <TextBlock Text="Khung gõ thử nghiệm trực tiếp:" FontWeight="Bold" FontSize="13" Foreground="#16a34a"/>
+                    <TextBlock Text="Bạn có thể gõ thử tiếng Việt với kiểu gõ và phím tắt vừa thiết lập ngay tại đây:" FontSize="12" Foreground="#64748b"/>
+                    
+                    <!-- Khung TextBox: Nền trắng, Chữ đen rõ nét, Viền xanh Mint -->
+                    <Border BorderBrush="#16a34a" BorderThickness="1.5" CornerRadius="8" Background="#ffffff">
+                        <TextBox Name="TxtSandbox" Height="190" AcceptsReturn="True" TextWrapping="Wrap"
+                                 Background="#ffffff" BorderThickness="0" Foreground="#0f172a"
+                                 FontSize="16" FontWeight="Normal" Padding="14"
+                                 PlaceholderText="Gõ thử tiếng Việt tại đây để kiểm tra phản hồi tức thì..."/>
+                    </Border>
+                    
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Name="BtnClearSandbox" Classes="secondary" Content="Xóa trắng"/>
+                    </StackPanel>
+                </StackPanel>
+            </TabItem>
+
+            <!-- TAB 4: THÔNG TIN (ABOUT) -->
+            <TabItem Name="TabAbout" Header="Thông tin">
+                <Border Classes="card" Margin="0,8,0,0" Padding="20">
+                    <StackPanel Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="🎍" FontSize="56" HorizontalAlignment="Center"/>
+                        <TextBlock Text="BambooMintKey" FontSize="22" FontWeight="Bold" Foreground="#16a34a" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Phiên bản 1.0.0 (NativeAOT &amp; Pure F# Core)" FontSize="12" Foreground="#64748b" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Kiến trúc Text Services Framework (TSF) TIP 64-bit hiện đại cho Windows 10/11." FontSize="11" TextWrapping="Wrap" TextAlignment="Center" Foreground="#334155" MaxWidth="400"/>
+                        
+                        <Separator Background="#e2e8f0" Margin="0,4"/>
+
+                        <StackPanel Spacing="4" HorizontalAlignment="Center">
+                            <TextBlock Text="Tác giả: Dương Gia Long &amp; LMO contributors" FontSize="12" Foreground="#0f172a" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Bản quyền: MIT License — Phần mềm Mã Nguồn Mở" FontSize="11" Foreground="#64748b" HorizontalAlignment="Center"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center" Margin="0,10,0,0">
+                            <Button Name="BtnGithub" Classes="secondary" Content="🌐 Trang chủ GitHub"/>
+                            <Button Name="BtnCheckUpdate" Classes="secondary" Content="🔄 Kiểm tra Cập nhật"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </TabItem>
+        </TabControl>
+
+        <!-- 3. Bottom Action Bar -->
+        <Grid Grid.Row="2" ColumnDefinitions="*, Auto" Margin="0,14,0,0">
+            <TextBlock Grid.Column="0" Name="TxtStatus" Text="Sẵn sàng." VerticalAlignment="Center" FontSize="12" Foreground="#64748b"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                <Button Name="BtnDefault" Classes="secondary" Content="Mặc định"/>
+                <Button Name="BtnSave" Classes="primary" Content="Áp dụng &amp; Đóng"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
 </Window>

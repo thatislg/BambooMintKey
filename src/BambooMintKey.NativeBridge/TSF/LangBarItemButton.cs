@@ -2,6 +2,8 @@
 // Copyright (c) 2026 Dương Gia Long and LMO contributors
 // SPDX-License-Identifier: MIT
 using System;
+using System.Diagnostics;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using BambooMintKey.NativeBridge.Common;
@@ -29,8 +31,34 @@ public static unsafe class LangBarItemButton
     private static uint _clientId = 0;
 
 
+    // Win32 Menu APIs cho Context Menu chuột phải
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr CreatePopupMenu();
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern bool AppendMenuW(IntPtr hMenu, uint uFlags, nuint uIDNewItem, string lpNewItem);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern uint TrackPopupMenuEx(IntPtr hMenu, uint uFlags, int x, int y, IntPtr hwnd, IntPtr lptpm);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool DestroyMenu(IntPtr hMenu);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out POINT lpPoint);
+
+    [DllImport("uxtheme.dll", EntryPoint = "#135", SetLastError = true)]
+    private static extern int SetPreferredAppMode(int appMode);
+
     static LangBarItemButton()
     {
+        try { SetPreferredAppMode(1 /* AllowDark */); } catch { }
         InitializeVTables();
 
         // Cấp phát vùng nhớ Native Layout kép (Slot 0: Button, Slot 1: Source)
@@ -190,10 +218,15 @@ public static unsafe class LangBarItemButton
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int OnClick(IntPtr thisPtr, uint click, POINT pt, RECT* prcArea)
     {
-        DebugLog.Write($"LangBarItemButton OnClick ENTER click={click}, thread={Environment.CurrentManagedThreadId}");
-        // Bắt mọi click chuột trái (hoặc bất kỳ click nào không phải chuột phải)
-        if (click != TsfLangBarFlags.TfLbiClkRight)
+        DebugLog.Write($"LangBarItemButton OnClick ENTER click={click}, pt=({pt.X}, {pt.Y}), thread={Environment.CurrentManagedThreadId}");
+        if (click == TsfLangBarFlags.TfLbiClkRight)
         {
+            // Click chuột phải: Mở Context Menu trực tiếp tại tọa độ chuột
+            ShowNativeContextMenu(pt);
+        }
+        else
+        {
+            // Click chuột trái: Đảo chế độ V/E tức thì
             bool newMode = BridgeStateManager.ToggleVietnameseMode();
 
             // 1. Gửi thông báo OnUpdate tới Sink để vẽ lại Icon ngay
@@ -211,20 +244,274 @@ public static unsafe class LangBarItemButton
         return HResult.Ok;
     }
 
-    /// <summary>[WinSDK: ITfLangBarItemButton::InitMenu] - Khởi tạo menu ngữ cảnh khi click chuột phải.</summary>
+    /// <summary>[WinSDK: ITfLangBarItemButton::InitMenu] - Khởi tạo menu ngữ cảnh qua ITfMenu.</summary>
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int InitMenu(IntPtr thisPtr, IntPtr pMenu)
     {
-        // Sẽ hiện thực hóa chi tiết tại 003_05_TaskbarContextMenu.md
+        DebugLog.Write($"LangBarItemButton InitMenu ENTER pMenu={pMenu}");
+        if (pMenu == IntPtr.Zero) return HResult.InvalidArgument;
+
+        var menuVTable = *(ITfMenuVTable**)pMenu;
+
+        // 1. Chế độ gõ tiếng Việt
+        bool isVn = BridgeStateManager.IsVietnameseMode;
+        uint vFlag = isVn ? TsfMenuFlags.TfLbMenuFlagChecked : 0;
+        AddMenuItemText(menuVTable, pMenu, MenuCommands.ToggleVietnameseMode, vFlag, "Gõ tiếng Việt (Ctrl + Shift)");
+
+        AddMenuSeparator(menuVTable, pMenu);
+
+        // 2. Submenu: Kiểu đặt dấu thanh
+        IntPtr pSubTone = IntPtr.Zero;
+        fixed (char* pText = "Kiểu đặt dấu thanh")
+        {
+            menuVTable->AddMenuItem(pMenu, MenuCommands.SubmenuToneStyle,
+                TsfMenuFlags.TfLbMenuFlagSubMenu, IntPtr.Zero, IntPtr.Zero, pText, (uint)"Kiểu đặt dấu thanh".Length, &pSubTone);
+        }
+        if (pSubTone != IntPtr.Zero)
+        {
+            var subVTable = *(ITfMenuVTable**)pSubTone;
+            byte toneStyle = SharedMemoryManager.ToneStyle; // 0 = Modern, 1 = Classic
+            AddMenuItemText(subVTable, pSubTone, MenuCommands.ToneStyleModern,
+                toneStyle == 0 ? TsfMenuFlags.TfLbMenuFlagRadioChecked : 0, "Kiểu mới (òa, xòe, thủy)");
+            AddMenuItemText(subVTable, pSubTone, MenuCommands.ToneStyleClassic,
+                toneStyle == 1 ? TsfMenuFlags.TfLbMenuFlagRadioChecked : 0, "Kiểu cũ (oà, xoè, thuỷ)");
+            
+            NativeCom.Release(pSubTone);
+        }
+
+        // 3. Tùy chọn ngữ pháp thông minh
+        uint autoRestoreFlag = SharedMemoryManager.AutoRestoreEnglishWords ? TsfMenuFlags.TfLbMenuFlagChecked : 0;
+        AddMenuItemText(menuVTable, pMenu, MenuCommands.ToggleAutoRestoreEnglish, autoRestoreFlag, "Tự động khôi phục từ tiếng Anh");
+
+        uint repeatUndoFlag = SharedMemoryManager.AllowRepeatKeyUndo ? TsfMenuFlags.TfLbMenuFlagChecked : 0;
+        AddMenuItemText(menuVTable, pMenu, MenuCommands.ToggleRepeatKeyUndo, repeatUndoFlag, "Gõ lặp dấu để khôi phục (ss -> s)");
+
+        uint leadingWFlag = SharedMemoryManager.AllowLeadingWAsU ? TsfMenuFlags.TfLbMenuFlagChecked : 0;
+        AddMenuItemText(menuVTable, pMenu, MenuCommands.ToggleLeadingWAsU, leadingWFlag, "Phím 'w' đầu từ thành 'ư' (w -> ư)");
+
+        AddMenuSeparator(menuVTable, pMenu);
+
+        // 4. Submenu: Kiểu gõ
+        IntPtr pSubMethod = IntPtr.Zero;
+        fixed (char* pText = "Kiểu gõ")
+        {
+            menuVTable->AddMenuItem(pMenu, MenuCommands.SubmenuInputMethod,
+                TsfMenuFlags.TfLbMenuFlagSubMenu, IntPtr.Zero, IntPtr.Zero, pText, (uint)"Kiểu gõ".Length, &pSubMethod);
+        }
+        if (pSubMethod != IntPtr.Zero)
+        {
+            var subVTable = *(ITfMenuVTable**)pSubMethod;
+            byte curMethod = SharedMemoryManager.InputMethod;
+            AddMenuItemText(subVTable, pSubMethod, MenuCommands.MethodTelex,
+                curMethod == 0 ? TsfMenuFlags.TfLbMenuFlagRadioChecked : 0, "Telex");
+            AddMenuItemText(subVTable, pSubMethod, MenuCommands.MethodVni,
+                curMethod == 1 ? TsfMenuFlags.TfLbMenuFlagRadioChecked : 0, "VNI");
+            AddMenuItemText(subVTable, pSubMethod, MenuCommands.MethodSimpleTelex,
+                curMethod == 2 ? TsfMenuFlags.TfLbMenuFlagRadioChecked : 0, "Simple Telex");
+            NativeCom.Release(pSubMethod);
+        }
+
+        // 5. Submenu: Bảng mã
+        IntPtr pSubCharset = IntPtr.Zero;
+        fixed (char* pText = "Bảng mã")
+        {
+            menuVTable->AddMenuItem(pMenu, MenuCommands.SubmenuCharset,
+                TsfMenuFlags.TfLbMenuFlagSubMenu, IntPtr.Zero, IntPtr.Zero, pText, (uint)"Bảng mã".Length, &pSubCharset);
+        }
+        if (pSubCharset != IntPtr.Zero)
+        {
+            var subVTable = *(ITfMenuVTable**)pSubCharset;
+            byte curCharset = SharedMemoryManager.Charset;
+            AddMenuItemText(subVTable, pSubCharset, MenuCommands.CharsetUnicodePrecomposed,
+                curCharset == 0 ? TsfMenuFlags.TfLbMenuFlagRadioChecked : 0, "Unicode dựng sẵn");
+            AddMenuItemText(subVTable, pSubCharset, MenuCommands.CharsetUnicodeDecomposed,
+                curCharset == 1 ? TsfMenuFlags.TfLbMenuFlagRadioChecked : 0, "Unicode tổ hợp");
+            AddMenuItemText(subVTable, pSubCharset, MenuCommands.CharsetTcvn3,
+                curCharset == 2 ? TsfMenuFlags.TfLbMenuFlagRadioChecked : 0, "TCVN3 (ABC)");
+            NativeCom.Release(pSubCharset);
+        }
+
+        AddMenuSeparator(menuVTable, pMenu);
+
+        // 6. Cài đặt & Thông tin
+        AddMenuItemText(menuVTable, pMenu, MenuCommands.OpenSettings, 0, "Bảng điều khiển & Cài đặt...");
+        AddMenuItemText(menuVTable, pMenu, MenuCommands.AboutApp, 0, "Thông tin BambooMintKey");
+
         return HResult.Ok;
     }
 
-    /// <summary>[WinSDK: ITfLangBarItemButton::OnMenuSelect] - Bắt sự kiện mục menu được chọn.</summary>
+    private static void AddMenuItemText(ITfMenuVTable* vtable, IntPtr pMenu, uint id, uint flags, string text)
+    {
+        fixed (char* pText = text)
+        {
+            vtable->AddMenuItem(pMenu, id, flags, IntPtr.Zero, IntPtr.Zero, pText, (uint)text.Length, null);
+        }
+    }
+
+    private static void AddMenuSeparator(ITfMenuVTable* vtable, IntPtr pMenu)
+    {
+        vtable->AddMenuItem(pMenu, 0, TsfMenuFlags.TfLbMenuFlagSeparator, IntPtr.Zero, IntPtr.Zero, null, 0, null);
+    }
+
+    /// <summary>[WinSDK: ITfLangBarItemButton::OnMenuSelect] - Bắt sự kiện mục menu được chọn từ TSF.</summary>
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int OnMenuSelect(IntPtr thisPtr, uint uId)
     {
-        // Sẽ hiện thực hóa chi tiết tại 003_05_TaskbarContextMenu.md
+        DebugLog.Write($"LangBarItemButton OnMenuSelect uId={uId}");
+        ExecuteMenuCommand(uId);
         return HResult.Ok;
+    }
+
+    /// <summary>Hiển thị menu ngữ cảnh chuột phải native (Win32 TrackPopupMenuEx) tại vị trí chuột.</summary>
+    public static void ShowNativeContextMenu(POINT pt)
+    {
+        if (pt.X == 0 && pt.Y == 0)
+        {
+            GetCursorPos(out pt);
+        }
+
+        IntPtr hMenu = CreatePopupMenu();
+        if (hMenu == IntPtr.Zero) return;
+
+        try
+        {
+            const uint MF_STRING       = 0x00000000;
+            const uint MF_SEPARATOR    = 0x00000800;
+            const uint MF_CHECKED      = 0x00000008;
+            const uint MF_POPUP        = 0x00000010;
+            const uint TPM_RETURNCMD   = 0x0100;
+            const uint TPM_RIGHTBUTTON = 0x0002;
+
+            // 1. Chế độ gõ tiếng Việt
+            uint vFlag = BridgeStateManager.IsVietnameseMode ? MF_CHECKED : 0;
+            AppendMenuW(hMenu, MF_STRING | vFlag, MenuCommands.ToggleVietnameseMode, "Gõ tiếng Việt (Ctrl + Shift)");
+            AppendMenuW(hMenu, MF_SEPARATOR, 0, string.Empty);
+
+            // 2. Submenu Kiểu đặt dấu thanh
+            IntPtr hSubTone = CreatePopupMenu();
+            byte toneStyle = SharedMemoryManager.ToneStyle;
+            AppendMenuW(hSubTone, MF_STRING | (toneStyle == 0 ? MF_CHECKED : 0), MenuCommands.ToneStyleModern, "Kiểu mới (òa, xòe, thủy)");
+            AppendMenuW(hSubTone, MF_STRING | (toneStyle == 1 ? MF_CHECKED : 0), MenuCommands.ToneStyleClassic, "Kiểu cũ (oà, xoè, thuỷ)");
+            AppendMenuW(hMenu, MF_POPUP, (nuint)hSubTone, "Kiểu đặt dấu thanh");
+
+            // 3. Tùy chọn ngữ pháp thông minh
+            uint autoRestore = SharedMemoryManager.AutoRestoreEnglishWords ? MF_CHECKED : 0;
+            AppendMenuW(hMenu, MF_STRING | autoRestore, MenuCommands.ToggleAutoRestoreEnglish, "Tự động khôi phục từ tiếng Anh");
+
+            uint repeatUndo = SharedMemoryManager.AllowRepeatKeyUndo ? MF_CHECKED : 0;
+            AppendMenuW(hMenu, MF_STRING | repeatUndo, MenuCommands.ToggleRepeatKeyUndo, "Gõ lặp dấu để khôi phục (ss -> s)");
+
+            uint leadingW = SharedMemoryManager.AllowLeadingWAsU ? MF_CHECKED : 0;
+            AppendMenuW(hMenu, MF_STRING | leadingW, MenuCommands.ToggleLeadingWAsU, "Phím 'w' đầu từ thành 'ư' (w -> ư)");
+
+            AppendMenuW(hMenu, MF_SEPARATOR, 0, string.Empty);
+
+            // 4. Submenu Kiểu gõ
+            IntPtr hSubMethod = CreatePopupMenu();
+            byte curMethod = SharedMemoryManager.InputMethod;
+            AppendMenuW(hSubMethod, MF_STRING | (curMethod == 0 ? MF_CHECKED : 0), MenuCommands.MethodTelex, "Telex");
+            AppendMenuW(hSubMethod, MF_STRING | (curMethod == 1 ? MF_CHECKED : 0), MenuCommands.MethodVni, "VNI");
+            AppendMenuW(hSubMethod, MF_STRING | (curMethod == 2 ? MF_CHECKED : 0), MenuCommands.MethodSimpleTelex, "Simple Telex");
+            AppendMenuW(hMenu, MF_POPUP, (nuint)hSubMethod, "Kiểu gõ");
+
+            // 5. Submenu Bảng mã
+            IntPtr hSubCharset = CreatePopupMenu();
+            byte curCharset = SharedMemoryManager.Charset;
+            AppendMenuW(hSubCharset, MF_STRING | (curCharset == 0 ? MF_CHECKED : 0), MenuCommands.CharsetUnicodePrecomposed, "Unicode dựng sẵn");
+            AppendMenuW(hSubCharset, MF_STRING | (curCharset == 1 ? MF_CHECKED : 0), MenuCommands.CharsetUnicodeDecomposed, "Unicode tổ hợp");
+            AppendMenuW(hSubCharset, MF_STRING | (curCharset == 2 ? MF_CHECKED : 0), MenuCommands.CharsetTcvn3, "TCVN3 (ABC)");
+            AppendMenuW(hMenu, MF_POPUP, (nuint)hSubCharset, "Bảng mã");
+
+            AppendMenuW(hMenu, MF_SEPARATOR, 0, string.Empty);
+
+            // 6. Cài đặt & Thông tin
+            AppendMenuW(hMenu, MF_STRING, MenuCommands.OpenSettings, "Bảng điều khiển & Cài đặt...");
+            AppendMenuW(hMenu, MF_STRING, MenuCommands.AboutApp, "Thông tin BambooMintKey");
+
+            // Đặt Foreground window để menu tự đóng khi người dùng click ra ngoài
+            IntPtr hWndFore = GetForegroundWindow();
+            if (hWndFore != IntPtr.Zero) SetForegroundWindow(hWndFore);
+
+            uint selectedCmd = TrackPopupMenuEx(hMenu, TPM_RETURNCMD | TPM_RIGHTBUTTON, pt.X, pt.Y, hWndFore, IntPtr.Zero);
+            
+            if (selectedCmd != 0)
+            {
+                ExecuteMenuCommand(selectedCmd);
+            }
+        }
+        finally
+        {
+            DestroyMenu(hMenu);
+        }
+    }
+
+    /// <summary>Xử lý tập trung các mã lệnh từ Menu (dùng chung cho cả TSF và Win32 Popup).</summary>
+    public static void ExecuteMenuCommand(uint cmdId)
+    {
+        DebugLog.Write($"LangBarItemButton ExecuteMenuCommand cmdId={cmdId}");
+        switch (cmdId)
+        {
+            case MenuCommands.ToggleVietnameseMode:
+                bool newMode = BridgeStateManager.ToggleVietnameseMode();
+                NotifyStateChanged();
+                if (_pThreadMgr != IntPtr.Zero)
+                {
+                    TsfCompartmentHelper.SetConversionMode(_pThreadMgr, _clientId, newMode);
+                }
+                break;
+
+            case MenuCommands.ToneStyleModern:
+                SharedMemoryManager.ToneStyle = 0; // 0 = Modern
+                break;
+
+            case MenuCommands.ToneStyleClassic:
+                SharedMemoryManager.ToneStyle = 1; // 1 = Classic
+                break;
+
+            case MenuCommands.ToggleAutoRestoreEnglish:
+                SharedMemoryManager.AutoRestoreEnglishWords = !SharedMemoryManager.AutoRestoreEnglishWords;
+                break;
+
+            case MenuCommands.ToggleRepeatKeyUndo:
+                SharedMemoryManager.AllowRepeatKeyUndo = !SharedMemoryManager.AllowRepeatKeyUndo;
+                break;
+
+            case MenuCommands.ToggleLeadingWAsU:
+                SharedMemoryManager.AllowLeadingWAsU = !SharedMemoryManager.AllowLeadingWAsU;
+                break;
+
+            case MenuCommands.MethodTelex:
+                SharedMemoryManager.InputMethod = 0;
+                break;
+
+            case MenuCommands.MethodVni:
+                SharedMemoryManager.InputMethod = 1;
+                break;
+
+            case MenuCommands.MethodSimpleTelex:
+                SharedMemoryManager.InputMethod = 2;
+                break;
+
+            case MenuCommands.CharsetUnicodePrecomposed:
+                SharedMemoryManager.Charset = 0;
+                break;
+
+            case MenuCommands.CharsetUnicodeDecomposed:
+                SharedMemoryManager.Charset = 1;
+                break;
+
+            case MenuCommands.CharsetTcvn3:
+                SharedMemoryManager.Charset = 2;
+                break;
+
+            case MenuCommands.OpenSettings:
+                SettingsLauncher.LaunchSettingsGui();
+                break;
+
+            case MenuCommands.AboutApp:
+                SettingsLauncher.LaunchSettingsGui("--about");
+                break;
+        }
     }
 
     /// <summary>[WinSDK: ITfLangBarItemButton::GetIcon] - Cung cấp con trỏ HICON để Windows vẽ icon Taskbar.</summary>

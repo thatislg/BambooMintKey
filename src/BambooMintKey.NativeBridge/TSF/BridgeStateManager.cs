@@ -24,20 +24,30 @@ public static class BridgeStateManager
     /// <summary>Trạng thái word hiện tại của engine.</summary>
     public static Types.WordState CurrentState => _currentState;
 
-    /// <summary>Cấu hình engine hiện tại (đồng bộ trạng thái IsEnabled với SharedMemoryManager).</summary>
+    /// <summary>Cấu hình engine hiện tại (đồng bộ trạng thái và tùy chọn với SharedMemoryManager).</summary>
     public static EngineConfig.EngineConfig Config
     {
         get
         {
             bool isVn = SharedMemoryManager.IsVietnameseMode;
-            if (_currentConfig.IsEnabled != isVn)
+            bool autoRestore = SharedMemoryManager.AutoRestoreEnglishWords;
+            bool repeatUndo = SharedMemoryManager.AllowRepeatKeyUndo;
+            bool leadingW = SharedMemoryManager.AllowLeadingWAsU;
+            byte toneStyleByte = SharedMemoryManager.ToneStyle;
+            var toneStyle = (toneStyleByte == 1) ? Types.TonePlacementStyle.Traditional : Types.TonePlacementStyle.Modern;
+
+            if (_currentConfig.IsEnabled != isVn ||
+                _currentConfig.AutoRestoreEnglishWords != autoRestore ||
+                _currentConfig.AllowRepeatKeyUndo != repeatUndo ||
+                _currentConfig.AllowLeadingWAsU != leadingW ||
+                _currentConfig.ToneStyle != toneStyle)
             {
                 _currentConfig = new EngineConfig.EngineConfig(
                     isVn,
-                    _currentConfig.AutoRestoreEnglishWords,
-                    _currentConfig.AllowRepeatKeyUndo,
-                    _currentConfig.AllowLeadingWAsU,
-                    _currentConfig.ToneStyle
+                    autoRestore,
+                    repeatUndo,
+                    leadingW,
+                    toneStyle
                 );
             }
             return _currentConfig;

@@ -2,6 +2,8 @@
 // Copyright (c) 2026 Dương Gia Long and LMO contributors
 // SPDX-License-Identifier: MIT
 using System.Runtime.InteropServices;
+using BambooMintKey.NativeBridge.Common;
+using BambooMintKey.NativeBridge.TSF;
 
 namespace BambooMintKey.NativeBridge.Interop;
 
@@ -137,28 +139,46 @@ public static class KeyInputTranslator
     /// <summary>
     /// Kiểm tra xem sự kiện bàn phím hiện tại có phải là phím tắt chuyển đổi chế độ V/E hay không.
     /// Theo yêu cầu người dùng: Ctrl + Shift + Q.
+    /// <summary>
+    /// Kiểm tra xem tổ hợp phím hiện tại có khớp với phím tắt chuyển đổi V/E đã cài đặt trong cấu hình hay không.
+    /// Hỗ trợ cả 1 phím, 2 phím, 3 phím (Ctrl+Shift+Z, Ctrl+Alt+Space, ...) và 4 phím.
     /// </summary>
     public static bool IsToggleHotkeyPressed(UIntPtr wParam, IntPtr lParam)
     {
-        uint vk = (uint)wParam;
+        uint currentVk = (uint)wParam;
+        uint targetVk = SharedMemoryManager.HotkeyVKey;
+        uint targetMods = SharedMemoryManager.HotkeyModifiers;
 
-        // Phím tắt chính: Ctrl + Shift + Q
-        if (vk == VkQ)
+        if (targetVk == 0 && targetMods == 0)
         {
-            bool isCtrl = IsKeyDown((int)VkControl) || IsKeyDown(0xA2) || IsKeyDown(0xA3);
-            bool isShift = IsKeyDown((int)VkShift) || IsKeyDown(0xA0) || IsKeyDown(0xA1);
-            if (isCtrl && isShift)
-            {
-                return true;
-            }
+            return false; // Phím tắt bị tắt
         }
 
-        // Phím tắt dự phòng: Alt + Z
-        if (vk == VkZ && (IsKeyDown((int)VkMenu) || IsKeyDown(0xA4) || IsKeyDown(0xA5)))
+        // 1. Kiểm tra Virtual Key chính
+        bool vkMatches = (currentVk == targetVk);
+        if (targetVk == 0x10 /* Shift */ && (currentVk == 0x10 || currentVk == 0x11 || currentVk == 0xA0 || currentVk == 0xA1 || currentVk == 0xA2 || currentVk == 0xA3))
         {
-            return true;
+            vkMatches = true;
         }
 
-        return false;
+        if (!vkMatches)
+        {
+            return false;
+        }
+
+        // 2. Kiểm tra các phím bổ trợ bắt buộc
+        bool needCtrl = (targetMods & TsfModFlags.Control) != 0;
+        bool needAlt = (targetMods & TsfModFlags.Alt) != 0;
+        bool needShift = (targetMods & TsfModFlags.Shift) != 0;
+
+        bool isCtrlDown = IsKeyDown((int)VkControl) || IsKeyDown(0xA2) || IsKeyDown(0xA3);
+        bool isAltDown = IsKeyDown((int)VkMenu) || IsKeyDown(0xA4) || IsKeyDown(0xA5);
+        bool isShiftDown = IsKeyDown((int)VkShift) || IsKeyDown(0xA0) || IsKeyDown(0xA1);
+
+        if (needCtrl && !isCtrlDown) return false;
+        if (needAlt && !isAltDown) return false;
+        if (needShift && !isShiftDown) return false;
+
+        return true;
     }
 }

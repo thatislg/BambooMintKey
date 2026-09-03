@@ -1,6 +1,4 @@
-// BambooMintKey - Vietnamese Telex Input Method Editor for Windows
-// Copyright (c) 2026 Dương Gia Long and LMO contributors
-// SPDX-License-Identifier: MIT
+#nowarn "3261"
 namespace BambooMintKey.UI
 
 open Avalonia
@@ -16,7 +14,8 @@ type App() =
     override this.OnFrameworkInitializationCompleted() =
         match this.ApplicationLifetime with
         | :? IClassicDesktopStyleApplicationLifetime as desktop ->
-             desktop.MainWindow <- MainWindow()
+             let args = match desktop.Args with null -> [||] | a -> a
+             desktop.MainWindow <- MainWindow(args)
         | _ -> ()
 
         base.OnFrameworkInitializationCompleted()

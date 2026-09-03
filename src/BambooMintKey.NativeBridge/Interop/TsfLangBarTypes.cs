@@ -237,3 +237,41 @@ public unsafe struct ITfLangBarItemMgrVTable
     /// <summary>[WinSDK: ITfLangBarItemMgr::UnadviseItemsSink (Slot 14)]</summary>
     public delegate* unmanaged[Stdcall]<IntPtr, uint, uint*, int> UnadviseItemsSink;
 }
+
+/// <summary>
+/// Các hằng số TSF Menu theo chuẩn Windows SDK ctfutb.h.
+/// </summary>
+public static class TsfMenuFlags
+{
+    public const uint TfLbMenuIdApp = 0x00010000; // Base ID cho app menu items
+
+    public const uint TfLbMenuFlagChecked      = 0x00000001; // Dấu tích checkmark
+    public const uint TfLbMenuFlagSubMenu      = 0x00000002; // Mục chứa menu con
+    public const uint TfLbMenuFlagSeparator    = 0x00000004; // Đường kẻ ngang
+    public const uint TfLbMenuFlagRadioChecked = 0x00000008; // Dấu tròn radio
+    public const uint TfLbMenuFlagGrayed       = 0x00000010; // Mục bị vô hiệu hóa
+}
+
+/// <summary>
+/// VTable cho ITfMenu (kế thừa IUnknown, dùng để xây dựng menu TSF).
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct ITfMenuVTable
+{
+    // --- IUnknown (Slot 0 - 2) ---
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint> AddRef;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint> Release;
+
+    // --- ITfMenu (Slot 3) ---
+    public delegate* unmanaged[Stdcall]<
+        IntPtr,         // this
+        uint,           // uId: Menu command ID
+        uint,           // uFlags: TF_LBMENUFLAG_*
+        IntPtr,         // hbmp: HBITMAP icon tùy chọn (IntPtr.Zero nếu không dùng)
+        IntPtr,         // hbmpMask: HBITMAP mask
+        char*,          // pch: Chuỗi Unicode hiển thị
+        uint,           // cch: Chiều dài chuỗi ký tự
+        IntPtr*,        // ppMenu: Nhận con trỏ ITfMenu con nếu có cờ SUBMENU
+        int> AddMenuItem;
+}

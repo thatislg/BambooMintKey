@@ -11,6 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="SharedConfig.fs" />
     <Compile Include="MainWindow.axaml.fs" />
     <Compile Include="App.axaml.fs" />
     <Compile Include="Program.fs" />
@@ -29,5 +30,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\BambooMintKey.Shared\BambooMintKey.Shared.fsproj" />
+    <ProjectReference Include="..\BambooMintKey.Core\BambooMintKey.Core.fsproj" />
   </ItemGroup>
 </Project>

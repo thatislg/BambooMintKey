@@ -1,454 +1,257 @@
-# 003_07_SettingsGUI_FnConfigure.md
+# 003_07_SettingsGUI_FnConfigure.md — Thiết kế Chi tiết Bảng Điều Khiển Cài Đặt (BambooMintKey.UI) & Tùy Biến Phím Tắt, Kiểu Gõ, Bảng Mã, Giao Diện About
 
-> Tài liệu kỹ thuật chi tiết về việc cài đặt COM Interface `ITfFunctionProvider` / `ITfFnConfigure`, móc nối nút "Options" trong Windows Settings, kiến trúc ứng dụng giao diện cấu hình độc lập (`BambooMintKey.Config`) và luồng đồng bộ dữ liệu hai chiều.
+> **Tài liệu liên quan:**  
+> - Thiết kế Context Menu chuột phải: `docs/2.Design/Phase3/003_05_TaskbarContextMenu.md`  
+> - Thiết kế Schema cấu hình dùng chung: `docs/2.Design/Phase3/003_06_SharedConfiguration_Schema.md`  
+> - Thiết kế giải pháp đồng bộ nền tảng: `docs/2.Design/Phase3/003_09_IssuesSolution.md`  
+> - Nền tảng mục tiêu: **Windows 10 và Windows 11 (64-bit)**. Ứng dụng GUI viết bằng **Avalonia UI (F#)** đa nền tảng.
 
-## 1. Cơ sở chuẩn hóa từ Windows SDK
+---
 
-Toàn bộ interface định nghĩa cấu hình hệ thống được trích xuất từ file gốc: `C:\Program Files (x86)\Windows Kits\10\Include\<version>\um\msctf.idl`.
+## 1. Mục tiêu & Cơ sở Chuẩn hóa
 
-### 1.1. Bảng tra cứu GUID chuẩn
+### 1.1. Mục tiêu Cốt lõi
+1. **Bảng điều khiển Cài đặt (`BambooMintKey.UI`):** Xây dựng ứng dụng giao diện đồ họa độc lập, khởi động tức thì (< 0.2s), phong cách **Bamboo Mint** sang trọng, cho phép người dùng tùy biến toàn bộ trải nghiệm gõ tiếng Việt.
+2. **Tùy biến Phím tắt (Dynamic Hotkey Configuration):** Phím tắt chuyển đổi chế độ V/E (Ctrl + Shift, Alt + Z, Ctrl + Space,...) không còn bị fix cứng, mà người dùng có thể tự do lựa chọn trong giao diện cài đặt và TSF sẽ cập nhật đăng ký tức thì vào hệ thống.
+3. **Quản lý Kiểu gõ & Bảng mã:** Cung cấp đầy đủ các lựa chọn Kiểu gõ (`Telex`, `VNI`, `Simple Telex`) và Bảng mã (`Unicode dựng sẵn`, `Unicode tổ hợp`, `TCVN3`) trên cả giao diện cài đặt lẫn Context Menu chuột phải, đồng bộ trạng thái qua `SharedMemoryManager` và `config.json`.
+4. **Giao diện Thông tin Ứng dụng (About Dialog):** Tích hợp trực tiếp màn hình About trong ứng dụng (logo cây tre, phiên bản, tác giả, bản quyền, link tài liệu) thay vì chuyển hướng người dùng ra trình duyệt web bên ngoài.
 
-| **Thành phần**            | **File SDK gốc** | **GUID chuẩn xác**                     |
-| ------------------------- | ---------------- | -------------------------------------- |
-| `IID_ITfFunctionProvider` | `msctf.idl`      | `101D9462-0E4E-41F1-B34B-E1EF37E02F0D` |
-| `IID_ITfFunction`         | `msctf.idl`      | `DB593490-238F-11D8-9E28-0007E912B864` |
-| `IID_ITfFnConfigure`      | `msctf.idl`      | `88F567C6-1757-49F8-A1B2-89234C1EEFF9` |
+### 1.2. Chuẩn hóa COM Windows SDK
+Theo `msctf.idl` của Windows SDK:
+- Nút **Options** trong `Windows Settings -> Time & Language -> Language -> Preferred Languages -> [Tiếng Việt] -> Options -> BambooMintKey` yêu cầu triển khai `ITfFunctionProvider` và `ITfFnConfigure`.
+- Khi người dùng bấm nút Options (hoặc bấm "Bảng điều khiển & Cài đặt..." từ Context Menu Taskbar), Windows/NativeBridge sẽ gọi `ITfFnConfigure::Show()` để khởi chạy ứng dụng GUI.
 
-### 1.2. Vai trò của `ITfFnConfigure`
+| **Thành phần** | **File SDK gốc** | **GUID chuẩn xác** |
+|---|---|---|
+| `IID_ITfFunctionProvider` | `msctf.idl` | `101D9462-0E4E-41F1-B34B-E1EF37E02F0D` |
+| `IID_ITfFunction` | `msctf.idl` | `DB593490-238F-11D8-9E28-0007E912B864` |
+| `IID_ITfFnConfigure` | `msctf.idl` | `88F567C6-1757-49F8-A1B2-89234C1EEFF9` |
 
-- Khi cài đặt một Text Input Processor (TIP), nếu không triển khai `ITfFnConfigure`, nút **Options** trong mục `Windows Settings -> Time & Language -> Language -> Preferred Languages -> [Ngôn ngữ] -> Options -> BambooMintKey` sẽ bị **xám mờ (disabled)**.
-- Khi người dùng bấm nút Options (hoặc chọn "Cài đặt tùy chọn..." từ Context Menu chuột phải trên Taskbar), Windows sẽ truy vấn interface này và gọi hàm `Show()`.
+---
 
-## 2. Thiết kế VTable & Struct COM C# NativeAOT
+## 2. Hệ Thống Thẩm Mỹ & Màu Sắc "Bamboo Mint" (Visual Identity)
 
-Giao diện `ITfFnConfigure` kế thừa từ `ITfFunction` $\rightarrow$ `IUnknown`.
+Giao diện cài đặt được thiết kế theo phong cách **Fluent Acrylic Glassmorphism** hiện đại trên nền tối sang trọng:
 
-### 2.1. Khai báo Struct VTable (`Interop/TsfConfigureTypes.cs`)
+| Token | Mã Hex | Ứng dụng trong Giao diện Cài đặt |
+|---|---|---|
+| **Bamboo Primary** | `#16a34a` (Xanh tre) | Nút bấm chính (Save/Apply), tiêu đề tab đang chọn, header badge |
+| **Mint Accent** | `#22c55e` (Xanh bạc hà) | Toggle switch khi bật (ON), viền focus, chấm radio active |
+| **Mint Glow** | `#4ade80` (Xanh Mint neon) | Hiệu ứng phát sáng nhẹ quanh ô gõ thử nghiệm (Live Sandbox) |
+| **Deep Forest Dark** | `#111613` (Đen ánh rêu) | Màu nền cửa sổ chính bán trong suốt (Acrylic Window) |
+| **Card Surface** | `#18221c` (Thẻ Acrylic) | Màu nền các khối nhóm cài đặt (Container Cards) |
+| **Card Border** | `#22c55e20` (Viền xanh mờ 12%) | Đường viền phân cách bo góc 8px - 12px tinh tế |
+| **Text Bright** | `#f8fafc` (Trắng sáng) | Tiêu đề và nhãn chữ chính |
+| **Text Muted** | `#94a3b8` (Xám bạc) | Chú thích hướng dẫn, phiên bản, thông tin phụ |
 
-C#
+---
+
+## 3. Cấu Trúc Bố Cục Giao Diện (`BambooMintKey.UI`)
+
+Cửa sổ có kích thước tiêu chuẩn `520 x 480` pixel, căn giữa màn hình (`CenterScreen`), không cho phép resize méo giao diện, gồm thanh tiêu đề thương hiệu và **4 Tab chức năng**:
 
 ```
-using System;
-using System.Runtime.InteropServices;
+┌────────────────────────────────────────────────────────────────────────┐
+│  🎍 BambooMintKey — Bảng Điều Khiển Cài Đặt                     [—][✕] │
+├────────────────────────────────────────────────────────────────────────┤
+│  [ Bàn phím & Phím tắt ]  [ Tùy chọn gõ ]  [ Gõ thử nghiệm ]  [ Thông tin ]  │
+├────────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│  [ TAB 1: BÀN PHÍM & PHÍM TẮT ]                                        │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │ ⌨ Kiểu gõ chính:                                                 │  │
+│  │   (•) Telex         ( ) VNI         ( ) Simple Telex             │  │
+│  ├──────────────────────────────────────────────────────────────────┤  │
+│  │ 🔤 Bảng mã đầu ra:                                               │  │
+│  │   [ Unicode dựng sẵn (Mặc định)                     ▼ ]          │  │
+│  ├──────────────────────────────────────────────────────────────────┤  │
+│  │ ⚡ Phím tắt chuyển đổi Việt / Anh:                                │  │
+│  │   [ Ctrl + Shift (Mặc định)                         ▼ ]          │  │
+│  │   (Tùy chọn: Ctrl+Shift, Alt+Z, Ctrl+Space, Không sử dụng)        │  │
+│  ├──────────────────────────────────────────────────────────────────┤  │
+│  │ 🚀 Hệ thống:                                                     │  │
+│  │   [✓] Khởi động cùng Windows                                     │  │
+│  │   [✓] Bật âm thanh click nhẹ khi chuyển đổi (Tùy chọn)           │  │
+│  └──────────────────────────────────────────────────────────────────┘  │
+│                                                                        │
+│                                     [ Mặc định ]  [ Áp dụng ]  [ Đóng ]│
+└────────────────────────────────────────────────────────────────────────┘
+```
 
-namespace BambooMintKey.NativeBridge.Interop
+### Chi tiết 4 Tab Chức năng:
+
+#### Tab 1: Bàn phím & Phím tắt (Keyboard & Hotkeys)
+- **Kiểu gõ chính:** 3 lựa chọn Radio Button:
+  - `Telex` (mặc định)
+  - `VNI`
+  - `Simple Telex`
+- **Bảng mã đầu ra:** Dropdown ComboBox:
+  - `Unicode dựng sẵn` (Precomposed - chuẩn quốc tế)
+  - `Unicode tổ hợp` (Decomposed)
+  - `TCVN3 (ABC)` (Phục vụ văn phòng legacy)
+- **Phím tắt chuyển đổi chế độ gõ (Toggle Hotkey):**
+  - `Ctrl + Shift` (Phổ biến nhất tại Việt Nam)
+  - `Alt + Z` (Tránh xung đột phím tắt đồ họa Adobe/Figma)
+  - `Ctrl + Space` (Chuẩn macOS/Linux)
+  - `Không sử dụng` (Chỉ chuyển đổi bằng click chuột trên Taskbar)
+- **Khởi động cùng Windows:** Ghi vào Registry `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
+
+#### Tab 2: Tùy chọn gõ (Typing Options)
+- **Quy chuẩn đặt vị trí dấu thanh:**
+  - `Kiểu mới (hòa, thúy, xòe)` — Mặc định theo chuẩn ngôn ngữ học hiện đại.
+  - `Kiểu cũ (hoá, thuý, xoè)` — Chuẩn truyền thống.
+- **Tự động khôi phục từ tiếng Anh (Auto Restore):**
+  - Toggle Switch bật/tắt `AutoRestoreEnglishWords`. Khi gõ từ sai ngữ pháp tiếng Việt (như `word`, `start`), bộ gõ tự trả về ký tự thô.
+- **Gõ lặp dấu để khôi phục ký tự thô (Repeat Key Undo):**
+  - Toggle Switch bật/tắt `AllowRepeatKeyUndo` (`ss -> s`, `aa -> a`).
+- **Phím 'w' đứng đầu từ biến thành 'ư':**
+  - Toggle Switch bật/tắt `AllowLeadingWAsU` (`w -> ư`).
+
+#### Tab 3: Gõ thử nghiệm trực tiếp (Live Typing Sandbox)
+- Khung văn bản soạn thảo trực tiếp nằm giữa cửa sổ với hiệu ứng viền xanh Mint phát sáng (`#22c55e33`).
+- Cho phép người dùng vừa đổi kiểu gõ, bảng mã hay phím tắt là có thể **gõ thử nghiệm ngay lập tức** trong hộp thoại để kiểm tra mà không cần mở Notepad hay phần mềm khác.
+- Có nút `[ Xóa trắng ]` để làm sạch khung test.
+
+#### Tab 4: Thông tin BambooMintKey (About BambooMintKey)
+- Màn hình thông tin chính thức của ứng dụng:
+  - **Logo cây tre/búp măng xanh phát sáng:** Biểu tượng nhận diện của BambooMintKey.
+  - **Tên phần mềm:** `BambooMintKey — Bộ Gõ Tiếng Việt Thế Hệ Mới`.
+  - **Phiên bản:** `Phiên bản 1.0.0 (NativeAOT & Pure F# Core)`.
+  - **Kiến trúc:** Windows Text Services Framework (TSF) TIP 64-bit.
+  - **Tác giả:** Dương Gia Long & LMO contributors.
+  - **Bản quyền:** Mã nguồn mở theo giấy phép MIT License.
+  - **Các nút tương tác nội bộ:**
+    - `[ 🌐 Trang chủ Dự án ]`: Mở liên kết trình duyệt tới repo GitHub.
+    - `[ 📖 Hướng dẫn Sử dụng ]`: Mở tài liệu hướng dẫn gõ Telex & phím tắt.
+    - `[ 🔄 Kiểm tra Cập nhật ]`: Kiểm tra phiên bản mới từ GitHub Releases.
+
+---
+
+## 4. Kiến Trúc Đồng Bộ Hai Chiều (Dual-Sync Architecture)
+
+```
+       [ Giao diện BambooMintKey.UI ] ◄──────► [ Menu Chuột Phải Taskbar ]
+                      │                                    │
+                      ▼                                    ▼
+       ┌────────────────────────────────────────────────────────┐
+       │             SharedMemoryManager (64 Bytes)             │
+       │  [0] IsVietnameseMode     (1 = V, 0 = E)               │
+       │  [1] ToneStyle            (0 = Mới, 1 = Cũ)            │
+       │  [2] AutoRestoreEnglish   (1 = Bật, 0 = Tắt)           │
+       │  [3] AllowRepeatKeyUndo   (1 = Bật, 0 = Tắt)           │
+       │  [4] AllowLeadingWAsU     (1 = Bật, 0 = Tắt)           │
+       │  [5] InputMethod          (0 = Telex, 1 = VNI, 2 = S.) │
+       │  [6] Charset              (0 = Unicode, 1 = Tổ hợp,...)│
+       │  [7] ToggleHotkey         (0 = CtrlShift, 1 = AltZ,...)│
+       │  [8-11] StateSequence     (Bộ đếm phiên bản broadcast) │
+       └───────────────────────────┬────────────────────────────┘
+                                   │
+                                   ▼
+        ┌──────────────────────────────────────────────────────┐
+        │        Tệp Cấu Hình Bền Vững (config.json)           │
+        │   %AppData%\BambooMintKey\config.json                │
+        └──────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+        ┌──────────────────────────────────────────────────────┐
+        │  Mọi Ứng Dụng Đang Mở (Notepad, Word, Chrome,...)    │
+        │  - Tự động nạp cấu hình mới qua SignalStateChanged() │
+        │  - Đăng ký lại PreservedKey theo ToggleHotkey mới    │
+        │  - Cập nhật EngineConfig thời gian thực (0ms lag)!   │
+        └──────────────────────────────────────────────────────┘
+```
+
+---
+
+## 5. Hiện Thực Hóa Đăng Ký Phím Tắt Động (`KeyEventSinkHelper.cs`)
+
+Khi `SharedMemoryManager.ToggleHotkey` thay đổi:
+- `0`: Đăng ký `Ctrl + Shift` (`0x10`, `Control | Shift | OnKeyUp`).
+- `1`: Đăng ký `Alt + Z` (`0x5A`, `Alt`).
+- `2`: Đăng ký `Ctrl + Space` (`0x20`, `Control`).
+- `3`: Không đăng ký phím tắt (vô hiệu hóa Preserved Key).
+
+```csharp
+public static void UpdatePreservedKeys(IntPtr pThreadMgr, uint clientId, byte hotkeyMode)
 {
-    [StructLayout(LayoutKind.Sequential)]
-    public unsafe struct ITfFunctionProviderVTable
+    // 1. Hủy toàn bộ phím tắt cũ
+    UnregisterPreservedKeys(pThreadMgr, clientId);
+
+    // 2. Đăng ký phím mới tương ứng với hotkeyMode
+    if (hotkeyMode == 3) return; // 3 = None
+
+    (uint vKey, uint modifiers, string desc) keyConfig = hotkeyMode switch
     {
-        // --- IUnknown ---
-        public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
-        public delegate* unmanaged[Stdcall]<IntPtr, uint> AddRef;
-        public delegate* unmanaged[Stdcall]<IntPtr, uint> Release;
+        1 => (0x5A, TsfModFlags.Alt, "BambooMintKey Toggle (Alt+Z)"),
+        2 => (0x20, TsfModFlags.Control, "BambooMintKey Toggle (Ctrl+Space)"),
+        _ => (0x10, TsfModFlags.Control | TsfModFlags.OnKeyUp, "BambooMintKey Toggle (Ctrl+Shift)")
+    };
 
-        // --- ITfFunctionProvider ---
-        public delegate* unmanaged[Stdcall]<IntPtr, Guid*, int> GetType;
-        public delegate* unmanaged[Stdcall]<IntPtr, IntPtr*, int> GetDescription;
-        public delegate* unmanaged[Stdcall]<IntPtr, Guid*, Guid*, IntPtr*, int> GetFunction;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    public unsafe struct ITfFnConfigureVTable
-    {
-        // --- IUnknown ---
-        public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
-        public delegate* unmanaged[Stdcall]<IntPtr, uint> AddRef;
-        public delegate* unmanaged[Stdcall]<IntPtr, uint> Release;
-
-        // --- ITfFunction ---
-        public delegate* unmanaged[Stdcall]<IntPtr, IntPtr*, int> GetDisplayName;
-
-        // --- ITfFnConfigure ---
-        public delegate* unmanaged[Stdcall]<IntPtr, IntPtr, ushort, Guid*, int> Show;
-    }
+    RegisterSinglePreservedKey(pThreadMgr, clientId, keyConfig.vKey, keyConfig.modifiers, keyConfig.desc);
 }
 ```
 
-## 3. Cài đặt `FunctionProvider` & `FnConfigureImpl`
+---
 
-### 3.1. Cài đặt Implementation (`TSF/ConfigureService.cs`)
+## 6. Hiện Thực Hóa Mở Giao Diện Cài Đặt & Mở Thẳng Tab About
 
-C#
+Trong `SettingsLauncher.cs`:
 
-```
-using System;
-using System.Diagnostics;
-using System.IO;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using BambooMintKey.NativeBridge.Common;
-using BambooMintKey.NativeBridge.Interop;
-
-namespace BambooMintKey.NativeBridge.TSF
+```csharp
+public static class SettingsLauncher
 {
-    public static unsafe class ConfigureService
+    public static void LaunchSettingsGui(string? argument = null)
     {
-        private static ITfFunctionProviderVTable* _providerVTable;
-        private static ITfFnConfigureVTable* _fnConfigureVTable;
-
-        private static IntPtr _providerInstance;
-        private static IntPtr _fnConfigureInstance;
-
-        static ConfigureService()
+        try
         {
-            // 1. Dựng VTable cho ITfFunctionProvider
-            _providerVTable = (ITfFunctionProviderVTable*)RuntimeHelpers.AllocateTypeAssociatedMemory(
-                typeof(ConfigureService), sizeof(ITfFunctionProviderVTable));
-            _providerVTable->QueryInterface = &Provider_QueryInterface;
-            _providerVTable->AddRef = &Provider_AddRef;
-            _providerVTable->Release = &Provider_Release;
-            _providerVTable->GetType = &Provider_GetType;
-            _providerVTable->GetDescription = &Provider_GetDescription;
-            _providerVTable->GetFunction = &Provider_GetFunction;
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string uiPath = Path.Combine(baseDir, "BambooMintKey.UI.exe");
 
-            IntPtr* pMemProvider = (IntPtr*)NativeMemory.Alloc((nuint)sizeof(IntPtr));
-            *pMemProvider = (IntPtr)_providerVTable;
-            _providerInstance = (IntPtr)pMemProvider;
-
-            // 2. Dựng VTable cho ITfFnConfigure
-            _fnConfigureVTable = (ITfFnConfigureVTable*)RuntimeHelpers.AllocateTypeAssociatedMemory(
-                typeof(ConfigureService), sizeof(ITfFnConfigureVTable));
-            _fnConfigureVTable->QueryInterface = &Configure_QueryInterface;
-            _fnConfigureVTable->AddRef = &Configure_AddRef;
-            _fnConfigureVTable->Release = &Configure_Release;
-            _fnConfigureVTable->GetDisplayName = &Configure_GetDisplayName;
-            _fnConfigureVTable->Show = &Configure_Show;
-
-            IntPtr* pMemConfigure = (IntPtr*)NativeMemory.Alloc((nuint)sizeof(IntPtr));
-            *pMemConfigure = (IntPtr)_fnConfigureVTable;
-            _fnConfigureInstance = (IntPtr)pMemConfigure;
-        }
-
-        public static IntPtr ProviderInstance => _providerInstance;
-
-        // --- ITfFunctionProvider Callbacks ---
-        [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-        private static int Provider_QueryInterface(IntPtr thisPtr, Guid* riid, IntPtr* ppv)
-        {
-            if (ppv == null || riid == null) return HResult.InvalidArg;
-
-            if (*riid == Guids.IidIUnknown || *riid == Guids.IidITfFunctionProvider)
+            if (!File.Exists(uiPath))
             {
-                *ppv = thisPtr;
-                return HResult.Ok;
+                uiPath = Path.Combine(baseDir, "..", "..", "publish", "win-x64", "BambooMintKey.UI.exe");
             }
-            *ppv = IntPtr.Zero;
-            return HResult.NoInterface;
-        }
 
-        [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-        private static uint Provider_AddRef(IntPtr thisPtr) => 2;
-
-        [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-        private static uint Provider_Release(IntPtr thisPtr) => 1;
-
-        [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-        private static int Provider_GetType(IntPtr thisPtr, Guid* pguid)
-        {
-            if (pguid == null) return HResult.InvalidArg;
-            *pguid = Guids.ClsidBambooMintKey;
-            return HResult.Ok;
-        }
-
-        [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-        private static int Provider_GetDescription(IntPtr thisPtr, IntPtr* pbstrDesc)
-        {
-            if (pbstrDesc == null) return HResult.InvalidArg;
-            *pbstrDesc = Marshal.StringToBSTR("BambooMintKey Configuration Provider");
-            return HResult.Ok;
-        }
-
-        [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-        private static int Provider_GetFunction(IntPtr thisPtr, Guid* rguid, Guid* riid, IntPtr* ppunk)
-        {
-            if (ppunk == null || rguid == null || riid == null) return HResult.InvalidArg;
-
-            if (*rguid == Guid.Empty || *rguid == Guids.IidITfFnConfigure)
+            if (File.Exists(uiPath))
             {
-                if (*riid == Guids.IidIUnknown || *riid == Guids.IidITfFunction || *riid == Guids.IidITfFnConfigure)
+                var psi = new ProcessStartInfo
                 {
-                    *ppunk = _fnConfigureInstance;
-                    return HResult.Ok;
-                }
-            }
-
-            *ppunk = IntPtr.Zero;
-            return HResult.NoInterface;
-        }
-
-        // --- ITfFnConfigure Callbacks ---
-        [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-        private static int Configure_QueryInterface(IntPtr thisPtr, Guid* riid, IntPtr* ppv)
-        {
-            if (ppv == null || riid == null) return HResult.InvalidArg;
-
-            if (*riid == Guids.IidIUnknown || *riid == Guids.IidITfFunction || *riid == Guids.IidITfFnConfigure)
-            {
-                *ppv = thisPtr;
-                return HResult.Ok;
-            }
-            *ppv = IntPtr.Zero;
-            return HResult.NoInterface;
-        }
-
-        [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-        private static uint Configure_AddRef(IntPtr thisPtr) => 2;
-
-        [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-        private static uint Configure_Release(IntPtr thisPtr) => 1;
-
-        [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-        private static int Configure_GetDisplayName(IntPtr thisPtr, IntPtr* pbstrName)
-        {
-            if (pbstrName == null) return HResult.InvalidArg;
-            *pbstrName = Marshal.StringToBSTR("BambooMintKey Settings");
-            return HResult.Ok;
-        }
-
-        [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-        private static int Configure_Show(IntPtr thisPtr, IntPtr hwndParent, ushort langid, Guid* rguidProfile)
-        {
-            LaunchSettingsGui(hwndParent);
-            return HResult.Ok;
-        }
-
-        public static void LaunchSettingsGui(IntPtr hwndParent)
-        {
-            try
-            {
-                // Ưu tiên tìm binary GUI nằm cùng thư mục chứa DLL hoặc đường dẫn cố định
-                string baseDir = AppContext.BaseDirectory;
-                string exePath = Path.Combine(baseDir, "BambooMintKey.Config.exe");
-
-                if (!File.Exists(exePath))
-                {
-                    // Fallback sang thư mục Program Files chuẩn
-                    string pf = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-                    exePath = Path.Combine(pf, "BambooMintKey", "BambooMintKey.Config.exe");
-                }
-
-                if (File.Exists(exePath))
-                {
-                    var startInfo = new ProcessStartInfo
-                    {
-                        FileName = exePath,
-                        Arguments = $"--parent-hwnd {hwndParent}",
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
-                    Process.Start(startInfo);
-                }
-            }
-            catch
-            {
-                // Tránh throw ngoại lệ gây crash tiến trình cha (Settings hoặc Explorer)
-            }
-        }
-    }
-}
-```
-
-## 4. Đăng ký Function Provider với `ITfSourceSingle`
-
-Để Windows nhận biết TIP có hỗ trợ cấu hình, provider phải được đăng ký vào `ThreadMgr` khi kích hoạt.
-
-Cập nhật vào luồng `ActivateEx` và `Deactivate`:
-
-C#
-
-```
-// Trong ActivateEx
-Guid iidSourceSingle = new("4EA48A35-60AE-446F-8FD6-E6A8D8825E5C"); // ITfSourceSingle
-IntPtr pSourceSingle = IntPtr.Zero;
-
-var unk = **(IUnknownVTable**)pThreadMgr;
-if (unk.QueryInterface(pThreadMgr, &iidSourceSingle, &pSourceSingle) == HResult.Ok && pSourceSingle != IntPtr.Zero)
-{
-    var sourceVTable = **(ITfSourceSingleVTable**)pSourceSingle;
-    Guid iidProvider = Guids.IidITfFunctionProvider;
-
-    // Đăng ký Provider
-    sourceVTable.AdviseSingleSink(pSourceSingle, tfClientId, &iidProvider, ConfigureService.ProviderInstance);
-
-    var unkSource = **(IUnknownVTable**)pSourceSingle;
-    unkSource.Release(pSourceSingle);
-}
-
-// Trong Deactivate
-// Thực hiện UnadviseSingleSink tương tự để giải phóng
-```
-
-## 5. Kiến trúc Ứng dụng GUI Độc Lập (`BambooMintKey.Config`)
-
-Ứng dụng Cài đặt được tổ chức thành một sub-project riêng: `src/BambooMintKey.Config/`.
-
-### 5.1. Định hướng Công nghệ
-
-- **Framework:** **Avalonia UI** (sử dụng .NET NativeAOT).
-- **Lợi thế:**
-  - Khởi động tức thì (< 0.2s), chiếm dụng RAM cực thấp (~15MB).
-  - Chạy trực tiếp trên Windows (Win32 API) và **tái sử dụng 100% mã nguồn XAML/C# khi chuyển sang Linux (X11/Wayland)** mà không cần viết lại giao diện.
-- **Giao tiếp dữ liệu:** Không gọi IPC hay Socket phức tạp. GUI chỉ thao tác đọc/ghi duy nhất tệp `%AppData%\BambooMintKey\config.json`. Bộ giám sát `ConfigManager` (Bước 4) sẽ tự động nạp cấu hình mới vào Core State Machine.
-
-### 5.2. Cấu trúc Giao diện XAML (`MainWindow.axaml`)
-
-XML
-
-```
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="BambooMintKey.Config.MainWindow"
-        Title="BambooMintKey - Bảng Điều Khiển"
-        Width="480" Height="420"
-        CanResize="False"
-        WindowStartupLocation="CenterScreen">
-
-    <TabControl Margin="10">
-        <!-- Tab 1: Thiết lập cơ bản -->
-        <TabItem Header="Chung">
-            <StackPanel Spacing="12" Margin="10">
-                <TextBlock Text="Kiểu gõ chính:" FontWeight="Bold"/>
-                <StackPanel Orientation="Horizontal" Spacing="20">
-                    <RadioButton Name="RbTelex" Content="Telex" GroupName="InputMethod"/>
-                    <RadioButton Name="RbVni" Content="VNI" GroupName="InputMethod"/>
-                    <RadioButton Name="RbSimpleTelex" Content="Simple Telex" GroupName="InputMethod"/>
-                </StackPanel>
-
-                <TextBlock Text="Bảng mã đầu ra:" FontWeight="Bold" Margin="0,10,0,0"/>
-                <ComboBox Name="CbCharset" HorizontalAlignment="Stretch">
-                    <ComboBoxItem Content="Unicode dựng sẵn"/>
-                    <ComboBoxItem Content="Unicode tổ hợp"/>
-                    <ComboBoxItem Content="TCVN3 (ABC)"/>
-                </ComboBox>
-
-                <TextBlock Text="Phím tắt chuyển Việt/Anh:" FontWeight="Bold" Margin="0,10,0,0"/>
-                <ComboBox Name="CbHotkey" HorizontalAlignment="Stretch">
-                    <ComboBoxItem Content="Ctrl + Shift"/>
-                    <ComboBoxItem Content="Alt + Z"/>
-                    <ComboBoxItem Content="Không sử dụng"/>
-                </ComboBox>
-            </StackPanel>
-        </TabItem>
-
-        <!-- Tab 2: Nâng cao & Chính tả -->
-        <TabItem Header="Tùy chọn">
-            <StackPanel Spacing="10" Margin="10">
-                <CheckBox Name="ChkSpell" Content="Kiểm tra chính tả theo từ điển âm tiết"/>
-                <CheckBox Name="ChkAutoRestore" Content="Tự động khôi phục từ nếu gõ sai quy tắc"/>
-                <CheckBox Name="ChkModern" Content="Đặt dấu theo chuẩn mới (òa, úy thay vì oà, uý)"/>
-                <CheckBox Name="ChkMacro" Content="Bật tính năng gõ tắt (Macro)"/>
-            </StackPanel>
-        </TabItem>
-
-        <!-- Tab 3: Bảng gõ tắt -->
-        <TabItem Header="Gõ tắt">
-            <Grid RowDefinitions="*, Auto" Margin="10">
-                <DataGrid Name="DgMacros" Grid.Row="0" AutoGenerateColumns="False">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Từ tắt" Binding="{Binding Key}" Width="100"/>
-                        <DataGridTextColumn Header="Cụm từ thay thế" Binding="{Binding Value}" Width="*"/>
-                    </DataGrid.Columns>
-                </DataGrid>
-                
-                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10" Margin="0,10,0,0">
-                    <Button Name="BtnAddMacro" Content="Thêm"/>
-                    <Button Name="BtnDeleteMacro" Content="Xóa"/>
-                </StackPanel>
-            </Grid>
-        </TabItem>
-    </TabControl>
-</Window>
-```
-
-### 5.3. Code-behind Xử lý Lưu Cấu hình (`MainWindow.axaml.cs`)
-
-C#
-
-```
-using System.IO;
-using Avalonia.Controls;
-using Avalonia.Interactivity;
-using BambooMintKey.Core;
-
-namespace BambooMintKey.Config
-{
-    public partial class MainWindow : Window
-    {
-        private readonly string _configPath;
-        private EngineConfig _currentConfig;
-
-        public MainWindow()
-        {
-            InitializeComponent();
-
-            string appData = System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData);
-            _configPath = Path.Combine(appData, "BambooMintKey", "config.json");
-
-            LoadSettings();
-        }
-
-        private void LoadSettings()
-        {
-            if (File.Exists(_configPath))
-            {
-                string json = File.ReadAllText(_configPath);
-                _currentConfig = Configuration.fromJson(json);
+                    FileName = uiPath,
+                    Arguments = argument ?? string.Empty,
+                    UseShellExecute = true
+                };
+                Process.Start(psi);
             }
             else
             {
-                _currentConfig = Configuration.defaultConfig;
+                DebugLog.Write($"SettingsLauncher: Không tìm thấy file {uiPath}");
             }
-
-            // Gán dữ liệu lên form
-            RbTelex.IsChecked = _currentConfig.InputMethod == InputMethod.Telex;
-            RbVni.IsChecked = _currentConfig.InputMethod == InputMethod.Vni;
-            RbSimpleTelex.IsChecked = _currentConfig.InputMethod == InputMethod.SimpleTelex;
-
-            CbCharset.SelectedIndex = (int)_currentConfig.Charset;
-            CbHotkey.SelectedIndex = (int)_currentConfig.ToggleHotkey;
-
-            ChkSpell.IsChecked = _currentConfig.SpellCheck;
-            ChkAutoRestore.IsChecked = _currentConfig.AutoRestoreIfInvalid;
-            ChkModern.IsChecked = _currentConfig.UseModernOrthography;
-            ChkMacro.IsChecked = _currentConfig.MacroEnabled;
         }
-
-        private void OnSaveClicked(object sender, RoutedEventArgs e)
+        catch (Exception ex)
         {
-            var updatedConfig = new EngineConfig(
-                version: 1,
-                inputMethod: RbVni.IsChecked == true ? InputMethod.Vni :
-                             RbSimpleTelex.IsChecked == true ? InputMethod.SimpleTelex : InputMethod.Telex,
-                charset: (Charset)CbCharset.SelectedIndex,
-                toggleHotkey: (ToggleHotkey)CbHotkey.SelectedIndex,
-                spellCheck: ChkSpell.IsChecked ?? true,
-                autoRestoreIfInvalid: ChkAutoRestore.IsChecked ?? true,
-                useModernOrthography: ChkModern.IsChecked ?? true,
-                macroEnabled: ChkMacro.IsChecked ?? false,
-                macros: _currentConfig.Macros
-            );
-
-            // Ghi đè file config.json (Trigger Hot-Reload bên NativeBridge)
-            string json = Configuration.toJson(updatedConfig);
-            File.WriteAllText(_configPath, json);
-
-            Close();
+            DebugLog.Write($"SettingsLauncher Exception: {ex.Message}");
         }
     }
 }
 ```
 
-## 6. Quy trình Kiểm thử & Validation
+Khi người dùng bấm từ Context Menu:
+- Mục **"Bảng điều khiển & Cài đặt..."** $\rightarrow$ gọi `SettingsLauncher.LaunchSettingsGui()`.
+- Mục **"Thông tin BambooMintKey"** $\rightarrow$ gọi `SettingsLauncher.LaunchSettingsGui("--about")` $\rightarrow$ Cửa sổ `BambooMintKey.UI` mở lên và **tự động chọn Tab 4 (Thông tin)**.
 
-1. **Biên dịch Hệ thống:**
-   - Build DLL Native Bridge: `dotnet publish src/BambooMintKey.NativeBridge -c Release -r win-x64`.
-   - Build GUI Cài đặt: `dotnet publish src/BambooMintKey.Config -c Release -r win-x64`.
-   - Copy `BambooMintKey.Config.exe` vào cùng thư mục với DLL runtime.
-2. **Kiểm tra Windows Settings Integration:**
-   - Mở `Settings` trên Windows $\rightarrow$ `Time & Language` $\rightarrow$ `Language & Region`.
-   - Bấm vào mục ngôn ngữ `Vietnamese` $\rightarrow$ `Language options`.
-   - Cuộn xuống phần Keyboards: Xác nhận nút **Options** cạnh BambooMintKey đã **sáng lên (enabled)** và bấm được.
-3. **Kiểm tra Kích hoạt Cửa sổ:**
-   - Bấm nút **Options** $\rightarrow$ Cửa sổ Avalonia UI hiển thị tức thì tại vị trí trung tâm màn hình.
-   - Thử chuyển sang kiểu gõ `VNI`, tick bỏ `Kiểm tra chính tả`, bấm nút **Lưu**.
-   - Mở Notepad gõ thử phím số: xác nhận engine đã chuyển sang VNI ngay lập tức mà không cần khởi động lại tiến trình nào.
+---
+
+## 7. Quy Trình Kiểm Thử & Tiêu Chí Nghiệm Thu
+
+1. **Khởi chạy Cài đặt từ Context Menu:**
+   - Click chuột phải icon Taskbar $\rightarrow$ Chọn *Bảng điều khiển & Cài đặt...* $\rightarrow$ Cửa sổ Avalonia UI mở lên trong vòng 200ms với giao diện tông màu Bamboo Mint rực rỡ, nền Dark Acrylic.
+2. **Khởi chạy Tab About:**
+   - Click chuột phải icon Taskbar $\rightarrow$ Chọn *Thông tin BambooMintKey* $\rightarrow$ Cửa sổ mở lên tại đúng Tab Thông tin, hiển thị logo cây tre `🎍`, phiên bản `v1.0.0`, bản quyền MIT và tác giả (không bật trình duyệt web).
+3. **Kiểm tra Tùy biến Phím tắt:**
+   - Trong Tab Bàn phím: Đổi phím tắt từ `Ctrl + Shift` sang `Alt + Z` $\rightarrow$ bấm *Áp dụng*.
+   - Mở Notepad $\rightarrow$ Bấm `Alt + Z` $\rightarrow$ Icon Taskbar chuyển đổi ngay lập tức giữa **V** và **E**. Bấm `Ctrl + Shift` không còn làm đảo icon nữa.
+4. **Kiểm tra Chuyển Kiểu gõ & Bảng mã trên Context Menu:**
+   - Click chuột phải vào icon Taskbar $\rightarrow$ Thấy 2 Submenu *Kiểu gõ* (Telex, VNI, Simple Telex) và *Bảng mã* (Unicode dựng sẵn, Tổ hợp, TCVN3).
+   - Chọn mục bất kỳ $\rightarrow$ Dấu radio `(•)` di chuyển tương ứng và cấu hình được lưu lại vào hệ thống.
+5. **Kiểm tra Live Typing Sandbox:**
+   - Chuyển sang Tab *Gõ thử nghiệm* $\rightarrow$ Gõ trực tiếp câu `"Tiếng Việt mượt mà cùng BambooMintKey"` trong ô test để nghiệm thu.

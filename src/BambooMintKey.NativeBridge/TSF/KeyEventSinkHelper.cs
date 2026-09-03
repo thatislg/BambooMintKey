@@ -122,14 +122,32 @@ public static unsafe class KeyEventSinkHelper
         pkmVTable->Release(pKeystrokeMgr);
     }
 
-    // Danh sách phím tắt chuyển đổi chế độ V/E cần đăng ký với Windows TSF
-    private static readonly (uint vKey, uint modifiers, string desc)[] ToggleKeys =
+    // Danh sách tất cả phím tắt có thể dùng để unregister sạch sẽ
+    private static readonly (uint vKey, uint modifiers)[] AllPossibleKeys =
     [
-        (0x51 /* 'Q' */, TsfModFlags.Control | TsfModFlags.Shift, "BambooMintKey Toggle (Ctrl+Shift+Q)"),
-        (0x5A /* 'Z' */, TsfModFlags.Alt, "BambooMintKey Toggle (Alt+Z)"),
-        (0x20 /* Space */, TsfModFlags.Control, "BambooMintKey Toggle (Ctrl+Space)"),
-        (0x10 /* Shift */, TsfModFlags.Control | TsfModFlags.OnKeyUp, "BambooMintKey Toggle (Ctrl+Shift)")
+        (0x10 /* Shift */, TsfModFlags.Control | TsfModFlags.OnKeyUp),
+        (0x5A /* 'Z' */, TsfModFlags.Alt),
+        (0x20 /* Space */, TsfModFlags.Control),
+        (0x51 /* 'Q' */, TsfModFlags.Control | TsfModFlags.Shift)
     ];
+
+    private static TF_PRESERVEDKEY _lastCustomKey = new() { uVKey = 0, uModifiers = 0 };
+
+    /// <summary>
+    /// Lấy tổ hợp phím tắt đang được kích hoạt từ SharedMemoryManager (hỗ trợ tùy biến phím tắt tự do).
+    /// </summary>
+    private static (uint vKey, uint modifiers, string desc)[] GetActiveToggleKeys()
+    {
+        uint vKey = SharedMemoryManager.HotkeyVKey;
+        uint modifiers = SharedMemoryManager.HotkeyModifiers;
+
+        if (vKey == 0 && modifiers == 0)
+        {
+            return []; // Không dùng phím tắt
+        }
+
+        return [(vKey, modifiers, $"BambooMintKey Toggle (0x{vKey:X2}+0x{modifiers:X4})")];
+    }
 
     /// <summary>
     /// Đăng ký các tổ hợp phím tắt chuẩn Preserved Key vào TSF Keystroke Manager.
@@ -151,9 +169,11 @@ public static unsafe class KeyEventSinkHelper
         var pkmVTable = *(TfKeystrokeMgrVTable**)pKeystrokeMgr;
         Guid guidToggle = Guids.GuidPreservedKeyToggle;
 
-        foreach (var (vKey, modifiers, desc) in ToggleKeys)
+        var activeKeys = GetActiveToggleKeys();
+        foreach (var (vKey, modifiers, desc) in activeKeys)
         {
             TF_PRESERVEDKEY prekey = new() { uVKey = vKey, uModifiers = modifiers };
+            _lastCustomKey = prekey;
             fixed (char* pDesc = desc)
             {
                 int hr = pkmVTable->PreserveKey(
@@ -189,12 +209,28 @@ public static unsafe class KeyEventSinkHelper
         var pkmVTable = *(TfKeystrokeMgrVTable**)pKeystrokeMgr;
         Guid guidToggle = Guids.GuidPreservedKeyToggle;
 
-        foreach (var (vKey, modifiers, _) in ToggleKeys)
+        if (_lastCustomKey.uVKey != 0 || _lastCustomKey.uModifiers != 0)
+        {
+            TF_PRESERVEDKEY lastKey = _lastCustomKey;
+            pkmVTable->UnpreserveKey(pKeystrokeMgr, &guidToggle, &lastKey);
+            _lastCustomKey = new() { uVKey = 0, uModifiers = 0 };
+        }
+
+        foreach (var (vKey, modifiers) in AllPossibleKeys)
         {
             TF_PRESERVEDKEY prekey = new() { uVKey = vKey, uModifiers = modifiers };
             pkmVTable->UnpreserveKey(pKeystrokeMgr, &guidToggle, &prekey);
         }
 
         pkmVTable->Release(pKeystrokeMgr);
+    }
+
+    /// <summary>
+    /// Cập nhật lại phím tắt khi cấu hình thay đổi (Gỡ phím cũ, nạp phím mới).
+    /// </summary>
+    public static void UpdatePreservedKeys(IntPtr pThreadMgr, uint clientId)
+    {
+        UnregisterPreservedKeys(pThreadMgr, clientId);
+        RegisterPreservedKeys(pThreadMgr, clientId);
     }
 }

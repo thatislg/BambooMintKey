@@ -77,6 +77,8 @@ public static unsafe class KeyEventSinkImpl
         return HResult.Ok;
     }
 
+    private static uint _lastObservedSeq = 0;
+
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int OnTestKeyDown(IntPtr thisPtr, IntPtr pic, UIntPtr wParam, IntPtr lParam, int* pfEaten)
     {
@@ -84,7 +86,21 @@ public static unsafe class KeyEventSinkImpl
         if (pfEaten == null) return HResult.Pointer;
         *pfEaten = 0;
 
-        // 0. Kiểm tra phím tắt chuyển đổi chế độ V/E (Ctrl + Shift hoặc Alt + Z)
+        // Đồng bộ cấu hình tức thì nếu StateSequence đã tăng từ GUI
+        uint curSeq = SharedMemoryManager.StateSequence;
+        if (curSeq != _lastObservedSeq)
+        {
+            _lastObservedSeq = curSeq;
+            var target = BambooMintKeyTextService.GetTarget(thisPtr - (sizeof(IntPtr) * 2));
+            if (target != null && target.ThreadMgr != IntPtr.Zero)
+            {
+                KeyEventSinkHelper.UpdatePreservedKeys(target.ThreadMgr, target.ClientId);
+                LangBarItemButton.NotifyStateChanged();
+                TsfCompartmentHelper.SetConversionMode(target.ThreadMgr, target.ClientId, SharedMemoryManager.IsVietnameseMode);
+            }
+        }
+
+        // 0. Kiểm tra phím tắt chuyển đổi chế độ V/E (Hỗ trợ phím tùy chọn tự do)
         if (KeyInputTranslator.IsToggleHotkeyPressed(wParam, lParam))
         {
             *pfEaten = 1;

@@ -150,7 +150,12 @@ public static unsafe class SharedMemoryManager
                             _pShared[2] = 1; // AutoRestoreEnglishWords
                             _pShared[3] = 1; // AllowRepeatKeyUndo
                             _pShared[4] = 0; // AllowLeadingWAsU
+                            _pShared[5] = 0; // 0 = Telex, 1 = VNI, 2 = Simple Telex
+                            _pShared[6] = 0; // 0 = Unicode, 1 = Compound, 2 = TCVN3
+                            _pShared[7] = 0; // 0 = Ctrl+Shift, 1 = Alt+Z, 2 = Ctrl+Space, 3 = None
                             *(uint*)(_pShared + 8) = 1; // StateSequence ban đầu
+                            *(uint*)(_pShared + 12) = 0x10; // HotkeyVKey: VK_SHIFT (0x10) mặc định
+                            *(uint*)(_pShared + 16) = 0x0202; // HotkeyModifiers: Control | OnKeyUp (0x0202) mặc định
                         }
                     }
                 }
@@ -209,6 +214,16 @@ public static unsafe class SharedMemoryManager
         }
     }
 
+    /// <summary>Con trỏ handle của sự kiện StateChangedEvent để các tiến trình chờ lắng nghe.</summary>
+    public static IntPtr EventHandle
+    {
+        get
+        {
+            EnsureInitialized();
+            return _hEvent;
+        }
+    }
+
     /// <summary>
     /// Trạng thái bật/tắt gõ tiếng Việt đồng bộ xuyên suốt mọi tiến trình người dùng.
     /// true = V (Tiếng Việt), false = E (Tiếng Anh).
@@ -255,5 +270,194 @@ public static unsafe class SharedMemoryManager
         }
         _fallbackVietnameseMode = !_fallbackVietnameseMode;
         return _fallbackVietnameseMode;
+    }
+
+    /// <summary>
+    /// Quy chuẩn đặt vị trí dấu thanh (0 = Mới: òa, xòe, thủy / 1 = Cũ: oà, xoè, thuỷ).
+    /// </summary>
+    public static byte ToneStyle
+    {
+        get
+        {
+            EnsureInitialized();
+            return _pShared != null ? _pShared[1] : (byte)0;
+        }
+        set
+        {
+            EnsureInitialized();
+            if (_pShared != null)
+            {
+                _pShared[1] = value;
+                SignalStateChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tự động phục hồi từ gốc khi gõ từ sai ngữ pháp tiếng Việt (Fallback tiếng Anh).
+    /// </summary>
+    public static bool AutoRestoreEnglishWords
+    {
+        get
+        {
+            EnsureInitialized();
+            return _pShared != null ? (_pShared[2] != 0) : true;
+        }
+        set
+        {
+            EnsureInitialized();
+            if (_pShared != null)
+            {
+                _pShared[2] = (byte)(value ? 1 : 0);
+                SignalStateChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Cho phép gõ lặp dấu để khôi phục ký tự thô (ví dụ: 'ss' -> 's', 'aa' -> 'a').
+    /// </summary>
+    public static bool AllowRepeatKeyUndo
+    {
+        get
+        {
+            EnsureInitialized();
+            return _pShared != null ? (_pShared[3] != 0) : true;
+        }
+        set
+        {
+            EnsureInitialized();
+            if (_pShared != null)
+            {
+                _pShared[3] = (byte)(value ? 1 : 0);
+                SignalStateChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Cho phép phím 'w' đứng đầu từ biến thành 'ư' (True: w -> ư, False: w -> w).
+    /// </summary>
+    public static bool AllowLeadingWAsU
+    {
+        get
+        {
+            EnsureInitialized();
+            return _pShared != null ? (_pShared[4] != 0) : false;
+        }
+        set
+        {
+            EnsureInitialized();
+            if (_pShared != null)
+            {
+                _pShared[4] = (byte)(value ? 1 : 0);
+                SignalStateChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Kiểu gõ hiện tại (0: Telex, 1: VNI, 2: Simple Telex).
+    /// </summary>
+    public static byte InputMethod
+    {
+        get
+        {
+            EnsureInitialized();
+            return _pShared != null ? _pShared[5] : (byte)0;
+        }
+        set
+        {
+            EnsureInitialized();
+            if (_pShared != null)
+            {
+                _pShared[5] = value;
+                SignalStateChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Bảng mã đầu ra (0: Unicode dựng sẵn, 1: Unicode tổ hợp, 2: TCVN3).
+    /// </summary>
+    public static byte Charset
+    {
+        get
+        {
+            EnsureInitialized();
+            return _pShared != null ? _pShared[6] : (byte)0;
+        }
+        set
+        {
+            EnsureInitialized();
+            if (_pShared != null)
+            {
+                _pShared[6] = value;
+                SignalStateChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Phím tắt chuyển đổi chế độ V/E (0: Ctrl+Shift, 1: Alt+Z, 2: Ctrl+Space, 3: Không dùng).
+    /// </summary>
+    public static byte ToggleHotkey
+    {
+        get
+        {
+            EnsureInitialized();
+            return _pShared != null ? _pShared[7] : (byte)0;
+        }
+        set
+        {
+            EnsureInitialized();
+            if (_pShared != null)
+            {
+                _pShared[7] = value;
+                SignalStateChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Virtual Key Code của phím tắt chuyển đổi V/E tự chọn (ví dụ: 0x10 cho Shift, 0x5A cho 'Z', 0x20 cho Space).
+    /// </summary>
+    public static uint HotkeyVKey
+    {
+        get
+        {
+            EnsureInitialized();
+            return _pShared != null ? *(uint*)(_pShared + 12) : 0x10;
+        }
+        set
+        {
+            EnsureInitialized();
+            if (_pShared != null)
+            {
+                *(uint*)(_pShared + 12) = value;
+                SignalStateChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// TSF Modifiers của phím tắt chuyển đổi V/E tự chọn (ví dụ: Control | OnKeyUp = 0x0202, Alt = 0x0001, Control = 0x0002).
+    /// </summary>
+    public static uint HotkeyModifiers
+    {
+        get
+        {
+            EnsureInitialized();
+            return _pShared != null ? *(uint*)(_pShared + 16) : 0x0202;
+        }
+        set
+        {
+            EnsureInitialized();
+            if (_pShared != null)
+            {
+                *(uint*)(_pShared + 16) = value;
+                SignalStateChanged();
+            }
+        }
     }
 }
