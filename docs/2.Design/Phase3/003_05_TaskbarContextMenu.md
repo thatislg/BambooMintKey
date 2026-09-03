@@ -24,7 +24,7 @@ Menu áp dụng phong cách **Fluent Dark Acrylic** kết hợp điểm nhấn s
 | **Surface Card** | `#18221c` (Thẻ bề mặt Acrylic) | Vùng chứa submenu bo góc mềm mại |
 | **Border Glow** | `#22c55e26` (Viền xanh mờ 15%) | Viền mảnh 1px phân tách các cụm chức năng |
 | **Text Bright** | `#f8fafc` (Trắng tuyết) | Tiêu đề và nhãn chữ chính rõ nét |
-| **Text Muted** | `#94a3b8` (Xám bạc) | Phím tắt phụ `(Ctrl + Shift)` căn lề phải |
+| **Text Muted** | `#94a3b8` (Xám bạc) | Phím tắt phụ `(Alt + Z)` / `(Ctrl + Shift + Q)` căn lề phải — lấy động từ SharedMemory |
 
 ---
 
@@ -32,7 +32,7 @@ Menu áp dụng phong cách **Fluent Dark Acrylic** kết hợp điểm nhấn s
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│   [✓]  Gõ tiếng Việt                          Ctrl + Shift │
+│   [✓]  Gõ tiếng Việt                          (Alt + Z)    │
 ├────────────────────────────────────────────────────────────┤
 │   [>]  Kiểu đặt dấu thanh                     ►            │
 │        ┌─────────────────────────────────────────────────┐ │
@@ -50,6 +50,8 @@ Menu áp dụng phong cách **Fluent Dark Acrylic** kết hợp điểm nhấn s
 │   ℹ   Thông tin BambooMintKey                              │
 └────────────────────────────────────────────────────────────┘
 ```
+
+> **Lưu ý:** Phím tắt bên phải mục *Gõ tiếng Việt* là **động**, được lấy từ `SharedMemoryManager.HotkeyVKey` và `HotkeyModifiers`. Nếu người dùng đổi thành `Ctrl + Shift + Q`, menu sẽ hiển thị `"Gõ tiếng Việt (Ctrl + Shift + Q)"`.
 
 ---
 
@@ -192,10 +194,10 @@ private static int InitMenu(IntPtr thisPtr, IntPtr pMenu)
 
     var menuVTable = *(TfMenuVTable**)pMenu;
 
-    // 1. Chế độ gõ tiếng Việt
+    // 1. Chế độ gõ tiếng Việt — Nhãn động theo phím tắt đang đăng ký trong SharedMemory
     bool isVn = BridgeStateManager.IsVietnameseMode;
     uint vFlag = isVn ? TsfMenuFlags.TfLbMenuFlagChecked : 0;
-    AddMenuItemText(menuVTable, pMenu, MenuCommands.ToggleVietnameseMode, vFlag, "Gõ tiếng Việt (Ctrl + Shift)");
+    AddMenuItemText(menuVTable, pMenu, MenuCommands.ToggleVietnameseMode, vFlag, GetToggleHotkeyDisplayText());
 
     AddMenuSeparator(menuVTable, pMenu);
 
@@ -317,9 +319,9 @@ public static void ShowNativeContextMenu(Point pt)
         const uint TPM_RETURNCMD   = 0x0100;
         const uint TPM_RIGHTBUTTON = 0x0002;
 
-        // 1. Chế độ gõ tiếng Việt
+        // 1. Chế độ gõ tiếng Việt — Nhãn động theo phím tắt hiện tại
         uint vFlag = BridgeStateManager.IsVietnameseMode ? MF_CHECKED : 0;
-        AppendMenuW(hMenu, MF_STRING | vFlag, MenuCommands.ToggleVietnameseMode, "Gõ tiếng Việt (Ctrl + Shift)");
+        AppendMenuW(hMenu, MF_STRING | vFlag, MenuCommands.ToggleVietnameseMode, GetToggleHotkeyDisplayText());
         AppendMenuW(hMenu, MF_SEPARATOR, 0, string.Empty);
 
         // 4. Submenu Kiểu gõ
@@ -367,7 +369,68 @@ public static void ShowNativeContextMenu(Point pt)
 }
 ```
 
-### 6.4. Xử lý Lệnh Tập trung & Đồng bộ Đa tiến trình (`ExecuteMenuCommand`)
+### 6.5. Hiển thị nhãn phím tắt động trong menu (`GetToggleHotkeyDisplayText`)
+
+Menu chuyển đổi chế độ gõ hiển thị nhãn động dựa trên phím tắt thực tế được lưu trong Shared Memory (`HotkeyVKey` / `HotkeyModifiers`), thay vì cứng `"Ctrl + Shift"`. Ví dụ:
+- `Ctrl + Shift` → `"Gõ tiếng Việt (Ctrl + Shift)"`
+- `Alt + Z` → `"Gõ tiếng Việt (Alt + Z)"`
+- `Ctrl + Space` → `"Gõ tiếng Việt (Ctrl + Space)"`
+- Không dùng phím tắt → `"Gõ tiếng Việt"`
+- Phím tùy chỉnh → `"Gõ tiếng Việt (Ctrl + Shift + Q)"`
+
+```csharp
+private static string GetToggleHotkeyDisplayText()
+{
+    uint vKey = SharedMemoryManager.HotkeyVKey;
+    uint mods = SharedMemoryManager.HotkeyModifiers;
+
+    if (vKey == 0 && mods == 0) return "Gõ tiếng Việt";
+
+    if (vKey == 0x10 && (mods == 0x0202 || mods == 0x0002)) return "Gõ tiếng Việt (Ctrl + Shift)";
+    if (vKey == 0x10 && (mods == 0x0201 || mods == 0x0001)) return "Gõ tiếng Việt (Alt + Shift)";
+    if (vKey == 0x5A && mods == 0x0001) return "Gõ tiếng Việt (Alt + Z)";
+    if (vKey == 0x20 && mods == 0x0002) return "Gõ tiếng Việt (Ctrl + Space)";
+
+    var parts = new List<string>();
+    if ((mods & 0x0002) != 0) parts.Add("Ctrl");
+    if ((mods & 0x0001) != 0) parts.Add("Alt");
+    if ((mods & 0x0004) != 0) parts.Add("Shift");
+
+    string keyName = vKey switch
+    {
+        0x20 => "Space",
+        0x10 => "Shift",
+        0x11 => "Ctrl",
+        0x12 => "Alt",
+        0xC0 => "~",
+        0xDC => "\\",
+        0xBF => "/",
+        0xDB => "[",
+        0xDD => "]",
+        0xBA => ";",
+        0xDE => "'",
+        0xBC => ",",
+        0xBE => ".",
+        0xBD => "-",
+        0xBB => "=",
+        0x08 => "Backspace",
+        0x09 => "Tab",
+        0x0D => "Enter",
+        0x14 => "CapsLock",
+        0x1B => "Esc",
+        >= 0x41 and <= 0x5A => ((char)vKey).ToString(),
+        >= 0x30 and <= 0x39 => ((char)vKey).ToString(),
+        >= 0x60 and <= 0x69 => $"Num{vKey - 0x60}",
+        >= 0x70 and <= 0x7B => $"F{vKey - 0x70 + 1}",
+        _ => $"0x{vKey:X}"
+    };
+
+    if (!parts.Contains(keyName)) parts.Add(keyName);
+    return $"Gõ tiếng Việt ({string.Join(" + ", parts)})";
+}
+```
+
+### 6.6. Xử lý Lệnh Tập trung & Đồng bộ Đa tiến trình (`ExecuteMenuCommand`)
 ```csharp
 public static void ExecuteMenuCommand(uint cmdId)
 {
@@ -447,10 +510,48 @@ Tạo mới `TSF/SettingsLauncher.cs`:
 ```csharp
 public static class SettingsLauncher
 {
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern IntPtr FindWindowW(string? lpClassName, string lpWindowName);
+
+    private const int SwRestore = 9;
+
     public static void LaunchSettingsGui(string? argument = null)
     {
         try
         {
+            // 1. Nếu BambooMintKey.UI đã chạy, kích hoạt cửa sổ hiện tại thay vì mở instance mới
+            var existingProcesses = Process.GetProcessesByName("BambooMintKey.UI");
+            foreach (var proc in existingProcesses)
+            {
+                try
+                {
+                    if (!proc.HasExited)
+                    {
+                        IntPtr hWnd = proc.MainWindowHandle;
+                        if (hWnd == IntPtr.Zero)
+                        {
+                            hWnd = FindWindowW(null, "BambooMintKey — Bảng Điều Khiển Cài Đặt");
+                        }
+
+                        if (hWnd != IntPtr.Zero)
+                        {
+                            ShowWindow(hWnd, SwRestore);
+                            SetForegroundWindow(hWnd);
+                            DebugLog.Write($"SettingsLauncher: Đã kích hoạt cửa sổ hiện tại (hWnd={hWnd})");
+                            return;
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            // 2. Nếu chưa chạy, tìm file thực thi và khởi chạy tiến trình mới
             string dllPath = NativeMethods.GetCurrentDllPath();
             string dir = !string.IsNullOrEmpty(dllPath) ? Path.GetDirectoryName(dllPath)! : AppDomain.CurrentDomain.BaseDirectory;
             string uiPath = Path.Combine(dir, "BambooMintKey.UI.exe");
@@ -486,7 +587,9 @@ public static class SettingsLauncher
 
 Khi người dùng bấm từ Context Menu:
 - Mục **"Bảng điều khiển & Cài đặt..."** → gọi `SettingsLauncher.LaunchSettingsGui()`.
-- Mục **"Thông tin BambooMintKey"** → gọi `SettingsLauncher.LaunchSettingsGui("--about")` → Cửa sổ `BambooMintKey.UI` mở lên và **tự động chọn Tab 4 (Thông tin)**.
+- Mục **"Thông tin BambooMintKey"** → gọi `SettingsLauncher.LaunchSettingsGui("--about")` → Cửa sổ `BambooMintKey.UI` mở lên (hoặc được kích hoạt nếu đã chạy) và **tự động chọn Tab 4 (Thông tin)**.
+
+> **Lưu ý:** `SettingsLauncher` đã được bổ sung cơ chế **Single-Instance** từ bản sửa lỗi "2 màn hình điều khiển". Nếu GUI đang chạy, nó sẽ đưa cửa sổ hiện tại lên foreground thay vì tạo instance mới.
 
 ### Hình ảnh thực tế
 
@@ -500,13 +603,16 @@ Khi người dùng bấm từ Context Menu:
 
 1. **Click Chuột Phải Phản hồi Ngay:**
    - Click chuột phải vào icon Taskbar **V** hoặc **E**: Menu ngữ cảnh lập tức xuất hiện ngay tại vị trí con trỏ chuột.
-2. **Kiểm tra Đổi Kiểu Dấu Thanh:**
+2. **Kiểm tra Nhãn phím tắt động:**
+   - Đổi phím tắt trong GUI thành `Alt + Z` (hoặc phím tùy chỉnh bất kỳ), bấm *Áp dụng & Đóng*.
+   - Click chuột phải vào icon Taskbar → Mục đầu tiên phải hiển thị đúng `"Gõ tiếng Việt (Alt + Z)"` (hoặc phím tùy chỉnh tương ứng), không còn cứng `"Ctrl + Shift"`.
+3. **Kiểm tra Đổi Kiểu Dấu Thanh:**
    - Gõ `thuy` $\rightarrow$ ra `thủy` (Kiểu mới).
    - Click chuột phải $\rightarrow$ Chọn *Kiểu cũ (oà, xoè, thuỷ)*.
    - Gõ lại `thuy` $\rightarrow$ ra ngay `thuỷ` (Kiểu cũ) trong Notepad/Word/Chrome tức thì.
-3. **Kiểm tra Tùy chọn 'w' đầu từ:**
+4. **Kiểm tra Tùy chọn 'w' đầu từ:**
    - Click chuột phải $\rightarrow$ Bật *Phím 'w' đầu từ thành 'ư'*.
    - Gõ `w` $\rightarrow$ ra `ư`.
    - Bỏ chọn $\rightarrow$ gõ `w` ra `w`.
-4. **Tự động đóng Menu khi Mất Focus:**
+5. **Tự động đóng Menu khi Mất Focus:**
    - Click chuột phải để mở menu, click chuột ra vị trí bất kỳ ngoài màn hình $\rightarrow$ menu tự đóng sạch sẽ, không để lại vết mờ.

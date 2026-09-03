@@ -145,7 +145,7 @@ Bạn sẽ thấy BambooMintKey trong danh sách input method của Vietnamese.
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-Chi tiết kiến trúc và thiết kế xem tại [`docs/2.Design/Phase2/`](docs/2.Design/Phase2/) và trạng thái UI/Context Management tại [`docs/2.Design/Phase3/`](docs/2.Design/Phase3/).
+Chi tiết kiến trúc hệ thống toàn diện có sơ đồ xem tại [Tài liệu Kiến trúc Hệ thống (System Architecture)](docs/SYSTEM_ARCHITECTURE.md). Chi tiết thiết kế xem tại [`docs/2.Design/Phase2/`](docs/2.Design/Phase2/) và trạng thái UI/Context Management tại [`docs/2.Design/Phase3/`](docs/2.Design/Phase3/).
 
 ---
 

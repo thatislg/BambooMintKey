@@ -56,8 +56,8 @@ Cấu trúc tệp cấu hình thực tế được phiên bản hóa qua trườ
 | `inputMethod` | `byte (int)` | `0` | **Kiểu gõ:**<br>• `0`: Telex (Mặc định)<br>• `1`: VNI<br>• `2`: Simple Telex |
 | `charset` | `byte (int)` | `0` | **Bảng mã ký tự đầu ra:**<br>• `0`: Unicode dựng sẵn (NFC)<br>• `1`: Unicode tổ hợp (NFD)<br>• `2`: TCVN3 (ABC tiêu chuẩn cũ) |
 | `toggleHotkey` | `byte (int)` | `0` | **Preset phím tắt nhanh:**<br>• `0`: `Ctrl + Shift`<br>• `1`: `Alt + Z`<br>• `2`: `Ctrl + Space`<br>• `3`: Không dùng<br>• `4`: Phím tùy biến tự do (Custom) |
-| `hotkeyVKey` | `uint32` | `16` *(0x10)* | **Win32 Virtual Key code** của phím chính (ví dụ: `16` = Phím `Shift`, `81` = Phím `Q`, `90` = Phím `Z`, `32` = Phím `Space`). |
-| `hotkeyModifiers` | `uint32` | `514` *(0x0202)* | **Mã cờ bổ trợ TSF (`TsfModFlags`):**<br>• `0x0001`: Alt<br>• `0x0002`: Control<br>• `0x0004`: Shift<br>• `0x0200`: OnKeyUp (dành cho tổ hợp thuần modifier như Ctrl+Shift)<br>*(Ví dụ: `514` = `0x0202` → `Control \| OnKeyUp` cho `Ctrl + Shift`)* |
+| `hotkeyVKey` | `uint32` | `16` *(0x10)* | **Win32 Virtual Key code** của phím chính (ví dụ: `16` = Phím `Shift`, `81` = Phím `Q`, `90` = Phím `Z`, `32` = Phím `Space`). Ánh xạ Shared Memory offset 12. |
+| `hotkeyModifiers` | `uint32` | `514` *(0x0202)* | **Mã cờ bổ trợ TSF (`TsfModFlags`):**<br>• `0x0001`: Alt<br>• `0x0002`: Control<br>• `0x0004`: Shift<br>• `0x0200`: OnKeyUp (dành cho tổ hợp thuần modifier như Ctrl+Shift)<br>*(Ví dụ: `514` = `0x0202` → `Control \| OnKeyUp` cho `Ctrl + Shift`)*. Ánh xạ Shared Memory offset 16. |
 | `toneStyle` | `byte (int)` | `0` | **Quy tắc đặt dấu thanh tiếng Việt:**<br>• `0`: Chuẩn mới / Hiện đại (`òa, úy`)<br>• `1`: Chuẩn cũ / Truyền thống (`oà, uý`) |
 | `autoRestoreEnglishWords` | `bool` | `true` | Tự động trả lại từ tiếng Anh nguyên bản khi phát hiện từ gõ sai quy tắc chính tả tiếng Việt. |
 | `allowRepeatKeyUndo` | `bool` | `true` | Cho phép gõ lại chính phím dấu vừa gõ để hủy dấu (Undo) (ví dụ: `as` $\rightarrow$ `á`, `ass` $\rightarrow$ `as`). |
@@ -65,6 +65,22 @@ Cấu trúc tệp cấu hình thực tế được phiên bản hóa qua trườ
 | `startWithWindows` | `bool` | `true` | Đăng ký chạy GUI cấu hình cùng Windows qua Registry `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`. |
 | `macroEnabled` | `bool` | `false` | Bật/tắt tính năng gõ tắt (Macro expansion) *(Dành cho Phase 4)*. |
 | `macros` | `object (map)` | `{}` | Bảng tra cứu từ viết tắt và nội dung thay thế *(Dành cho Phase 4)*. |
+
+### Bố cục 64 bytes Shared Memory
+
+| Offset | Trường | Kiểu | Ý nghĩa |
+| :--- | :--- | :--- | :--- |
+| `[0]` | `IsVietnameseMode` | `byte` | `1` = Tiếng Việt (V), `0` = Tiếng Anh (E). |
+| `[1]` | `ToneStyle` | `byte` | `0` = Kiểu mới, `1` = Kiểu cũ. |
+| `[2]` | `AutoRestoreEnglishWords` | `byte` | `1` = Bật, `0` = Tắt. |
+| `[3]` | `AllowRepeatKeyUndo` | `byte` | `1` = Bật, `0` = Tắt. |
+| `[4]` | `AllowLeadingWAsU` | `byte` | `1` = Bật, `0` = Tắt. |
+| `[5]` | `InputMethod` | `byte` | `0` = Telex, `1` = VNI, `2` = Simple Telex. |
+| `[6]` | `Charset` | `byte` | `0` = Unicode, `1` = Tổ hợp, `2` = TCVN3. |
+| `[7]` | `ToggleHotkey` | `byte` | `0` = Ctrl+Shift, `1` = Alt+Z, `2` = Ctrl+Space, `3` = None, `4` = Custom. |
+| `[8-11]` | `StateSequence` | `uint32` | Bộ đếm phiên bản trạng thái, tăng khi cấu hình thay đổi. |
+| `[12-15]` | `HotkeyVKey` | `uint32` | Win32 Virtual Key code của phím tắt toggle. |
+| `[16-19]` | `HotkeyModifiers` | `uint32` | Cờ modifier TSF của phím tắt toggle. |
 
 ---
 

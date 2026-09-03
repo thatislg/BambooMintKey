@@ -15,6 +15,7 @@
 2. **Tùy biến Phím tắt (Dynamic Hotkey Configuration):** Phím tắt chuyển đổi chế độ V/E (Ctrl + Shift, Alt + Z, Ctrl + Space,...) không còn bị fix cứng, mà người dùng có thể tự do lựa chọn trong giao diện cài đặt và TSF sẽ cập nhật đăng ký tức thì vào hệ thống.
 3. **Quản lý Kiểu gõ & Bảng mã:** Cung cấp đầy đủ các lựa chọn Kiểu gõ (`Telex`, `VNI`, `Simple Telex`) và Bảng mã (`Unicode dựng sẵn`, `Unicode tổ hợp`, `TCVN3`) trên cả giao diện cài đặt lẫn Context Menu chuột phải, đồng bộ trạng thái qua `SharedMemoryManager` và `config.json`.
 4. **Giao diện Thông tin Ứng dụng (About Dialog):** Tích hợp trực tiếp màn hình About trong ứng dụng (logo cây tre, phiên bản, tác giả, bản quyền, link tài liệu) thay vì chuyển hướng người dùng ra trình duyệt web bên ngoài.
+5. **Hai lớp bảo vệ Single-Instance:** `SettingsLauncher` (NativeBridge) kiểm tra process trước khi spawn; `Program.fs` (GUI) dùng named mutex `Local\BambooMintKey_UI_SingleInstance_Mutex`. Click liên tiếp chỉ đưa cửa sổ hiện tại lên foreground, không mở thêm instance.
 
 ### 1.2. Chuẩn hóa COM Windows SDK
 Theo `msctf.idl` của Windows SDK:
@@ -30,7 +31,19 @@ Theo `msctf.idl` của Windows SDK:
 
 ---
 
-## 2. Hệ Thống Thẩm Mỹ & Màu Sắc "Bamboo Mint" (Visual Identity)
+## 2. Cấu hình Dự án `BambooMintKey.UI.fsproj`
+
+Project GUI sử dụng Avalonia UI 12.1.1 với Fluent Theme và font Inter. Gói `AvaloniaUI.DiagnosticsSupport` chỉ được tham chiếu trong cấu hình **Debug** để tránh mang theo dependency diagnostics không cần thiết khi publish/release:
+
+```xml
+<PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" Condition="'$(Configuration)' == 'Debug'" />
+```
+
+Các gói cốt lõi (`Avalonia`, `Avalonia.Desktop`, `Avalonia.Themes.Fluent`, `Avalonia.Fonts.Inter`) vẫn được giữ nguyên trong mọi cấu hình.
+
+---
+
+## 3. Hệ Thống Thẩm Mỹ & Màu Sắc "Bamboo Mint" (Visual Identity)
 
 Giao diện cài đặt được thiết kế theo phong cách **hiện đại, sáng và gọn gàng** (Light Mint Theme), tối ưu cho cả giao diện sáng mặc định của Windows:
 
@@ -50,7 +63,7 @@ Giao diện cài đặt được thiết kế theo phong cách **hiện đại, 
 
 ---
 
-## 3. Cấu Trúc Bố Cục Giao Diện (`BambooMintKey.UI`)
+## 4. Cấu Trúc Bố Cục Giao Diện (`BambooMintKey.UI`)
 
 Cửa sổ có kích thước **`580 x 540`** pixel, căn giữa màn hình (`CenterScreen`), không cho phép resize méo giao diện, gồm thanh tiêu đề thương hiệu và **4 Tab chức năng**:
 
@@ -203,11 +216,48 @@ Trong `SettingsLauncher.cs`:
 ```csharp
 public static class SettingsLauncher
 {
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern IntPtr FindWindowW(string? lpClassName, string lpWindowName);
+
+    private const int SwRestore = 9;
+
     public static void LaunchSettingsGui(string? argument = null)
     {
         try
         {
-            // Ưu tiên tìm UI.exe cùng thư mục với DLL NativeBridge đang chạy
+            // 1. Kiểm tra xem BambooMintKey.UI đã chạy hay chưa. Nếu có, kích hoạt lên trước.
+            var existingProcesses = Process.GetProcessesByName("BambooMintKey.UI");
+            foreach (var proc in existingProcesses)
+            {
+                try
+                {
+                    if (!proc.HasExited)
+                    {
+                        IntPtr hWnd = proc.MainWindowHandle;
+                        if (hWnd == IntPtr.Zero)
+                        {
+                            hWnd = FindWindowW(null, "BambooMintKey — Bảng Điều Khiển Cài Đặt");
+                        }
+
+                        if (hWnd != IntPtr.Zero)
+                        {
+                            ShowWindow(hWnd, SwRestore);
+                            SetForegroundWindow(hWnd);
+                            DebugLog.Write($"SettingsLauncher: Đã kích hoạt cửa sổ hiện tại (hWnd={hWnd})");
+                            return;
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            // 2. Nếu chưa chạy, tìm file thực thi và khởi chạy tiến trình mới
             string dllPath = NativeMethods.GetCurrentDllPath();
             string dir = !string.IsNullOrEmpty(dllPath)
                 ? Path.GetDirectoryName(dllPath)!
@@ -243,30 +293,94 @@ public static class SettingsLauncher
 }
 ```
 
+> **Lưu ý quan trọng:** Kể từ bản cập nhật sửa lỗi "2 màn hình điều khiển", `SettingsLauncher` giờ đây có bảo vệ **Single-Instance**. Nếu `BambooMintKey.UI.exe` đã chạy, nó sẽ `ShowWindow` + `SetForegroundWindow` cửa sổ hiện tại thay vì mở thêm một instance mới. Điều này ngăn chặn hiện tượng nhiều cửa sổ cài đặt chồng lên nhau khi người dùng click liên tiếp vào menu Taskbar.
+
 Khi người dùng bấm từ Context Menu:
 - Mục **"Bảng điều khiển & Cài đặt..."** $\rightarrow$ gọi `SettingsLauncher.LaunchSettingsGui()`.
-- Mục **"Thông tin BambooMintKey"** $\rightarrow$ gọi `SettingsLauncher.LaunchSettingsGui("--about")` $\rightarrow$ Cửa sổ `BambooMintKey.UI` mở lên và **tự động chọn Tab 4 (Thông tin)**.
+- Mục **"Thông tin BambooMintKey"** $\rightarrow$ gọi `SettingsLauncher.LaunchSettingsGui("--about")` $\rightarrow$ Cửa sổ `BambooMintKey.UI` mở lên (hoặc được kích hoạt nếu đã chạy) và **tự động chọn Tab 4 (Thông tin)**.
 
 ---
 
-## 7. Quy Trình Kiểm Thử & Tiêu Chí Nghiệm Thu
+## 7. Bảo vệ Single-Instance trong `BambooMintKey.UI` (`Program.fs`)
 
-1. **Khởi chạy Cài đặt từ Context Menu:**
-   - Click chuột phải icon Taskbar $\rightarrow$ Chọn *Bảng điều khiển & Cài đặt...* $\rightarrow$ Cửa sổ Avalonia UI mở lên trong vòng 200ms với giao diện tông màu Bamboo Mint rực rỡ, nền Dark Acrylic.
-2. **Khởi chạy Tab About:**
-   - Click chuột phải icon Taskbar $\rightarrow$ Chọn *Thông tin BambooMintKey* $\rightarrow$ Cửa sổ mở lên tại đúng Tab Thông tin, hiển thị logo cây tre `🎍`, phiên bản `v1.0.0`, bản quyền MIT và tác giả (không bật trình duyệt web).
+Để tránh người dùng vô tình mở nhiều cửa sổ cài đặt cùng lúc (ví dụ click nhanh liên tiếp vào menu Taskbar), ứng dụng `BambooMintKey.UI.exe` tự triển khai cơ chế **Single-Instance** qua Win32 `Mutex`:
+
+- Tạo named mutex `Local\BambooMintKey_UI_SingleInstance_Mutex` khi khởi động.
+- Nếu mutex đã tồn tại (`createdNew == false`), ứng dụng mới **không khởi động GUI** mà chỉ:
+  1. Tìm cửa sổ `BambooMintKey.UI` đang chạy (qua `Process.MainWindowHandle` hoặc `FindWindowW`).
+  2. Gọi `ShowWindow(SW_RESTORE)` + `SetForegroundWindow()` để đưa cửa sổ hiện tại lên trước.
+  3. Thoát với mã `0`.
+
+```fsharp
+module NativeWin32 =
+    [<DllImport("user32.dll", SetLastError = true)>]
+    extern bool ShowWindow(IntPtr hWnd, int nCmdShow)
+
+    [<DllImport("user32.dll", SetLastError = true)>]
+    extern bool SetForegroundWindow(IntPtr hWnd)
+
+    [<DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)>]
+    extern IntPtr FindWindowW(string lpClassName, string lpWindowName)
+
+    let SW_RESTORE = 9
+
+let private activateExistingInstance () =
+    try
+        let currentId = Process.GetCurrentProcess().Id
+        let existing = Process.GetProcessesByName("BambooMintKey.UI")
+        let mutable activated = false
+        for proc in existing do
+            if not activated && proc.Id <> currentId && not proc.HasExited then
+                let mutable handle = proc.MainWindowHandle
+                if handle = IntPtr.Zero then
+                    handle <- NativeWin32.FindWindowW(null, "BambooMintKey — Bảng Điều Khiển Cài Đặt")
+                if handle <> IntPtr.Zero then
+                    NativeWin32.ShowWindow(handle, NativeWin32.SW_RESTORE) |> ignore
+                    NativeWin32.SetForegroundWindow(handle) |> ignore
+                    activated <- true
+        if not activated then
+            let handle = NativeWin32.FindWindowW(null, "BambooMintKey — Bảng Điều Khiển Cài Đặt")
+            if handle <> IntPtr.Zero then
+                NativeWin32.ShowWindow(handle, NativeWin32.SW_RESTORE) |> ignore
+                NativeWin32.SetForegroundWindow(handle) |> ignore
+    with _ -> ()
+
+[<EntryPoint; STAThread>]
+let main argv =
+    let mutable createdNew = false
+    use mutex = new Mutex(true, @"Local\BambooMintKey_UI_SingleInstance_Mutex", &createdNew)
+    if not createdNew then
+        activateExistingInstance()
+        0
+    else
+        buildAvaloniaApp().StartWithClassicDesktopLifetime(argv)
+```
+
+Cơ chế này kết hợp với `SettingsLauncher` single-instance bên NativeBridge tạo thành **hai lớp bảo vệ**: dù tiến trình mới có được tạo ra do race condition, nó cũng sẽ tự đóng ngay và đưa cửa sổ cũ lên foreground.
+
+---
+
+## 8. Quy Trình Kiểm Thử & Tiêu Chí Nghiệm Thu
+
+1. **Khởi chạy Cài đặt từ Context Menu (Single-Instance):**
+   - Click chuột phải icon Taskbar $\rightarrow$ Chọn *Bảng điều khiển & Cài đặt...* $\rightarrow$ Cửa sổ Avalonia UI mở lên trong vòng 200ms.
+   - Click thêm lần nữa khi cửa sổ đã mở $\rightarrow$ **không** xuất hiện cửa sổ thứ hai; cửa sổ hiện tại được đưa lên foreground.
+2. **Khởi chạy Tab About (Single-Instance):**
+   - Click chuột phải icon Taskbar $\rightarrow$ Chọn *Thông tin BambooMintKey* $\rightarrow$ Nếu cửa sổ đã mở, nó được kích hoạt; nếu chưa, cửa sổ mở lên tại đúng Tab Thông tin, hiển thị logo cây tre `🎍`, phiên bản `v1.0.0`, bản quyền MIT và tác giả (không bật trình duyệt web).
 3. **Kiểm tra Tùy biến Phím tắt:**
    - Trong Tab Bàn phím: Đổi phím tắt từ `Ctrl + Shift` sang `Alt + Z` $\rightarrow$ bấm *Áp dụng*.
    - Mở Notepad $\rightarrow$ Bấm `Alt + Z` $\rightarrow$ Icon Taskbar chuyển đổi ngay lập tức giữa **V** và **E**. Bấm `Ctrl + Shift` không còn làm đảo icon nữa.
-4. **Kiểm tra Chuyển Kiểu gõ & Bảng mã trên Context Menu:**
+4. **Kiểm tra Nhãn phím tắt động trên Context Menu:**
+   - Click chuột phải icon Taskbar $\rightarrow$ Quan sát mục đầu tiên: nhãn phải phản ánh đúng phím tắt vừa đổi (ví dụ `"Gõ tiếng Việt (Alt + Z)"`) thay vì cứng `"Ctrl + Shift"`.
+5. **Kiểm tra Chuyển Kiểu gõ & Bảng mã trên Context Menu:**
    - Click chuột phải vào icon Taskbar $\rightarrow$ Thấy 2 Submenu *Kiểu gõ* (Telex, VNI, Simple Telex) và *Bảng mã* (Unicode dựng sẵn, Tổ hợp, TCVN3).
    - Chọn mục bất kỳ $\rightarrow$ Dấu radio `(•)` di chuyển tương ứng và cấu hình được lưu lại vào hệ thống.
-5. **Kiểm tra Live Typing Sandbox:**
+6. **Kiểm tra Live Typing Sandbox:**
    - Chuyển sang Tab *Gõ thử nghiệm* $\rightarrow$ Gõ trực tiếp câu `"Tiếng Việt mượt mà cùng BambooMintKey"` trong ô test để nghiệm thu.
 
 ---
 
-## 8. Hình ảnh thực tế trên GUI
+## 9. Hình ảnh thực tế trên GUI
 
 Các ảnh chụp màn hình từ giao diện `BambooMintKey.UI.exe` nằm trong thư mục `BambooMintKey/screenshot/`:
 
