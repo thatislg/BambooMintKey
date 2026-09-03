@@ -186,7 +186,34 @@ public static unsafe class SharedMemoryManager
         {
             string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             string path = Path.Combine(appData, "BambooMintKey", "config.json");
-            if (!File.Exists(path)) return;
+            if (!File.Exists(path))
+            {
+                string dir = Path.GetDirectoryName(path)!;
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                string defaultJson = """
+                {
+                  "version": 2,
+                  "inputMethod": 0,
+                  "charset": 0,
+                  "toggleHotkey": 0,
+                  "hotkeyVKey": 16,
+                  "hotkeyModifiers": 514,
+                  "toneStyle": 0,
+                  "autoRestoreEnglishWords": true,
+                  "allowRepeatKeyUndo": true,
+                  "allowLeadingWAsU": false,
+                  "startWithWindows": true,
+                  "macroEnabled": false,
+                  "macros": {
+                    "vn": "Việt Nam",
+                    "bmk": "BambooMintKey",
+                    "f#": "F-Sharp"
+                  }
+                }
+                """;
+                File.WriteAllText(path, defaultJson);
+                return;
+            }
 
             string json = File.ReadAllText(path);
 

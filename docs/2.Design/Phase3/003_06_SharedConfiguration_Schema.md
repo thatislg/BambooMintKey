@@ -1,37 +1,44 @@
-# 003_04_SharedConfiguration_Schema.md
+# 003_06_SharedConfiguration_Schema.md
 
-> Tài liệu kỹ thuật chi tiết về thiết kế Schema cấu hình dùng chung (`config.json`), module phân tích cú pháp (Parser) trong F# Core, cơ chế đồng bộ nóng (Hot-Reload) không cần khởi động lại tiến trình, và cầu nối lưu trữ đa nền tảng (Windows/Linux).
+> Tài liệu kỹ thuật đặc tả Schema cấu hình dùng chung (`config.json`), cơ chế đồng bộ lai (Hybrid Synchronization: Shared Memory + Event Broadcast + Persistent JSON File), xử lý phím tắt tự do (Custom Hotkey), và kiến trúc sẵn sàng đa nền tảng (Windows TSF / Linux Fcitx5).
 
-## 1. Cơ sở chuẩn hóa & Phân tích kiến trúc
+---
+
+## 1. Cơ sở Chuẩn hóa & Phân tích Kiến trúc
 
 ### 1.1. Nguyên tắc thiết kế hợp đồng cấu hình (Data Contract)
 
-- **Phi nền tảng (Platform-Agnostic):** Schema sử dụng chuẩn JSON thuần túy (UTF-8 không BOM), không chứa bất kỳ định danh cụ thể nào của Windows Registry hay Linux GSettings.
-- **Độc lập phụ thuộc (Zero Third-Party Dependency):** F# Core là tầng tính toán thuần túy (`BambooMintKey.Core`), không phụ thuộc vào các thư viện JSON bên ngoài (như `Newtonsoft.Json` hay `System.Text.Json` cồng kềnh) để đảm bảo biên dịch NativeAOT ra mã máy nhỏ gọn và giữ thời gian khởi động ở mức micro-second.
-- **Bảo toàn dữ liệu (Safe Defaults & Fault-Tolerance):** Nếu tệp cấu hình bị lỗi cú pháp hoặc thiếu trường do người dùng chỉnh sửa tay, hệ thống tự động rơi về cấu hình mặc định an toàn (`Fallback Defaults`) mà không gây crash engine.
+1. **Phi nền tảng (Platform-Agnostic):** Schema sử dụng chuẩn JSON thuần túy (UTF-8 không BOM), không phụ thuộc vào Windows Registry hay GSettings của Linux, cho phép tái sử dụng 100% khi mở rộng sang Linux (Fcitx5).
+2. **Độc lập và an toàn NativeAOT (Zero Third-Party Dependency):** Việc phân tích cú pháp và lưu trữ cấu hình được thiết kế tối giản, không sử dụng reflection hay các thư viện JSON nặng nề của bên thứ ba, đảm bảo biên dịch NativeAOT an toàn và thời gian khởi động tức thì (micro-second).
+3. **Bảo toàn dữ liệu & Chống Crash (Fault Tolerance):** Nếu tệp cấu hình bị hỏng cú pháp, thiếu trường dữ liệu hoặc bị người dùng chỉnh sửa tay sai quy cách, hệ thống tự động rơi về giá trị mặc định an toàn (`Fallback Safe Defaults`) mà không bao giờ làm dừng hoặc crash tiến trình gõ phím.
+4. **Kiến trúc phân tầng sạch (Clean Architecture):** Tầng tính toán thuật toán lõi (`BambooMintKey.Core`) hoàn toàn thuần túy (Pure Functional Domain), không chứa code I/O hay đọc ghi file. Việc đọc, ghi tệp JSON và nạp vào bộ nhớ dùng chung được đảm nhiệm bởi tầng `BambooMintKey.NativeBridge` (Windows TSF) và `BambooMintKey.UI` (Avalonia).
 
 ### 1.2. Vị trí lưu trữ tệp trên từng hệ điều hành
 
-| **Hệ điều hành**   | **Đường dẫn lưu trữ tiêu chuẩn**                             |
-| ------------------ | ------------------------------------------------------------ |
-| **Windows**        | `%AppData%\BambooMintKey\config.json`  `C:\Users\<User>\AppData\Roaming\BambooMintKey\config.json` |
-| **Linux (Fcitx5)** | `$XDG_CONFIG_HOME/bamboomintkey/config.json`  `~/.config/bamboomintkey/config.json` |
+| **Hệ điều hành** | **Đường dẫn lưu trữ tiêu chuẩn** |
+| :--- | :--- |
+| **Windows** | `%AppData%\BambooMintKey\config.json`<br>*(ví dụ: `C:\Users\<User>\AppData\Roaming\BambooMintKey\config.json`)* |
+| **Linux (Fcitx5)** | `$XDG_CONFIG_HOME/bamboomintkey/config.json`<br>*(mặc định: `~/.config/bamboomintkey/config.json`)* |
 
-## 2. Đặc tả JSON Schema (`config.json`)
+---
 
-Tệp cấu hình được phiên bản hóa (`version`) để hỗ trợ nâng cấp (migration) trong tương lai.
+## 2. Đặc tả JSON Schema Chuẩn hóa (`config.json` - Version 2)
 
-JSON
+Cấu trúc tệp cấu hình thực tế được phiên bản hóa qua trường `"version": 2` nhằm đảm bảo khả năng tương thích ngược và tự động di trú (migration):
 
 ```json
 {
-  "version": 1,
-  "inputMethod": "Telex",
-  "charset": "Unicode",
-  "toggleHotkey": "CtrlShift",
-  "spellCheck": true,
-  "autoRestoreIfInvalid": true,
-  "useModernOrthography": true,
+  "version": 2,
+  "inputMethod": 0,
+  "charset": 0,
+  "toggleHotkey": 4,
+  "hotkeyVKey": 81,
+  "hotkeyModifiers": 6,
+  "toneStyle": 0,
+  "autoRestoreEnglishWords": true,
+  "allowRepeatKeyUndo": true,
+  "allowLeadingWAsU": false,
+  "startWithWindows": true,
   "macroEnabled": false,
   "macros": {
     "vn": "Việt Nam",
@@ -41,356 +48,112 @@ JSON
 }
 ```
 
-### Chi tiết các trường dữ liệu:
+### Chi tiết ý nghĩa các trường dữ liệu:
 
-- `version` (int): Phiên bản cấu trúc schema (mặc định: `1`).
-- `inputMethod` (string): Kiểu gõ hợp lệ gồm `"Telex"`, `"Vni"`, `"SimpleTelex"`.
-- `charset` (string): Bảng mã đầu ra gồm `"Unicode"`, `"CompoundUnicode"`, `"Tcvn3"`.
-- `toggleHotkey` (string): Phím tắt toggle nhanh gồm `"CtrlShift"`, `"AltZ"`, `"None"`.
-- `spellCheck` (bool): Bật/tắt kiểm tra từ điển âm tiết tiếng Việt hợp lệ.
-- `autoRestoreIfInvalid` (bool): Tự động trả về ký tự thô nếu từ gõ không tuân theo quy tắc tiếng Việt.
-- `useModernOrthography` (bool): Đặt dấu theo kiểu mới (`òa, úy` thay vì `oà, uý`).
-- `macroEnabled` (bool): Kích hoạt bảng gõ tắt.
-- `macros` (object map): Cặp khóa-giá trị `từ_viết_tắt: nội_dung_thay_thế`.
+| Tên trường | Kiểu dữ liệu | Giá trị mặc định | Diễn giải kỹ thuật & Ánh xạ bộ nhớ |
+| :--- | :--- | :--- | :--- |
+| `version` | `int` | `2` | Phiên bản của schema cấu hình. |
+| `inputMethod` | `byte (int)` | `0` | **Kiểu gõ:**<br>• `0`: Telex (Mặc định)<br>• `1`: VNI<br>• `2`: Simple Telex |
+| `charset` | `byte (int)` | `0` | **Bảng mã ký tự đầu ra:**<br>• `0`: Unicode dựng sẵn (NFC)<br>• `1`: Unicode tổ hợp (NFD)<br>• `2`: TCVN3 (ABC tiêu chuẩn cũ) |
+| `toggleHotkey` | `byte (int)` | `0` | **Preset phím tắt nhanh:**<br>• `0`: `Ctrl + Shift`<br>• `1`: `Alt + Z`<br>• `2`: `Ctrl + Space`<br>• `3`: Không dùng<br>• `4`: Phím tùy biến tự do (Custom) |
+| `hotkeyVKey` | `uint32` | `81` *(0x51)* | **Win32 Virtual Key code** của phím chính (ví dụ: `81` = Phím `Q`, `90` = Phím `Z`, `32` = Phím `Space`, `16` = Phím `Shift`). |
+| `hotkeyModifiers` | `uint32` | `6` *(0x0006)* | **Mã cờ bổ trợ TSF (`TsfModFlags`):**<br>• `0x0001`: Alt<br>• `0x0002`: Control<br>• `0x0004`: Shift<br>• `0x0200`: OnKeyUp (dành cho tổ hợp thuần modifier như Ctrl+Shift)<br>*(Ví dụ: `6` = `0x0002 \| 0x0004` $\rightarrow$ `Ctrl + Shift`)* |
+| `toneStyle` | `byte (int)` | `0` | **Quy tắc đặt dấu thanh tiếng Việt:**<br>• `0`: Chuẩn mới / Hiện đại (`òa, úy`)<br>• `1`: Chuẩn cũ / Truyền thống (`oà, uý`) |
+| `autoRestoreEnglishWords` | `bool` | `true` | Tự động trả lại từ tiếng Anh nguyên bản khi phát hiện từ gõ sai quy tắc chính tả tiếng Việt. |
+| `allowRepeatKeyUndo` | `bool` | `true` | Cho phép gõ lại chính phím dấu vừa gõ để hủy dấu (Undo) (ví dụ: `as` $\rightarrow$ `á`, `ass` $\rightarrow$ `as`). |
+| `allowLeadingWAsU` | `bool` | `false` | Cho phép gõ ký tự `w` đơn độc ở đầu từ để sinh ra nguyên âm `ư` (`w` $\rightarrow$ `ư`). |
+| `startWithWindows` | `bool` | `true` | Đăng ký chạy GUI cấu hình cùng Windows qua Registry `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`. |
+| `macroEnabled` | `bool` | `false` | Bật/tắt tính năng gõ tắt (Macro expansion) *(Dành cho Phase 4)*. |
+| `macros` | `object (map)` | `{}` | Bảng tra cứu từ viết tắt và nội dung thay thế *(Dành cho Phase 4)*. |
 
-## 3. Cài đặt Module Cấu hình trong F# Core (`EngineConfig.fs`)
+---
 
-Tạo file mới tại `src/BambooMintKey.Core/EngineConfig.fs`.
+## 3. Cơ chế Đồng bộ Lai (Hybrid Synchronization Architecture)
 
-F#
+Trong môi trường Windows, Text Input Processor (TSF TIP) là một **In-Process COM Server** (`BambooMintKey.dll`). Thư viện này được nạp đồng thời vào hàng chục tiến trình người dùng khác nhau (`ctfmon.exe`, `explorer.exe`, `Notepad.exe`, trình duyệt web, Office,...).
 
-```c#
-namespace BambooMintKey.Core
+Do đó, việc đồng bộ cấu hình giữa **Giao diện Cài đặt (GUI độc lập)** và **Hàng chục tiến trình đang gõ** phải tuân thủ nghiêm ngặt mô hình đồng bộ lai 2 mặt phẳng:
 
-open System
+```mermaid
+flowchart TD
+    subgraph UI_Proc ["1. Tiến trình GUI Cấu hình (BambooMintKey.UI)"]
+        UI_User["Người dùng đổi thiết lập / Gán phím tắt"] --> UI_Save["Bấm 'Áp dụng & Đóng'"]
+        UI_Save --> Save_Disk["1. Ghi tệp JSON bền vững\n(%AppData%/BambooMintKey/config.json)"]
+        UI_Save --> Save_RAM["2. Ghi trực tiếp RAM\n(Local\\BambooMintKey_SharedConfig_v1)"]
+        Save_RAM --> Inc_Seq["3. Tăng StateSequence (+1)"]
+        Inc_Seq --> Pulse_Evt["4. Bắn Win32 Event Broadcast\n(Local\\BambooMintKey_StateChangedEvent_v1)"]
+    end
 
-[<RequireQualifiedAccess>]
-type InputMethod =
-    | Telex
-    | Vni
-    | SimpleTelex
+    subgraph OS_RAM ["2. Mặt phẳng Bộ nhớ dùng chung (Cross-Process Shared RAM)"]
+        SHM[("Named File Mapping\n64 bytes Paging File\nUniversal SDDL")]
+        EVT{{"Manual-Reset Event\nStateChangedEvent"}}
+    end
 
-[<RequireQualifiedAccess>]
-type Charset =
-    | Unicode
-    | CompoundUnicode
-    | Tcvn3
-
-[<RequireQualifiedAccess>]
-type ToggleHotkey =
-    | CtrlShift
-    | AltZ
-    | None
-
-type EngineConfig = {
-    Version: int
-    InputMethod: InputMethod
-    Charset: Charset
-    ToggleHotkey: ToggleHotkey
-    SpellCheck: bool
-    AutoRestoreIfInvalid: bool
-    UseModernOrthography: bool
-    MacroEnabled: bool
-    Macros: Map<string, string>
-}
-
-module Configuration =
-
-    let defaultConfig = {
-        Version = 1
-        InputMethod = InputMethod.Telex
-        Charset = Charset.Unicode
-        ToggleHotkey = ToggleHotkey.CtrlShift
-        SpellCheck = true
-        AutoRestoreIfInvalid = true
-        UseModernOrthography = true
-        MacroEnabled = false
-        Macros = Map.empty
-    }
-
-    let parseInputMethod = function
-        | "Vni" | "VNI" -> InputMethod.Vni
-        | "SimpleTelex" -> InputMethod.SimpleTelex
-        | _ -> InputMethod.Telex
-
-    let parseCharset = function
-        | "CompoundUnicode" -> Charset.CompoundUnicode
-        | "Tcvn3" | "TCVN3" -> Charset.Tcvn3
-        | _ -> Charset.Unicode
-
-    let parseHotkey = function
-        | "AltZ" -> ToggleHotkey.AltZ
-        | "None" -> ToggleHotkey.None
-        | _ -> ToggleHotkey.CtrlShift
-
-    // Parser JSON tối giản, lightweight, không phân bổ GC nặng
-    // Đọc các giá trị dạng phẳng và danh sách macro cơ bản
-    let fromJson (jsonString: string) : EngineConfig =
-        try
-            if String.IsNullOrWhiteSpace(jsonString) then defaultConfig
-            else
-                let getVal (key: string) =
-                    let pattern = $"\"{key}\""
-                    let idx = jsonString.IndexOf(pattern)
-                    if idx >= 0 then
-                        let colonIdx = jsonString.IndexOf(':', idx + pattern.Length)
-                        if colonIdx >= 0 then
-                            let startVal = colonIdx + 1
-                            let mutable endVal = jsonString.IndexOfAny([| ','; '}'; '\r'; '\n' |], startVal)
-                            if endVal < 0 then endVal <- jsonString.Length
-                            jsonString.Substring(startVal, endVal - startVal).Trim().Trim('"', ' ')
-                        else ""
-                    else ""
-
-                let getBool (key: string) (defaultVal: bool) =
-                    match getVal key with
-                    | "true" -> true
-                    | "false" -> false
-                    | _ -> defaultVal
-
-                let inputMethod = getVal "inputMethod" |> parseInputMethod
-                let charset = getVal "charset" |> parseCharset
-                let hotkey = getVal "toggleHotkey" |> parseHotkey
-                let spell = getBool "spellCheck" defaultConfig.SpellCheck
-                let autoRestore = getBool "autoRestoreIfInvalid" defaultConfig.AutoRestoreIfInvalid
-                let modern = getBool "useModernOrthography" defaultConfig.UseModernOrthography
-                let macroOn = getBool "macroEnabled" defaultConfig.MacroEnabled
-
-                // Trích xuất cụm macros object {...}
-                let mutable macroMap = Map.empty
-                let macroIdx = jsonString.IndexOf("\"macros\"")
-                if macroIdx >= 0 then
-                    let openBrace = jsonString.IndexOf('{', macroIdx)
-                    let closeBrace = if openBrace >= 0 then jsonString.IndexOf('}', openBrace) else -1
-                    if openBrace >= 0 && closeBrace > openBrace then
-                        let macroContent = jsonString.Substring(openBrace + 1, closeBrace - openBrace - 1)
-                        let pairs = macroContent.Split([| ','; '\r'; '\n' |], StringSplitOptions.RemoveEmptyEntries)
-                        for p in pairs do
-                            let parts = p.Split(':')
-                            if parts.Length = 2 then
-                                let k = parts.[0].Trim().Trim('"', ' ')
-                                let v = parts.[1].Trim().Trim('"', ' ')
-                                if k.Length > 0 && v.Length > 0 then
-                                    macroMap <- Map.add k v macroMap
-
-                {
-                    Version = 1
-                    InputMethod = inputMethod
-                    Charset = charset
-                    ToggleHotkey = hotkey
-                    SpellCheck = spell
-                    AutoRestoreIfInvalid = autoRestore
-                    UseModernOrthography = modern
-                    MacroEnabled = macroOn
-                    Macros = macroMap
-                }
-        with
-        | _ -> defaultConfig
-
-    let toJson (config: EngineConfig) : string =
-        let inputMethodStr = match config.InputMethod with InputMethod.Telex -> "Telex" | InputMethod.Vni -> "Vni" | InputMethod.SimpleTelex -> "SimpleTelex"
-        let charsetStr = match config.Charset with Charset.Unicode -> "Unicode" | Charset.CompoundUnicode -> "CompoundUnicode" | Charset.Tcvn3 -> "Tcvn3"
-        let hotkeyStr = match config.ToggleHotkey with ToggleHotkey.CtrlShift -> "CtrlShift" | ToggleHotkey.AltZ -> "AltZ" | ToggleHotkey.None -> "None"
+    subgraph App_Proc ["3. Mọi ứng dụng đang gõ (Notepad, Word, Browser, ctfmon, ...)"]
+        Watcher["Luồng nền StateWatcher\nchờ WaitForSingleObject(hEvent)"]
+        OnTestKey["OnTestKeyDown\n(Kiểm tra StateSequence lệch)"]
         
-        let macrosEntries = 
-            config.Macros 
-            |> Map.toList 
-            |> List.map (fun (k, v) -> $"    \"{k}\": \"{v}\"")
-            |> String.concat ",\n"
+        Apply["UpdatePreservedKeys (Đổi phím tắt TSF ngay lập tức)\nNotifyStateChanged (Cập nhật Icon Taskbar V/E)\nĐồng bộ Compartment Mode"]
+    end
 
-        let sb = System.Text.StringBuilder()
-        sb.AppendLine("{") |> ignore
-        sb.AppendLine($"  \"version\": {config.Version},") |> ignore
-        sb.AppendLine($"  \"inputMethod\": \"{inputMethodStr}\",") |> ignore
-        sb.AppendLine($"  \"charset\": \"{charsetStr}\",") |> ignore
-        sb.AppendLine($"  \"toggleHotkey\": \"{hotkeyStr}\",") |> ignore
-        sb.AppendLine($"  \"spellCheck\": {config.SpellCheck.ToString().ToLower()},") |> ignore
-        sb.AppendLine($"  \"autoRestoreIfInvalid\": {config.AutoRestoreIfInvalid.ToString().ToLower()},") |> ignore
-        sb.AppendLine($"  \"useModernOrthography\": {config.UseModernOrthography.ToString().ToLower()},") |> ignore
-        sb.AppendLine($"  \"macroEnabled\": {config.MacroEnabled.ToString().ToLower()},") |> ignore
-        sb.AppendLine("  \"macros\": {") |> ignore
-        if not (String.IsNullOrWhiteSpace(macrosEntries)) then
-            sb.AppendLine(macrosEntries) |> ignore
-        sb.AppendLine("  }") |> ignore
-        sb.Append("}") |> ignore
-        sb.ToString()
+    Save_RAM -.-> SHM
+    Pulse_Evt -.-> EVT
+    EVT ==>|Đánh thức ngay lập tức| Watcher
+    SHM -.->|Đọc StateSequence mới| OnTestKey
+    Watcher --> Apply
+    OnTestKey --> Apply
 ```
 
-## 4. Cơ chế Giám sát Tệp & Đồng bộ Nóng (`ConfigWatcher.cs`)
+### 3.1. Mặt phẳng Thời gian thực (Real-time In-Memory Plane - Độ trễ 0 microsecond)
+- **Shared Memory:** Tạo qua Named File Mapping `Local\BambooMintKey_SharedConfig_v1` (kích thước 64 bytes) backed bởi Windows Paging File.
+- **Quyền truy cập toàn cầu (Universal SDDL):** Sử dụng `D:(A;;GA;;;WD)(A;;GA;;;AC)S:(ML;;NW;;;LW)` cho phép tất cả các ứng dụng, bao gồm cả các ứng dụng chạy trong **AppContainer/UWP** (Edge, Chrome Sandbox) đọc/ghi an toàn mà không bị lỗi Access Denied.
+- **Kênh kích hoạt tức thì (Dual-Trigger Mechanism):**
+  1. **Luồng ngầm `StateWatcher`:** Lắng nghe Win32 Event `Local\BambooMintKey_StateChangedEvent_v1`. Khi GUI lưu cài đặt, event được bật (`SetEvent`), luồng thức giấc và gọi `KeyEventSinkHelper.UpdatePreservedKeys()` để đổi phím tắt trong TSF ngay lập tức.
+  2. **Chốt chặn `StateSequence`:** Ngay tại đầu hàm `OnTestKeyDown`, mã nguồn kiểm tra số thứ tự `StateSequence`. Nếu có sự thay đổi, hệ thống đồng bộ cấu hình ngay trên phím bấm đầu tiên, loại bỏ hoàn toàn khả năng sót cập nhật.
 
-Tạo file tại `src/BambooMintKey.NativeBridge/Common/ConfigWatcher.cs`.
+### 3.2. Mặt phẳng Bền vững (Persistent Disk Plane)
+- Tệp `config.json` lưu giữ trạng thái người dùng xuyên suốt các phiên làm việc và sau khi tắt/mở máy.
+- **Tự động nạp khi khởi động:** Khi Windows hoặc `ctfmon` nạp DLL lần đầu, hàm `SharedMemoryManager.LoadInitialConfigFromDisk()` tự động đọc `%AppData%\BambooMintKey\config.json` để điền cấu hình người dùng vào RAM, đảm bảo phím tắt tùy chọn của người dùng có hiệu lực ngay từ giây đầu tiên.
 
-Sử dụng `FileSystemWatcher` kèm cơ chế Debounce (tránh việc chương trình soạn thảo hoặc GUI khóa file khi đang ghi dở):
+---
 
-C#
+## 4. Tại sao loại bỏ `FileSystemWatcher` trong thiết kế này?
 
-```c#
-using System;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using BambooMintKey.Core;
-using BambooMintKey.NativeBridge.TSF;
+Tài liệu thiết kế sơ khai trước đây từng đề xuất dùng `FileSystemWatcher` trên file `config.json`. Tuy nhiên trong triển khai thực tế trên Windows SDK, phương án này đã bị loại bỏ vì các lý do sống còn:
+1. **Ô nhiễm tài nguyên hệ thống:** Khi người dùng mở 50 cửa sổ/ứng dụng, sẽ có 50 luồng `FileSystemWatcher` chạy ngầm để canh một file duy nhất, lãng phí IO Handle và ThreadPool.
+2. **Xung đột Sandbox AppContainer:** Các ứng dụng sandbox bảo mật cao (như tab duyệt web Edge/Chrome) bị Windows cấm giám sát thư mục cá nhân `%AppData%`, gây sinh lỗi bảo mật hoặc treo tiến trình.
+3. **Độ trễ I/O tệp tin:** Đọc ghi tệp tin mất từ 5ms đến 50ms (kèm rủi ro file đang bị tiến trình khác lock). Trong khi đó, Shared Memory đọc ghi trực tiếp trên RAM chỉ mất **0.001ms (0 microsecond)**, đáp ứng tiêu chuẩn xử lý bàn phím tức thời.
 
-namespace BambooMintKey.NativeBridge.Common
+---
+
+## 5. Đặc tả Mở rộng cho Phase 4 (Bảng Gõ Tắt / Macro Expansion)
+
+Cấu trúc `macros` trong `config.json` được bảo toàn và định nghĩa sẵn sàng cho Phase 4:
+
+```json
 {
-    public static class ConfigManager
-    {
-        private static FileSystemWatcher? _watcher;
-        private static readonly string ConfigDir;
-        private static readonly string ConfigPath;
-        private static DateTime _lastReadTime = DateTime.MinValue;
-        private static readonly object SyncLock = new();
-
-        static ConfigManager()
-        {
-            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            ConfigDir = Path.Combine(appData, "BambooMintKey");
-            ConfigPath = Path.Combine(ConfigDir, "config.json");
-        }
-
-        public static void Initialize()
-        {
-            EnsureConfigFileExists();
-            ReloadConfiguration();
-            SetupWatcher();
-        }
-
-        private static void EnsureConfigFileExists()
-        {
-            try
-            {
-                if (!Directory.Exists(ConfigDir))
-                {
-                    Directory.CreateDirectory(ConfigDir);
-                }
-
-                if (!File.Exists(ConfigPath))
-                {
-                    string defaultJson = Configuration.toJson(Configuration.defaultConfig);
-                    File.WriteAllText(ConfigPath, defaultJson);
-                }
-            }
-            catch
-            {
-                // Fallback im lặng nếu thư mục bị khóa quyền
-            }
-        }
-
-        private static void SetupWatcher()
-        {
-            try
-            {
-                _watcher = new FileSystemWatcher(ConfigDir, "config.json")
-                {
-                    NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.CreationTime,
-                    EnableRaisingEvents = true
-                };
-
-                _watcher.Changed += OnConfigFileChanged;
-                _watcher.Created += OnConfigFileChanged;
-            }
-            catch
-            {
-                // Xử lý an toàn nếu môi trường không cho phép tạo FileSystemWatcher
-            }
-        }
-
-        private static void OnConfigFileChanged(object sender, FileSystemEventArgs e)
-        {
-            lock (SyncLock)
-            {
-                // Debounce 100ms tránh event bắn đúp khi file stream vừa mở vừa đóng
-                if ((DateTime.UtcNow - _lastReadTime).TotalMilliseconds < 100) return;
-                _lastReadTime = DateTime.UtcNow;
-            }
-
-            // Chờ một khoảng nhỏ để ứng dụng ghi file giải phóng Handle lock
-            Task.Delay(50).ContinueWith(_ => ReloadConfiguration());
-        }
-
-        public static void ReloadConfiguration()
-        {
-            lock (SyncLock)
-            {
-                try
-                {
-                    if (File.Exists(ConfigPath))
-                    {
-                        // Mở file với FileShare.ReadWrite để không xung đột với process đang lưu
-                        using var fs = new FileStream(ConfigPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                        using var reader = new StreamReader(fs);
-                        string json = reader.ReadToEnd();
-
-                        var config = Configuration.fromJson(json);
-
-                        // Đồng bộ sang Bridge State Manager
-                        ApplyConfigToEngine(config);
-                    }
-                }
-                catch
-                {
-                    // Giữ nguyên cấu hình hiện tại nếu quá trình đọc tệp bị gián đoạn
-                }
-            }
-        }
-
-        private static void ApplyConfigToEngine(EngineConfig config)
-        {
-            // 1. Áp dụng kiểu gõ
-            uint methodCode = config.InputMethod switch
-            {
-                InputMethod.Vni => 1,
-                InputMethod.SimpleTelex => 2,
-                _ => 0 // Telex
-            };
-            BridgeStateManager.SetInputMethod(methodCode);
-
-            // 2. Áp dụng bảng mã
-            uint charsetCode = config.Charset switch
-            {
-                Charset.CompoundUnicode => 1,
-                Charset.Tcvn3 => 2,
-                _ => 0 // Unicode
-            };
-            BridgeStateManager.SetCharset(charsetCode);
-
-            // 3. Cập nhật phím tắt toggle
-            BridgeStateManager.ToggleHotkey = config.ToggleHotkey;
-
-            // 4. Bắn cập nhật cho Language Bar cập nhật tooltip và menu checkmarks
-            LangBarItemButton.NotifyStateChanged();
-        }
-    }
+  "macroEnabled": true,
+  "macros": {
+    "vn": "Việt Nam",
+    "bmk": "BambooMintKey",
+    "f#": "F-Sharp",
+    "dc": "được",
+    "ko": "không"
+  }
 }
 ```
 
-## 5. Tích hợp Khởi tạo và Dọn dẹp
+- **Quy tắc gõ tắt:** Khi `macroEnabled = true`, sau khi người dùng gõ từ khóa và bấm phím ngắt từ (`Space`, dấu câu), bộ gõ sẽ tra cứu trong bảng `macros`. Nếu khớp, từ viết tắt sẽ được tự động thay thế bằng chuỗi văn bản mở rộng tương ứng.
+- **Giao diện quản lý:** Sẽ được tích hợp thêm một Tab "Bảng gõ tắt" trên Bảng điều khiển (`BambooMintKey.UI`) trong Phase 4 để người dùng thêm/xóa/sửa từ viết tắt trực quan.
 
-Trong hàm `DllMain` hoặc `ActivateEx` của Text Service:
+---
 
-C#
+## 6. Quy trình Kiểm thử & Nghiệm thu (Verification Checklist)
 
-```c#
-// Khi Text Service được kích hoạt (ActivateEx)
-ConfigManager.Initialize();
-```
-
-Khi người dùng chuyển đổi thiết lập từ Context Menu chuột phải (từ Bước 3):
-
-- Cập nhật trạng thái bộ nhớ.
-- Gọi `Configuration.toJson` và ghi đè lại vào file `config.json` để đồng bộ ngược ra ổ đĩa.
-
-## 6. Quy trình Kiểm thử & Validation
-
-1. **Kiểm tra Tạo File Tự Động:**
-   - Xóa thư mục `%AppData%\BambooMintKey` nếu có sẵn.
-   - Chạy `scripts/enable-tip.ps1` và bật bộ gõ.
-   - Kiểm tra xem tệp `%AppData%\BambooMintKey\config.json` có tự động được sinh ra với nội dung chuẩn không.
-2. **Kiểm tra Hot-Reload Tức thì:**
-   - Mở Notepad gõ thử `as` $\rightarrow$ ra `á` (Telex).
-   - Mở file `config.json`, sửa trường `"inputMethod": "Vni"`, bấm Save trong trình soạn thảo.
-   - Quay lại Notepad gõ `a1` $\rightarrow$ ra `á` ngay lập tức mà không cần chuyển layout hay khởi động lại Windows.
-3. **Kiểm tra Chống Crash (Fault Tolerance):**
-   - Xóa sạch nội dung file `config.json` (thành file rỗng) hoặc điền JSON sai cú pháp (`{ "inputMethod": `).
-   - Gõ thử bàn phím: Hệ thống vẫn hoạt động bình thường ở chế độ mặc định an toàn (`Telex` / `Unicode`), không phát sinh lỗi ngoại lệ unhandled.
+| STT | Kịch bản kiểm thử | Hành động thực hiện | Kết quả kỳ vọng đạt chuẩn |
+| :--- | :--- | :--- | :--- |
+| **1** | **Khởi tạo tệp cấu hình** | Xóa file `config.json`, bật bộ gõ hoặc mở GUI. | File `config.json` tự động được tái tạo với schema Version 2 hợp lệ. |
+| **2** | **Đồng bộ phím tắt 3 - 4 phím** | Trên GUI, gán `Ctrl + Shift + Q`, bấm "Áp dụng & Đóng". | File `config.json` ghi `hotkeyVKey: 81`, `hotkeyModifiers: 6`. Shared Memory cập nhật tức thì. Bấm `Ctrl+Shift+Q` trên Notepad đổi chế độ V/E ngay. |
+| **3** | **Chống bắt nhầm phím** | Khi đang cài `Ctrl + Shift + Q`, thử bấm riêng `Ctrl + Shift`. | Bộ gõ **không** được đổi chế độ. Chỉ đổi khi phím `Q` được nhấn cùng với `Ctrl` và `Shift`. |
+| **4** | **Lưu bền vững sau Reboot** | Đổi thiết lập dấu thanh truyền thống, khởi động lại `ctfmon`. | Bộ gõ tự động nạp lại đúng chuẩn dấu truyền thống từ file `config.json` mà không bị reset về mặc định. |
+| **5** | **Khả năng chịu lỗi (Fault-Tolerance)** | Sửa file `config.json` thành file rỗng hoặc gõ lỗi cú pháp JSON. | Bộ gõ tự động fallback về cấu hình an toàn mặc định (Telex, Unicode dựng sẵn), không phát sinh lỗi unhandled crash. |
