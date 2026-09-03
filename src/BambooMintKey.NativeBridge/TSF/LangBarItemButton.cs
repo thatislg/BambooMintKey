@@ -315,18 +315,26 @@ public static unsafe class LangBarItemButton
         var thread = new System.Threading.Thread(() =>
         {
             IntPtr hEv = SharedMemoryManager.StateChangedEventHandle;
-            if (hEv == IntPtr.Zero) return;
+            bool lastMode = BridgeStateManager.IsVietnameseMode;
 
             while (true)
             {
-                uint wr = SharedMemoryManager.WaitForSingleObject(hEv, 0xFFFFFFFF /* INFINITE */);
-                if (wr == 0 /* WAIT_OBJECT_0 */)
+                // Chờ event tối đa 100ms
+                if (hEv != IntPtr.Zero)
                 {
-                    NotifyStateChanged();
+                    SharedMemoryManager.WaitForSingleObject(hEv, 100);
                 }
                 else
                 {
-                    break;
+                    System.Threading.Thread.Sleep(100);
+                }
+
+                // Kiểm tra trạng thái thực tế trong Shared Memory để luôn đồng bộ Taskbar
+                bool currentMode = BridgeStateManager.IsVietnameseMode;
+                if (currentMode != lastMode)
+                {
+                    lastMode = currentMode;
+                    NotifyStateChanged();
                 }
             }
         })

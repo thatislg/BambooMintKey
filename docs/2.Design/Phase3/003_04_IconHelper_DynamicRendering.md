@@ -331,8 +331,8 @@ private static int GetIcon(IntPtr thisPtr, IntPtr* phIcon)
 private static int OnClick(IntPtr thisPtr, uint click, POINT pt, RECT* prcArea)
 {
     DebugLog.Write($"LangBarItemButton OnClick received click={click}");
-    // Bất kỳ click chuột trái nào -> Đảo chế độ gõ V/E
-    if (click != TsfLangBarFlags.TfLbiClkRight)
+    // Chỉ xử lý khi đúng là click chuột trái (TF_LBI_CLK_LEFT = 2)
+    if (click == TsfLangBarFlags.TfLbiClkLeft)
     {
         bool newMode = BridgeStateManager.ToggleVietnameseMode();
         NotifyStateChanged();
@@ -354,18 +354,26 @@ private static void StartEventListener()
     var thread = new System.Threading.Thread(() =>
     {
         IntPtr hEv = SharedMemoryManager.StateChangedEventHandle;
-        if (hEv == IntPtr.Zero) return;
+        bool lastMode = BridgeStateManager.IsVietnameseMode;
 
         while (true)
         {
-            uint wr = SharedMemoryManager.WaitForSingleObject(hEv, 0xFFFFFFFF /* INFINITE */);
-            if (wr == 0 /* WAIT_OBJECT_0 */)
+            // Chờ event tối đa 100ms
+            if (hEv != IntPtr.Zero)
             {
-                NotifyStateChanged();
+                SharedMemoryManager.WaitForSingleObject(hEv, 100);
             }
             else
             {
-                break;
+                System.Threading.Thread.Sleep(100);
+            }
+
+            // Kiểm tra trạng thái thực tế trong Shared Memory để luôn đồng bộ Taskbar
+            bool currentMode = BridgeStateManager.IsVietnameseMode;
+            if (currentMode != lastMode)
+            {
+                lastMode = currentMode;
+                NotifyStateChanged();
             }
         }
     })
@@ -547,6 +555,420 @@ Khi mã phím `vk=81` ('Q') vào `OnKeyDown`, hệ thống gõ ra chữ **'Q'** 
 4. **Giải pháp chuẩn TSF (Preserved Key):**
    * Trong TSF, chuẩn để đăng ký phím tắt IME là dùng API **`ITfKeystrokeMgr::PreserveKey`** và callback **`ITfKeyEventSink::OnPreservedKey`**.
    * Khi đăng ký qua `PreserveKey`, Windows TSF sẽ chịu trách nhiệm giám sát toàn cục tổ hợp phím và kích hoạt trực tiếp `OnPreservedKey`, khắc phục triệt để việc sai lệch trạng thái phím modifier do hàng đợi thông điệp.
+
+---
+
+### 5.3. Nguyên nhân Lỗi 3: Icon hiển thị E nhưng vẫn gõ ra dấu tiếng Việt (Lệch pha giữa Icon và Bộ gõ)
+
+#### Cơ chế bảo mật Sandbox của Windows (Low Integrity & AppContainer):
+* Các ứng dụng hiện đại như **Google Chrome, Microsoft Edge, Electron (Antigravity IDE, VS Code, Discord, Slack)** và **UWP/XAML Input Host** chạy ở mức đặc quyền **Low Integrity** hoặc bên trong môi trường cách ly **AppContainer**.
+* Khi tạo Named File Mapping (`Local\BambooMintKey_SharedConfig_v1`) và Named Event với `lpFileMappingAttributes = IntPtr.Zero`, Windows gán DACL mặc định của tiến trình tạo (Medium Integrity).
+* Hậu quả: Khi ứng dụng sandbox/AppContainer cố gắng mở vùng nhớ dùng chung, Windows trả về mã lỗi **`ERROR_ACCESS_DENIED` (5)**. Con trỏ `_pShared` bị `null`, khiến ứng dụng đó luôn fallback về giá trị mặc định (`IsVietnameseMode = true`), hoàn toàn không thấy được lệnh chuyển sang `E` từ Taskbar!
+* Ngoài ra, trong `BridgeStateManager.ProcessKey`, tham số truyền vào hàm `TelexEngine.processKey` trước đây sử dụng trường tĩnh `_currentConfig` thay vì property `Config` có đồng bộ trạng thái.
+
+#### Giải pháp khắc phục:
+1. **Thiết lập Universal SDDL:** Sử dụng chuỗi SDDL chuẩn Win32:
+   ```csharp
+   "D:(A;;GA;;;WD)(A;;GA;;;AC)S:(ML;;NW;;;LW)"
+   ```
+   Cấp quyền `Generic All` cho Everyone (`WD`), ALL APPLICATION PACKAGES (`AC` - AppContainer) và gán nhãn toàn vẹn Low Integrity (`LW`). Nhờ đó, 100% ứng dụng sandbox đều có thể đọc/ghi vùng nhớ chia sẻ mà không bị Access Denied.
+2. **Fallback an toàn:** Khi `_pShared == null`, sử dụng biến tĩnh `_fallbackVietnameseMode` cho phép đảo trạng thái cục bộ thay vì cố định luôn là `true`.
+3. **Đồng bộ Config trong Engine:** Đổi tất cả các lệnh gọi `ProcessKey`, `ProcessBackspace`, `ProcessWordBreak` sang sử dụng trực tiếp `Config`.
+
+#### Mã nguồn tham chiếu `SharedMemoryManager.cs`
+
+```csharp
+// BambooMintKey - Vietnamese Telex Input Method Editor for Windows
+// Copyright (c) 2026 Dương Gia Long and LMO contributors
+// SPDX-License-Identifier: MIT
+using System;
+using System.Runtime.InteropServices;
+
+namespace BambooMintKey.NativeBridge.Common;
+
+/// <summary>
+/// Quản lý vùng nhớ dùng chung liên tiến trình (Cross-Process Shared Memory) qua Win32 Named File Mapping.
+/// Đảm bảo trạng thái gõ tiếng Việt (V/E) và cấu hình engine đồng bộ tức thì (0 microseconds)
+/// giữa taskbar (ctfmon/explorer) và tất cả ứng dụng đang gõ (Notepad, Word, Browser, VS Code,...).
+/// </summary>
+public static unsafe class SharedMemoryManager
+{
+    private const string MapName = @"Local\BambooMintKey_SharedConfig_v1";
+    private const string EventName = @"Local\BambooMintKey_StateChangedEvent_v1";
+    // Universal SDDL cho phép Everyone (WD), ALL APPLICATION PACKAGES/AppContainer (AC) và Low Integrity (LW)
+    private const string UniversalSddl = "D:(A;;GA;;;WD)(A;;GA;;;AC)S:(ML;;NW;;;LW)";
+    private const uint PageReadWrite = 0x04;
+    private const uint FileMapWrite = 0x02;
+    private const int SharedSize = 64;
+
+    private static IntPtr _hMap = IntPtr.Zero;
+    private static IntPtr _hEvent = IntPtr.Zero;
+    private static byte* _pShared = null;
+    private static bool _fallbackVietnameseMode = true;
+    private static readonly object _initLock = new();
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct SECURITY_ATTRIBUTES
+    {
+        public int nLength;
+        public IntPtr lpSecurityDescriptor;
+        [MarshalAs(UnmanagedType.Bool)]
+        public bool bInheritHandle;
+    }
+
+    [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ConvertStringSecurityDescriptorToSecurityDescriptorW(
+        string StringSecurityDescriptor,
+        uint StringSDRevision,
+        out IntPtr SecurityDescriptor,
+        IntPtr SecurityDescriptorSize);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr LocalFree(IntPtr hMem);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern IntPtr OpenFileMappingW(
+        uint dwDesiredAccess,
+        [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle,
+        string lpName);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern IntPtr CreateEventW(
+        IntPtr lpEventAttributes,
+        [MarshalAs(UnmanagedType.Bool)] bool bManualReset,
+        [MarshalAs(UnmanagedType.Bool)] bool bInitialState,
+        string lpName);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetEvent(IntPtr hEvent);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern uint WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern IntPtr CreateFileMappingW(
+        IntPtr hFile,
+        IntPtr lpFileMappingAttributes,
+        uint flProtect,
+        uint dwMaximumSizeHigh,
+        uint dwMaximumSizeLow,
+        string lpName);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern void* MapViewOfFile(
+        IntPtr hFileMappingObject,
+        uint dwDesiredAccess,
+        uint dwFileOffsetHigh,
+        uint dwFileOffsetLow,
+        nuint dwNumberOfBytesToMap);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool UnmapViewOfFile(void* lpBaseAddress);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool CloseHandle(IntPtr hObject);
+
+    static SharedMemoryManager()
+    {
+        EnsureInitialized();
+    }
+
+    /// <summary>
+    /// Khởi tạo hoặc kết nối vào vùng nhớ FileMapping chung của phiên người dùng.
+    /// Hỗ trợ cả ứng dụng thường, Chromium sandbox (Low Integrity) và UWP (AppContainer).
+    /// </summary>
+    public static void EnsureInitialized()
+    {
+        if (_pShared != null) return;
+
+        lock (_initLock)
+        {
+            if (_pShared != null) return;
+
+            SECURITY_ATTRIBUTES sa = new();
+            sa.nLength = Marshal.SizeOf<SECURITY_ATTRIBUTES>();
+            sa.bInheritHandle = false;
+
+            IntPtr pSd = IntPtr.Zero;
+            bool hasSd = ConvertStringSecurityDescriptorToSecurityDescriptorW(UniversalSddl, 1, out pSd, IntPtr.Zero);
+            if (hasSd && pSd != IntPtr.Zero)
+            {
+                sa.lpSecurityDescriptor = pSd;
+            }
+
+            try
+            {
+                IntPtr pSaPtr = (hasSd && pSd != IntPtr.Zero) ? (IntPtr)(&sa) : IntPtr.Zero;
+                _hMap = CreateFileMappingW(new IntPtr(-1), pSaPtr, PageReadWrite, 0, SharedSize, MapName);
+
+                if (_hMap == IntPtr.Zero)
+                {
+                    _hMap = OpenFileMappingW(FileMapWrite, false, MapName);
+                }
+
+                if (_hMap != IntPtr.Zero)
+                {
+                    bool isCreator = (Marshal.GetLastWin32Error() == 0);
+                    void* pView = MapViewOfFile(_hMap, FileMapWrite, 0, 0, SharedSize);
+                    if (pView != null)
+                    {
+                        _pShared = (byte*)pView;
+
+                        // Nếu là tiến trình đầu tiên tạo ra map, khởi tạo giá trị mặc định (Bật Tiếng Việt)
+                        if (isCreator)
+                        {
+                            _pShared[0] = 1; // 1 = IsVietnameseMode On (V)
+                            _pShared[1] = 0; // 0 = ToneStyle New
+                            _pShared[2] = 1; // AutoRestoreEnglishWords
+                            _pShared[3] = 1; // AllowRepeatKeyUndo
+                            _pShared[4] = 0; // AllowLeadingWAsU
+                        }
+                    }
+                }
+
+                if (_hEvent == IntPtr.Zero)
+                {
+                    _hEvent = CreateEventW(pSaPtr, false /* AutoReset */, false, EventName);
+                }
+            }
+            finally
+            {
+                if (pSd != IntPtr.Zero)
+                {
+                    LocalFree(pSd);
+                }
+            }
+        }
+    }
+
+    /// <summary>Handle của Win32 Event đồng bộ trạng thái V/E.</summary>
+    public static IntPtr StateChangedEventHandle
+    {
+        get
+        {
+            EnsureInitialized();
+            return _hEvent;
+        }
+    }
+
+    /// <summary>Phát tín hiệu cho tất cả tiến trình khác biết cấu hình đã thay đổi.</summary>
+    public static void SignalStateChanged()
+    {
+        if (_hEvent != IntPtr.Zero)
+        {
+            SetEvent(_hEvent);
+        }
+    }
+
+    /// <summary>
+    /// Trạng thái bật/tắt gõ tiếng Việt đồng bộ xuyên suốt mọi tiến trình người dùng.
+    /// true = V (Tiếng Việt), false = E (Tiếng Anh).
+    /// </summary>
+    public static bool IsVietnameseMode
+    {
+        get
+        {
+            EnsureInitialized();
+            if (_pShared != null)
+            {
+                return _pShared[0] != 0;
+            }
+            return _fallbackVietnameseMode;
+        }
+        set
+        {
+            EnsureInitialized();
+            if (_pShared != null)
+            {
+                _pShared[0] = (byte)(value ? 1 : 0);
+                SignalStateChanged();
+            }
+            else
+            {
+                _fallbackVietnameseMode = value;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Đảo trạng thái V/E và trả về giá trị mới.
+    /// </summary>
+    public static bool ToggleVietnameseMode()
+    {
+        EnsureInitialized();
+        if (_pShared != null)
+        {
+            byte current = _pShared[0];
+            byte next = (byte)(current == 0 ? 1 : 0);
+            _pShared[0] = next;
+            SignalStateChanged();
+            return next != 0;
+        }
+        _fallbackVietnameseMode = !_fallbackVietnameseMode;
+        return _fallbackVietnameseMode;
+    }
+}
+```
+
+#### Mã nguồn tham chiếu `BridgeStateManager.cs`
+
+```csharp
+// BambooMintKey - Vietnamese Telex Input Method Editor for Windows
+// Copyright (c) 2026 Dương Gia Long and LMO contributors
+// SPDX-License-Identifier: MIT
+using BambooMintKey.Core.Domain;
+using BambooMintKey.Core.Engine;
+using BambooMintKey.NativeBridge.Common;
+
+namespace BambooMintKey.NativeBridge.TSF;
+
+/// <summary>
+/// Cầu nối in-memory giữa TSF COM server và F# Pure Telex Engine.
+/// Duy trì WordState hiện tại và điều phối các lệnh gọi đến TelexEngine.processKey.
+/// </summary>
+public static class BridgeStateManager
+{
+    private static Types.WordState _currentState = Types.WordState.Empty;
+    private static EngineConfig.EngineConfig _currentConfig = EngineConfig.EngineConfig.Default;
+
+    /// <summary>Trạng thái word hiện tại của engine.</summary>
+    public static Types.WordState CurrentState => _currentState;
+
+    /// <summary>Cấu hình engine hiện tại (đồng bộ trạng thái IsEnabled với SharedMemoryManager).</summary>
+    public static EngineConfig.EngineConfig Config
+    {
+        get
+        {
+            bool isVn = SharedMemoryManager.IsVietnameseMode;
+            if (_currentConfig.IsEnabled != isVn)
+            {
+                _currentConfig = new EngineConfig.EngineConfig(
+                    isVn,
+                    _currentConfig.AutoRestoreEnglishWords,
+                    _currentConfig.AllowRepeatKeyUndo,
+                    _currentConfig.AllowLeadingWAsU,
+                    _currentConfig.ToneStyle
+                );
+            }
+            return _currentConfig;
+        }
+    }
+
+    /// <summary>Kiểm tra xem chế độ gõ tiếng Việt hiện đang bật (V) hay tắt (E) qua Shared Memory.</summary>
+    public static bool IsVietnameseMode
+    {
+        get => SharedMemoryManager.IsVietnameseMode;
+        set => SharedMemoryManager.IsVietnameseMode = value;
+    }
+
+    /// <summary>Đảo trạng thái gõ tiếng Việt / tiếng Anh trong Shared Memory và trả về trạng thái mới.</summary>
+    public static bool ToggleVietnameseMode()
+    {
+        bool newMode = SharedMemoryManager.ToggleVietnameseMode();
+        _currentConfig = new EngineConfig.EngineConfig(
+            newMode,
+            _currentConfig.AutoRestoreEnglishWords,
+            _currentConfig.AllowRepeatKeyUndo,
+            _currentConfig.AllowLeadingWAsU,
+            _currentConfig.ToneStyle
+        );
+        return newMode;
+    }
+
+    /// <summary>Khởi tạo lại engine state về empty (KHÔNG đè trạng thái IsEnabled của người dùng).</summary>
+    public static void InitializeEngine()
+    {
+        _currentState = Types.WordState.Empty;
+    }
+
+    /// <summary>Reset state về empty (dùng khi chuyển focus hoặc composition kết thúc).</summary>
+    public static void ResetState()
+    {
+        _currentState = Types.WordState.Empty;
+    }
+
+    /// <summary>Xử lý một ký tự bàn phím thông thường.</summary>
+    public static (Types.WordState NewState, Types.EngineAction Action) ProcessKey(char c)
+    {
+        var input = Types.KeyInput.NewChar(c);
+        var result = TelexEngine.processKey(_currentState, input, Config);
+        _currentState = result.Item1;
+        return (result.Item1, result.Item2);
+    }
+
+    /// <summary>Xử lý phím Backspace.</summary>
+    public static (Types.WordState NewState, Types.EngineAction Action) ProcessBackspace()
+    {
+        var input = Types.KeyInput.Backspace;
+        var result = TelexEngine.processKey(_currentState, input, Config);
+        _currentState = result.Item1;
+        return (result.Item1, result.Item2);
+    }
+
+    /// <summary>Xử lý ký tự ngắt từ (space, dấu câu, ...).</summary>
+    public static (Types.WordState NewState, Types.EngineAction Action) ProcessWordBreak(char breakChar)
+    {
+        var input = Types.KeyInput.NewWordBreak(breakChar);
+        var result = TelexEngine.processKey(_currentState, input, Config);
+        _currentState = result.Item1;
+        return (result.Item1, result.Item2);
+    }
+}
+```
+
+---
+
+### 5.4. Nguyên nhân Lỗi 4: Sau vài lần tắt bật thì không đổi được chữ (Kẹt Event Đồng bộ Đa tiến trình)
+
+#### Cơ chế tranh chấp Win32 AutoReset Event:
+* Ban đầu, `SharedMemoryManager` sử dụng một Win32 Named Event kiểu **AutoReset** (`bManualReset = false`).
+* Khi có nhiều tiến trình cùng chạy (Explorer, ctfmon, Notepad, Chrome, VS Code...), mỗi tiến trình đều có một thread chạy `WaitForSingleObject(_hEvent, INFINITE)`.
+* Khi một tiến trình gọi `SetEvent(_hEvent)`, Win32 AutoReset Event **chỉ đánh thức duy nhất 1 thread của 1 tiến trình bất kỳ** rồi tự động chuyển về trạng thái `non-signaled`.
+* Nếu một tiến trình nền (ví dụ Notepad) "nhặt" mất tín hiệu này, thì tiến trình Taskbar của Windows (`explorer.exe`) sẽ **vẫn tiếp tục ngủ (block vĩnh viễn)**, khiến Taskbar không hề biết cấu hình đã đổi và không gọi `OnUpdate` để vẽ lại icon!
+
+#### Giải pháp khắc phục:
+* Trong `LangBarItemButton.StartEventListener`, chuyển sang cơ chế kiểm tra định kỳ (polling) với timeout 100ms:
+  ```csharp
+  private static void StartEventListener()
+  {
+      var thread = new System.Threading.Thread(() =>
+      {
+          IntPtr hEv = SharedMemoryManager.StateChangedEventHandle;
+          bool lastMode = BridgeStateManager.IsVietnameseMode;
+
+          while (true)
+          {
+              // Chờ event tối đa 100ms
+              if (hEv != IntPtr.Zero)
+              {
+                  SharedMemoryManager.WaitForSingleObject(hEv, 100);
+              }
+              else
+              {
+                  System.Threading.Thread.Sleep(100);
+              }
+
+              // Kiểm tra trạng thái thực tế trong Shared Memory để luôn đồng bộ Taskbar
+              bool currentMode = BridgeStateManager.IsVietnameseMode;
+              if (currentMode != lastMode)
+              {
+                  lastMode = currentMode;
+                  NotifyStateChanged();
+              }
+          }
+      })
+      {
+          IsBackground = true,
+          Name = "BambooMintKey_StateEventListener"
+      };
+      thread.Start();
+  }
+  ```
+* Dù Win32 Event có bị tiến trình khác nhận mất, thread của Taskbar vẫn thức dậy sau tối đa 100ms, đọc trực tiếp byte trạng thái từ RAM trong Shared Memory và cập nhật icon ngay lập tức. Đảm bảo icon Taskbar không bao giờ bị kẹt hay mất đồng bộ.
 
 ---
 

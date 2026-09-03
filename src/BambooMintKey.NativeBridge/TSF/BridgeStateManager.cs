@@ -89,7 +89,7 @@ public static class BridgeStateManager
     public static (Types.WordState NewState, Types.EngineAction Action) ProcessKey(char c)
     {
         var input = Types.KeyInput.NewChar(c);
-        var result = TelexEngine.processKey(_currentState, input, _currentConfig);
+        var result = TelexEngine.processKey(_currentState, input, Config);
         _currentState = result.Item1;
         return (result.Item1, result.Item2);
     }
@@ -98,7 +98,7 @@ public static class BridgeStateManager
     public static (Types.WordState NewState, Types.EngineAction Action) ProcessBackspace()
     {
         var input = Types.KeyInput.Backspace;
-        var result = TelexEngine.processKey(_currentState, input, _currentConfig);
+        var result = TelexEngine.processKey(_currentState, input, Config);
         _currentState = result.Item1;
         return (result.Item1, result.Item2);
     }
@@ -107,7 +107,7 @@ public static class BridgeStateManager
     public static (Types.WordState NewState, Types.EngineAction Action) ProcessWordBreak(char breakChar)
     {
         var input = Types.KeyInput.NewWordBreak(breakChar);
-        var result = TelexEngine.processKey(_currentState, input, _currentConfig);
+        var result = TelexEngine.processKey(_currentState, input, Config);
         _currentState = result.Item1;
         return (result.Item1, result.Item2);
     }

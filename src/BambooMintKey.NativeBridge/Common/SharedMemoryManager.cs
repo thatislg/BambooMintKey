@@ -15,6 +15,8 @@ public static unsafe class SharedMemoryManager
 {
     private const string MapName = @"Local\BambooMintKey_SharedConfig_v1";
     private const string EventName = @"Local\BambooMintKey_StateChangedEvent_v1";
+    // Universal SDDL cho phép Everyone (WD), ALL APPLICATION PACKAGES/AppContainer (AC) và Low Integrity (LW)
+    private const string UniversalSddl = "D:(A;;GA;;;WD)(A;;GA;;;AC)S:(ML;;NW;;;LW)";
     private const uint PageReadWrite = 0x04;
     private const uint FileMapWrite = 0x02;
     private const int SharedSize = 64;
@@ -22,7 +24,34 @@ public static unsafe class SharedMemoryManager
     private static IntPtr _hMap = IntPtr.Zero;
     private static IntPtr _hEvent = IntPtr.Zero;
     private static byte* _pShared = null;
+    private static bool _fallbackVietnameseMode = true;
     private static readonly object _initLock = new();
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct SECURITY_ATTRIBUTES
+    {
+        public int nLength;
+        public IntPtr lpSecurityDescriptor;
+        [MarshalAs(UnmanagedType.Bool)]
+        public bool bInheritHandle;
+    }
+
+    [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ConvertStringSecurityDescriptorToSecurityDescriptorW(
+        string StringSecurityDescriptor,
+        uint StringSDRevision,
+        out IntPtr SecurityDescriptor,
+        IntPtr SecurityDescriptorSize);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr LocalFree(IntPtr hMem);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern IntPtr OpenFileMappingW(
+        uint dwDesiredAccess,
+        [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle,
+        string lpName);
 
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     private static extern IntPtr CreateEventW(
@@ -70,6 +99,7 @@ public static unsafe class SharedMemoryManager
 
     /// <summary>
     /// Khởi tạo hoặc kết nối vào vùng nhớ FileMapping chung của phiên người dùng.
+    /// Hỗ trợ cả ứng dụng thường, Chromium sandbox (Low Integrity) và UWP (AppContainer).
     /// </summary>
     public static void EnsureInitialized()
     {
@@ -79,31 +109,58 @@ public static unsafe class SharedMemoryManager
         {
             if (_pShared != null) return;
 
-            // IntPtr(-1) tương ứng INVALID_HANDLE_VALUE để cấp phát từ page file
-            _hMap = CreateFileMappingW(new IntPtr(-1), IntPtr.Zero, PageReadWrite, 0, SharedSize, MapName);
-            if (_hMap != IntPtr.Zero)
-            {
-                bool isCreator = (Marshal.GetLastWin32Error() == 0);
-                void* pView = MapViewOfFile(_hMap, FileMapWrite, 0, 0, SharedSize);
-                if (pView != null)
-                {
-                    _pShared = (byte*)pView;
+            SECURITY_ATTRIBUTES sa = new();
+            sa.nLength = Marshal.SizeOf<SECURITY_ATTRIBUTES>();
+            sa.bInheritHandle = false;
 
-                    // Nếu là tiến trình đầu tiên tạo ra map, khởi tạo giá trị mặc định (Bật Tiếng Việt)
-                    if (isCreator)
-                    {
-                        _pShared[0] = 1; // 1 = IsVietnameseMode On (V)
-                        _pShared[1] = 0; // 0 = ToneStyle New
-                        _pShared[2] = 1; // AutoRestoreEnglishWords
-                        _pShared[3] = 1; // AllowRepeatKeyUndo
-                        _pShared[4] = 0; // AllowLeadingWAsU
-                    }
-                }
+            IntPtr pSd = IntPtr.Zero;
+            bool hasSd = ConvertStringSecurityDescriptorToSecurityDescriptorW(UniversalSddl, 1, out pSd, IntPtr.Zero);
+            if (hasSd && pSd != IntPtr.Zero)
+            {
+                sa.lpSecurityDescriptor = pSd;
             }
 
-            if (_hEvent == IntPtr.Zero)
+            try
             {
-                _hEvent = CreateEventW(IntPtr.Zero, false /* AutoReset */, false, EventName);
+                IntPtr pSaPtr = (hasSd && pSd != IntPtr.Zero) ? (IntPtr)(&sa) : IntPtr.Zero;
+                _hMap = CreateFileMappingW(new IntPtr(-1), pSaPtr, PageReadWrite, 0, SharedSize, MapName);
+
+                if (_hMap == IntPtr.Zero)
+                {
+                    _hMap = OpenFileMappingW(FileMapWrite, false, MapName);
+                }
+
+                if (_hMap != IntPtr.Zero)
+                {
+                    bool isCreator = (Marshal.GetLastWin32Error() == 0);
+                    void* pView = MapViewOfFile(_hMap, FileMapWrite, 0, 0, SharedSize);
+                    if (pView != null)
+                    {
+                        _pShared = (byte*)pView;
+
+                        // Nếu là tiến trình đầu tiên tạo ra map, khởi tạo giá trị mặc định (Bật Tiếng Việt)
+                        if (isCreator)
+                        {
+                            _pShared[0] = 1; // 1 = IsVietnameseMode On (V)
+                            _pShared[1] = 0; // 0 = ToneStyle New
+                            _pShared[2] = 1; // AutoRestoreEnglishWords
+                            _pShared[3] = 1; // AllowRepeatKeyUndo
+                            _pShared[4] = 0; // AllowLeadingWAsU
+                        }
+                    }
+                }
+
+                if (_hEvent == IntPtr.Zero)
+                {
+                    _hEvent = CreateEventW(pSaPtr, false /* AutoReset */, false, EventName);
+                }
+            }
+            finally
+            {
+                if (pSd != IntPtr.Zero)
+                {
+                    LocalFree(pSd);
+                }
             }
         }
     }
@@ -140,7 +197,7 @@ public static unsafe class SharedMemoryManager
             {
                 return _pShared[0] != 0;
             }
-            return true; // Mặc định an toàn nếu không map được
+            return _fallbackVietnameseMode;
         }
         set
         {
@@ -149,6 +206,10 @@ public static unsafe class SharedMemoryManager
             {
                 _pShared[0] = (byte)(value ? 1 : 0);
                 SignalStateChanged();
+            }
+            else
+            {
+                _fallbackVietnameseMode = value;
             }
         }
     }
@@ -167,6 +228,7 @@ public static unsafe class SharedMemoryManager
             SignalStateChanged();
             return next != 0;
         }
-        return true;
+        _fallbackVietnameseMode = !_fallbackVietnameseMode;
+        return _fallbackVietnameseMode;
     }
 }
