@@ -112,4 +112,53 @@ public static class KeyInputTranslator
     {
         return char.IsWhiteSpace(c) || char.IsPunctuation(c) || char.IsSymbol(c);
     }
+
+    [DllImport("user32.dll")]
+    private static extern short GetAsyncKeyState(int vKey);
+
+    private static bool IsKeyDown(int vKey)
+    {
+        return ((GetKeyState(vKey) & 0x8000) != 0) || ((GetAsyncKeyState(vKey) & 0x8000) != 0);
+    }
+
+    // =========================================================================
+    // Hotkey detection
+    // =========================================================================
+
+    /// <summary>VK_SHIFT (0x10) - Phím Shift (modifier).</summary>
+    public const uint VkShift = 0x10;
+
+    /// <summary>VK_Q (0x51) - Phím ký tự Q.</summary>
+    public const uint VkQ = 0x51;
+
+    /// <summary>VK_Z (0x5A) - Phím ký tự Z.</summary>
+    public const uint VkZ = 0x5A;
+
+    /// <summary>
+    /// Kiểm tra xem sự kiện bàn phím hiện tại có phải là phím tắt chuyển đổi chế độ V/E hay không.
+    /// Theo yêu cầu người dùng: Ctrl + Shift + Q.
+    /// </summary>
+    public static bool IsToggleHotkeyPressed(UIntPtr wParam, IntPtr lParam)
+    {
+        uint vk = (uint)wParam;
+
+        // Phím tắt chính: Ctrl + Shift + Q
+        if (vk == VkQ)
+        {
+            bool isCtrl = IsKeyDown((int)VkControl) || IsKeyDown(0xA2) || IsKeyDown(0xA3);
+            bool isShift = IsKeyDown((int)VkShift) || IsKeyDown(0xA0) || IsKeyDown(0xA1);
+            if (isCtrl && isShift)
+            {
+                return true;
+            }
+        }
+
+        // Phím tắt dự phòng: Alt + Z
+        if (vk == VkZ && (IsKeyDown((int)VkMenu) || IsKeyDown(0xA4) || IsKeyDown(0xA5)))
+        {
+            return true;
+        }
+
+        return false;
+    }
 }

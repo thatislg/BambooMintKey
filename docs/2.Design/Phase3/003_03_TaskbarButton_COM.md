@@ -14,12 +14,13 @@ Toàn bộ định nghĩa interface và cấu trúc dữ liệu được trích 
 | Tên biến C# (.NET Style)    | Định nghĩa Windows SDK | GUID chuẩn xác                         | Ghi chú / Mục đích |
 | --------------------------- | ---------------------- | -------------------------------------- | ------------------ |
 | `Guids.IidIUnknown`         | `IID_IUnknown`         | `00000000-0000-0000-C000-000000000046` | Interface COM cơ sở |
-| `Guids.IidITfLangBarItem`   | `IID_ITfLangBarItem`   | `73830352-D722-4179-A501-AEBC6BE65053` | Interface item thanh ngôn ngữ cơ bản |
-| `Guids.IidITfLangBarItemButton` | `IID_ITfLangBarItemButton` | `28888638-0187-42EB-BFF5-B92AC1AC7668` | Nút bấm Language Bar (V/E) |
+| `Guids.IidITfLangBarItem`   | `IID_ITfLangBarItem`   | `73540D69-EDEB-4EE9-96C9-23AA30B25916` | Interface item thanh ngôn ngữ cơ bản (ctfutb.h) |
+| `Guids.IidITfLangBarItemButton` | `IID_ITfLangBarItemButton` | `28C7F1D0-DE25-11D2-AFDD-00105A2799B5` | Nút bấm Language Bar (V/E) (ctfutb.h) |
 | `Guids.IidITfSource`        | `IID_ITfSource`        | `4EA48A35-60AE-446F-8FD6-E6A8D82459F7` | Điểm kết nối Sink từ Windows |
-| `Guids.IidITfLangBarItemSink` | `IID_ITfLangBarItemSink` | `57D42764-50AC-4310-B624-CC17112183DF` | Interface thông báo cập nhật cho Windows |
-| `Guids.IidITfLangBarItemMgr` | `IID_ITfLangBarItemMgr` | `BA468C55-9956-4FB1-A59D-52A7DD7CCB23` | Quản lý item Language Bar của Windows |
-| `Guids.GuidLbiBambooMintKeyMode` | `GUID_LBI_BAMBOOMINTKEY_MODE` | `A1F2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D` | ID đại diện duy nhất của nút icon V/E |
+| `Guids.IidITfLangBarItemSink` | `IID_ITfLangBarItemSink` | `57DBE1A0-DE25-11D2-AFDD-00105A2799B5` | Interface thông báo cập nhật cho Windows (ctfutb.h) |
+| `Guids.IidITfLangBarItemMgr` | `IID_ITfLangBarItemMgr` | `BA468C55-9956-4FB1-A59D-52A7DD7CC6AA` | Quản lý item Language Bar của Windows (ctfutb.h) |
+| `Guids.ClsidTfLangBarItemMgr` | `CLSID_TF_LangBarItemMgr` | `B9931692-A2B3-4FAB-BF33-9EC6F9FB96AC` | COM CoCreateInstance fallback (ctfutb.h) |
+| `Guids.GuidLbiInputMode`    | `GUID_LBI_INPUTMODE`   | `2C77A81E-41CC-4178-A3A7-5F8A987568E6` | Bắt buộc trên Win 8/10/11 để hiển thị icon IME (ctffunc.h) |
 
 ### 1.2. Hằng số Flag & Enum theo chuẩn .NET (`TsfLangBarFlags`)
 

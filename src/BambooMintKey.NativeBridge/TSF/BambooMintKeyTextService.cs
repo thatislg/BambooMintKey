@@ -221,6 +221,9 @@ public unsafe class BambooMintKeyTextService
 
         // 4. Khởi tạo / Đồng bộ Engine State
         BridgeStateManager.InitializeEngine();
+
+        // 5. Đăng ký Language Bar Item Button vào Taskbar
+        LangBarItemButton.Register(pThreadMgr);
         DebugLog.Write("ActivateExImpl completed");
 
         return HResult.Ok;
@@ -250,6 +253,10 @@ public unsafe class BambooMintKeyTextService
     {
         var target = GetTarget(thisPtr);
         if (!target._isActivated) return HResult.Ok;
+
+        // Lưu ý: Không gọi LangBarItemButton.Unregister() ở đây vì Windows Shell
+        // tự quản lý hiển thị/ẩn icon theo trạng thái kích hoạt của TIP.
+        // Gỡ bỏ nút ở đây sẽ làm icon biến mất khi chuyển đổi tiêu điểm giữa các cửa sổ.
 
         // 1. Unadvise KeyEventSink
         if (target._keyEventSinkCookie != 0)

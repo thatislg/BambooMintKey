@@ -30,6 +30,18 @@ public static class Guids
     /// <summary>GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER - Cung cấp hiển thị gạch chân composition.</summary>
     public static readonly Guid GuidTfCategoryDisplayAttributeProvider = new("35E7A704-438C-4235-96BC-4A6361C31595");
 
+    /// <summary>GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT - Khai báo tương thích Windows 8/10/11 shell & UWP/XAML Input Indicator.</summary>
+    public static readonly Guid GuidTfCatTipCapImmersiveSupport = new("13A016DF-560B-46CD-947A-4C3AF1E0E35D");
+
+    /// <summary>GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT - Khai báo hiển thị icon mode ngay trên System Tray / Taskbar Input Indicator.</summary>
+    public static readonly Guid GuidTfCatTipCapSystraySupport = new("25504FB4-7BAB-4BC1-9C69-CF81890F0EF5");
+
+    /// <summary>GUID_TFCAT_TIPCAP_INPUTMODECOMPARTMENT - Khai báo hỗ trợ Input Mode Compartment.</summary>
+    public static readonly Guid GuidTfCatTipCapInputModeCompartment = new("CCF05DD7-4A87-11D7-A6E2-00065B84435C");
+
+    /// <summary>GUID_TFCAT_TIPCAP_UIELEMENTENABLED - Khai báo hỗ trợ UIElements.</summary>
+    public static readonly Guid GuidTfCatTipCapUiElementEnabled = new("49D2F9CF-1F5E-11D7-A6D3-00065B84435C");
+
     // =========================================================================
     // COM Standard Interface GUIDs
     // =========================================================================
@@ -79,4 +91,32 @@ public static class Guids
     /// <summary>IID_ITfSource - Đăng ký và gỡ đăng ký event sink chung.</summary>
     /// <remarks>Lấy từ Windows SDK msctf.idl: uuid(4ea48a35-60ae-446f-8fd6-e6a8d82459f7).</remarks>
     public static readonly Guid IidITfSource = new("4EA48A35-60AE-446F-8FD6-E6A8D82459F7");
+
+    // =========================================================================
+    // TSF Language Bar GUIDs (Windows SDK ctfutb.h & ctffunc.h - 100% chuẩn xác)
+    // =========================================================================
+
+    /// <summary>IID_ITfLangBarItem - Interface cơ bản của một item trên Language Bar.</summary>
+    /// <remarks>Lấy từ Windows SDK ctfutb.h: uuid(73540d69-edeb-4ee9-96c9-23aa30b25916).</remarks>
+    public static readonly Guid IidITfLangBarItem = new("73540D69-EDEB-4EE9-96C9-23AA30B25916");
+
+    /// <summary>IID_ITfLangBarItemButton - Interface nút bấm trên Language Bar.</summary>
+    /// <remarks>Lấy từ Windows SDK ctfutb.h: uuid(28c7f1d0-de25-11d2-afdd-00105a2799b5).</remarks>
+    public static readonly Guid IidITfLangBarItemButton = new("28C7F1D0-DE25-11D2-AFDD-00105A2799B5");
+
+    /// <summary>IID_ITfLangBarItemSink - Nhận thông báo cập nhật icon/text/tooltip từ item.</summary>
+    /// <remarks>Lấy từ Windows SDK ctfutb.h: uuid(57dbe1a0-de25-11d2-afdd-00105a2799b5).</remarks>
+    public static readonly Guid IidITfLangBarItemSink = new("57DBE1A0-DE25-11D2-AFDD-00105A2799B5");
+
+    /// <summary>IID_ITfLangBarItemMgr - Quản lý cài đặt/gỡ bỏ item trên Language Bar.</summary>
+    /// <remarks>Lấy từ Windows SDK ctfutb.h: uuid(ba468c55-9956-4fb1-a59d-52a7dd7cc6aa).</remarks>
+    public static readonly Guid IidITfLangBarItemMgr = new("BA468C55-9956-4FB1-A59D-52A7DD7CC6AA");
+
+    /// <summary>CLSID_TF_LangBarItemMgr - Class ID khởi tạo Language Bar Item Manager.</summary>
+    /// <remarks>Lấy từ Windows SDK ctfutb.h: uuid(b9931692-a2b3-4fab-bf33-9ec6f9fb96ac).</remarks>
+    public static readonly Guid ClsidTfLangBarItemMgr = new("B9931692-A2B3-4FAB-BF33-9EC6F9FB96AC");
+
+    /// <summary>GUID_LBI_INPUTMODE - Bắt buộc trên Windows 8/10/11 để Taskbar hiển thị icon của IME trong system tray.</summary>
+    /// <remarks>Lấy từ Windows SDK ctffunc.h: uuid(2c77a81e-41cc-4178-a3a7-5f8a987568e6).</remarks>
+    public static readonly Guid GuidLbiInputMode = new("2C77A81E-41CC-4178-A3A7-5F8A987568E6");
 }

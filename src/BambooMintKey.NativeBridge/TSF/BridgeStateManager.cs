@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 using BambooMintKey.Core.Domain;
 using BambooMintKey.Core.Engine;
+using BambooMintKey.NativeBridge.Common;
 
 namespace BambooMintKey.NativeBridge.TSF;
 
@@ -23,18 +24,55 @@ public static class BridgeStateManager
     /// <summary>Trạng thái word hiện tại của engine.</summary>
     public static Types.WordState CurrentState => _currentState;
 
-    /// <summary>Cấu hình engine hiện tại.</summary>
-    public static EngineConfig.EngineConfig Config => _currentConfig;
+    /// <summary>Cấu hình engine hiện tại (đồng bộ trạng thái IsEnabled với SharedMemoryManager).</summary>
+    public static EngineConfig.EngineConfig Config
+    {
+        get
+        {
+            bool isVn = SharedMemoryManager.IsVietnameseMode;
+            if (_currentConfig.IsEnabled != isVn)
+            {
+                _currentConfig = new EngineConfig.EngineConfig(
+                    isVn,
+                    _currentConfig.AutoRestoreEnglishWords,
+                    _currentConfig.AllowRepeatKeyUndo,
+                    _currentConfig.AllowLeadingWAsU,
+                    _currentConfig.ToneStyle
+                );
+            }
+            return _currentConfig;
+        }
+    }
+
+    /// <summary>Kiểm tra xem chế độ gõ tiếng Việt hiện đang bật (V) hay tắt (E) qua Shared Memory.</summary>
+    public static bool IsVietnameseMode
+    {
+        get => SharedMemoryManager.IsVietnameseMode;
+        set => SharedMemoryManager.IsVietnameseMode = value;
+    }
+
+    /// <summary>Đảo trạng thái gõ tiếng Việt / tiếng Anh trong Shared Memory và trả về trạng thái mới.</summary>
+    public static bool ToggleVietnameseMode()
+    {
+        bool newMode = SharedMemoryManager.ToggleVietnameseMode();
+        _currentConfig = new EngineConfig.EngineConfig(
+            newMode,
+            _currentConfig.AutoRestoreEnglishWords,
+            _currentConfig.AllowRepeatKeyUndo,
+            _currentConfig.AllowLeadingWAsU,
+            _currentConfig.ToneStyle
+        );
+        return newMode;
+    }
 
     // =========================================================================
     // Lifecycle
     // =========================================================================
 
-    /// <summary>Khởi tạo lại engine state về empty và default config.</summary>
+    /// <summary>Khởi tạo lại engine state về empty (KHÔNG đè trạng thái IsEnabled của người dùng).</summary>
     public static void InitializeEngine()
     {
         _currentState = Types.WordState.Empty;
-        _currentConfig = EngineConfig.EngineConfig.Default;
     }
 
     /// <summary>Reset state về empty (dùng khi chuyển focus hoặc composition kết thúc).</summary>

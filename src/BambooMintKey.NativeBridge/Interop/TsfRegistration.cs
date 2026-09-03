@@ -89,6 +89,16 @@ public static unsafe class TsfRegistration
 
     private const string CtfTipRoot = @"SOFTWARE\Microsoft\CTF\TIP";
 
+    private static readonly Guid[] SupportedCategories =
+    [
+        Guids.GuidTfCategoryTipKeyboard,
+        Guids.GuidTfCategoryDisplayAttributeProvider,
+        Guids.GuidTfCatTipCapImmersiveSupport,
+        Guids.GuidTfCatTipCapSystraySupport,
+        Guids.GuidTfCatTipCapInputModeCompartment,
+        Guids.GuidTfCatTipCapUiElementEnabled
+    ];
+
     private static void Log(string msg)
     {
         try
@@ -245,16 +255,14 @@ public static unsafe class TsfRegistration
         try
         {
             Guid clsid = Guids.TextServiceClsid;
-            Guid catTip = Guids.GuidTfCategoryTipKeyboard;
-            Guid catDisplay = Guids.GuidTfCategoryDisplayAttributeProvider;
-
-            hr = vtable->RegisterCategory(pCatMgr, &clsid, &catTip, &clsid);
-            Log($"RegisterCategory(TIP_KEYBOARD) HR=0x{hr:X8}");
-            if (!HResult.Succeeded(hr)) return hr;
-
-            hr = vtable->RegisterCategory(pCatMgr, &clsid, &catDisplay, &clsid);
-            Log($"RegisterCategory(DISPLAY_ATTRIBUTE) HR=0x{hr:X8}");
-            return hr;
+            foreach (var cat in SupportedCategories)
+            {
+                var catCopy = cat;
+                hr = vtable->RegisterCategory(pCatMgr, &clsid, &catCopy, &clsid);
+                Log($"RegisterCategory({cat}) HR=0x{hr:X8}");
+                if (!HResult.Succeeded(hr)) return hr;
+            }
+            return HResult.Ok;
         }
         finally
         {
@@ -285,11 +293,11 @@ public static unsafe class TsfRegistration
         try
         {
             Guid clsid = Guids.TextServiceClsid;
-            Guid catTip = Guids.GuidTfCategoryTipKeyboard;
-            Guid catDisplay = Guids.GuidTfCategoryDisplayAttributeProvider;
-
-            vtable->UnregisterCategory(pCatMgr, &clsid, &catTip, &clsid);
-            vtable->UnregisterCategory(pCatMgr, &clsid, &catDisplay, &clsid);
+            foreach (var cat in SupportedCategories)
+            {
+                var catCopy = cat;
+                vtable->UnregisterCategory(pCatMgr, &clsid, &catCopy, &clsid);
+            }
             return HResult.Ok;
         }
         finally
@@ -344,32 +352,20 @@ public static unsafe class TsfRegistration
         try
         {
             Guid clsid = Guids.TextServiceClsid;
-            Guid catTip = Guids.GuidTfCategoryTipKeyboard;
-            Guid catDisplay = Guids.GuidTfCategoryDisplayAttributeProvider;
 
-            // Cấu trúc chuẩn của Windows TSF (quan sát từ Vietnamese Telex / Microsoft Pinyin):
-            //   HKLM\SOFTWARE\Microsoft\CTF\TIP\{CLSID}\Category\Category\{CAT_GUID}
-            //   HKLM\SOFTWARE\Microsoft\CTF\TIP\{CLSID}\Category\Item\{CLSID}
-
-            // Register keyboard category
-            string keyboardCategoryPath = $@"{CtfTipRoot}\{{{clsid}}}\Category\Category\{{{catTip}}}";
-            using (var k = Registry.LocalMachine.CreateSubKey(keyboardCategoryPath))
+            foreach (var cat in SupportedCategories)
             {
-                k.SetValue(null, "");
-            }
+                string catKeyPath = $@"{CtfTipRoot}\{{{clsid}}}\Category\Category\{{{cat}}}\{{{clsid}}}";
+                using (var k = Registry.LocalMachine.CreateSubKey(catKeyPath))
+                {
+                    k.SetValue(null, "");
+                }
 
-            // Register display attribute category
-            string displayCategoryPath = $@"{CtfTipRoot}\{{{clsid}}}\Category\Category\{{{catDisplay}}}";
-            using (var k = Registry.LocalMachine.CreateSubKey(displayCategoryPath))
-            {
-                k.SetValue(null, "");
-            }
-
-            // Register Item category (theo chuẩn TSF)
-            string itemCategoryPath = $@"{CtfTipRoot}\{{{clsid}}}\Category\Item\{{{clsid}}}";
-            using (var k = Registry.LocalMachine.CreateSubKey(itemCategoryPath))
-            {
-                k.SetValue(null, "");
+                string itemKeyPath = $@"{CtfTipRoot}\{{{clsid}}}\Category\Item\{{{clsid}}}\{{{cat}}}";
+                using (var k = Registry.LocalMachine.CreateSubKey(itemKeyPath))
+                {
+                    k.SetValue(null, "");
+                }
             }
 
             Log("RegisterCategories via Registry succeeded");

@@ -33,8 +33,16 @@ public static unsafe class NativeCom
     {
         if (punk == IntPtr.Zero) return 0;
 
-        var vtable = *(IntPtr*)punk;
+    var vtable = *(IntPtr*)punk;
         var pfnRelease = (delegate* unmanaged[Stdcall]<IntPtr, uint>)(*((IntPtr*)vtable + 2));
         return pfnRelease(punk);
     }
+
+    [System.Runtime.InteropServices.DllImport("ole32.dll", ExactSpelling = true)]
+    public static extern int CoCreateInstance(
+        Guid* rclsid,
+        IntPtr pUnkOuter,
+        uint dwClsContext,
+        Guid* riid,
+        IntPtr* ppv);
 }

@@ -84,10 +84,23 @@ public static unsafe class KeyEventSinkImpl
         if (pfEaten == null) return HResult.Pointer;
         *pfEaten = 0;
 
+        // 0. Kiểm tra phím tắt chuyển đổi chế độ V/E (Ctrl + Shift hoặc Alt + Z)
+        if (KeyInputTranslator.IsToggleHotkeyPressed(wParam, lParam))
+        {
+            *pfEaten = 1;
+            return HResult.Ok;
+        }
+
         // 1. Không can thiệp nếu người dùng đang bấm tổ hợp phím tắt (Ctrl/Alt/Win)
         if (KeyInputTranslator.IsModifierModifierPressed())
         {
             DebugLog.Write("OnTestKeyDown modifier pressed, skip");
+            return HResult.Ok;
+        }
+
+        // 1.1. Nếu đang ở chế độ tiếng Anh (E) -> Bỏ qua hoàn toàn, không nuốt phím
+        if (!BridgeStateManager.IsVietnameseMode)
+        {
             return HResult.Ok;
         }
 
@@ -132,8 +145,29 @@ public static unsafe class KeyEventSinkImpl
         if (pfEaten == null) return HResult.Pointer;
         *pfEaten = 0;
 
+        // 0. Bắt phím tắt chuyển đổi chế độ V/E (Ctrl + Shift hoặc Alt + Z)
+        if (KeyInputTranslator.IsToggleHotkeyPressed(wParam, lParam))
+        {
+            bool newMode = BridgeStateManager.ToggleVietnameseMode();
+            LangBarItemButton.NotifyStateChanged();
+            DebugLog.Write($"OnKeyDown ToggleHotkey triggered! New IsVietnameseMode={newMode}");
+            *pfEaten = 1;
+            return HResult.Ok;
+        }
+
         if (KeyInputTranslator.IsModifierModifierPressed())
         {
+            return HResult.Ok;
+        }
+
+        // Nếu đang ở chế độ tiếng Anh (E) -> Bỏ qua hoàn toàn, không nuốt phím, không gõ dấu
+        if (!BridgeStateManager.IsVietnameseMode)
+        {
+            if (CompositionManager.HasActiveComposition())
+            {
+                CompositionManager.EndComposition();
+                BridgeStateManager.ResetState();
+            }
             return HResult.Ok;
         }
 
