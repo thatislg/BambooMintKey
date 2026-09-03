@@ -9,6 +9,7 @@ open Microsoft.Win32
 open FSharp.NativeInterop
 
 type AppConfig = {
+    mutable Version: int
     mutable IsVietnameseMode: bool
     mutable ToneStyle: byte            // 0 = Modern (òa, xòe), 1 = Traditional (oà, xoè)
     mutable AutoRestoreEnglishWords: bool
@@ -16,13 +17,16 @@ type AppConfig = {
     mutable AllowLeadingWAsU: bool
     mutable InputMethod: byte          // 0 = Telex, 1 = VNI, 2 = Simple Telex
     mutable Charset: byte              // 0 = Unicode dựng sẵn, 1 = Unicode tổ hợp, 2 = TCVN3
-    mutable ToggleHotkey: byte         // 0 = Ctrl+Shift, 1 = Alt+Z, 2 = Ctrl+Space, 3 = None/Custom
+    mutable ToggleHotkey: byte         // 0 = Ctrl+Shift, 1 = Alt+Z, 2 = Ctrl+Space, 3 = None, 4 = Custom
     mutable HotkeyVKey: uint32         // Virtual Key Code (0x10 = Shift, 0x5A = Z, etc.)
     mutable HotkeyModifiers: uint32    // TSF Modifiers (0x0202 = Ctrl+OnKeyUp, 0x0001 = Alt, etc.)
     mutable HotkeyDisplay: string      // Chuỗi hiển thị ("Ctrl + Shift", "Alt + Z", ...)
     mutable StartWithWindows: bool
+    mutable MacroEnabled: bool
+    mutable Macros: Map<string, string>
 } with
     static member Default = {
+        Version = 2
         IsVietnameseMode = true
         ToneStyle = 0uy
         AutoRestoreEnglishWords = true
@@ -35,6 +39,8 @@ type AppConfig = {
         HotkeyModifiers = 0x0202u
         HotkeyDisplay = "Ctrl + Shift"
         StartWithWindows = false
+        MacroEnabled = false
+        Macros = Map.ofList [ ("vn", "Việt Nam"); ("bmk", "BambooMintKey"); ("f#", "F-Sharp") ]
     }
 
 module ConfigStore =
@@ -111,10 +117,10 @@ module ConfigStore =
                 | 0x1Bu -> "Esc"
                 | k when k >= 0x41u && k <= 0x5Au -> string (char (int k))
                 | k when k >= 0x30u && k <= 0x39u -> string (char (int k))
-                | k when k >= 0x60u && k <= 0x69u -> sprintf "Num%d" (int k - 0x60)
-                | k when k >= 0x70u && k <= 0x7Bu -> sprintf "F%d" (int k - 0x70 + 1)
-                | k -> sprintf "0x%X" k
-            
+                | k when k >= 0x60u && k <= 0x69u -> $"Num%d{int k - 0x60}"
+                | k when k >= 0x70u && k <= 0x7Bu -> $"F%d{int k - 0x70 + 1}"
+                | k -> $"0x%X{k}"
+
             if not (parts.Contains(keyName)) then parts.Add(keyName)
             String.Join(" + ", parts)
 
@@ -139,7 +145,7 @@ module ConfigStore =
             if key <> null then
                 if enable then
                     let exePath = Process.GetCurrentProcess().MainModule.FileName
-                    key.SetValue(AppName, sprintf "\"%s\"" exePath)
+                    key.SetValue(AppName, $"\"%s{exePath}\"")
                 else
                     key.DeleteValue(AppName, false)
         with _ -> ()
@@ -156,14 +162,14 @@ module ConfigStore =
                 let pView = MapViewOfFile(hMap, FILE_MAP_READ, 0u, 0u, 64n)
                 if pView <> IntPtr.Zero then
                     let span = Span<byte>(pView.ToPointer(), 64)
-                    cfg.IsVietnameseMode <- span.[0] <> 0uy
-                    cfg.ToneStyle <- span.[1]
-                    cfg.AutoRestoreEnglishWords <- span.[2] <> 0uy
-                    cfg.AllowRepeatKeyUndo <- span.[3] <> 0uy
-                    cfg.AllowLeadingWAsU <- span.[4] <> 0uy
-                    cfg.InputMethod <- span.[5]
-                    cfg.Charset <- span.[6]
-                    cfg.ToggleHotkey <- span.[7]
+                    cfg.IsVietnameseMode <- span[0] <> 0uy
+                    cfg.ToneStyle <- span[1]
+                    cfg.AutoRestoreEnglishWords <- span[2] <> 0uy
+                    cfg.AllowRepeatKeyUndo <- span[3] <> 0uy
+                    cfg.AllowLeadingWAsU <- span[4] <> 0uy
+                    cfg.InputMethod <- span[5]
+                    cfg.Charset <- span[6]
+                    cfg.ToggleHotkey <- span[7]
 
                     let vKeyPtr : nativeptr<uint32> = NativePtr.ofNativeInt (pView + 12n)
                     let modPtr : nativeptr<uint32> = NativePtr.ofNativeInt (pView + 16n)
@@ -186,13 +192,34 @@ module ConfigStore =
                 CloseHandle(hMap) |> ignore
         with _ -> ()
 
-        // 2. Nếu chưa có Shared Memory, nạp từ file JSON nếu có
-        if not loadedFromMemory then
-            let path = getConfigPath ()
-            if File.Exists(path) then
-                try
-                    let json = File.ReadAllText(path)
-                    let has (key: string) (v: string) = json.Contains(sprintf "\"%s\":%s" key v) || json.Contains(sprintf "\"%s\": %s" key v)
+        // 2. Đọc file JSON để nạp bền vững và lấy bảng gõ tắt (Macros)
+        let path = getConfigPath ()
+        if File.Exists(path) then
+            try
+                let json = File.ReadAllText(path)
+                let has (key: string) (v: string) = json.Contains $"\"%s{key}\":%s{v}" || json.Contains $"\"%s{key}\": %s{v}"
+
+                let parseUint (key: string) =
+                    let prefix = $"\"%s{key}\":"
+                    let idx = json.IndexOf(prefix)
+                    if idx >= 0 then
+                        let sub = json.Substring(idx + prefix.Length).Trim()
+                        let endIdx = sub.IndexOfAny([|','; '\n'; '\r'; '}'|])
+                        let token = if endIdx >= 0 then sub.Substring(0, endIdx).Trim() else sub
+                        match UInt32.TryParse(token) with
+                        | true, v -> Some v
+                        | _ -> None
+                    else None
+
+                match parseUint "version" with
+                | Some ver -> cfg.Version <- int ver
+                | None -> ()
+
+                if has "macroEnabled" "true" then cfg.MacroEnabled <- true
+                elif has "macroEnabled" "false" then cfg.MacroEnabled <- false
+
+                // Nếu chưa nạp từ Shared Memory thì nạp các thuộc tính chính từ JSON
+                if not loadedFromMemory then
                     if has "toneStyle" "1" then cfg.ToneStyle <- 1uy
                     if has "autoRestoreEnglishWords" "false" then cfg.AutoRestoreEnglishWords <- false
                     if has "allowRepeatKeyUndo" "false" then cfg.AllowRepeatKeyUndo <- false
@@ -201,18 +228,6 @@ module ConfigStore =
                     elif has "inputMethod" "2" then cfg.InputMethod <- 2uy
                     if has "charset" "1" then cfg.Charset <- 1uy
                     elif has "charset" "2" then cfg.Charset <- 2uy
-
-                    let parseUint (key: string) =
-                        let prefix = sprintf "\"%s\":" key
-                        let idx = json.IndexOf(prefix)
-                        if idx >= 0 then
-                            let sub = json.Substring(idx + prefix.Length).Trim()
-                            let endIdx = sub.IndexOfAny([|','; '\n'; '\r'; '}'|])
-                            let token = if endIdx >= 0 then sub.Substring(0, endIdx).Trim() else sub
-                            match UInt32.TryParse(token) with
-                            | true, v -> Some v
-                            | _ -> None
-                        else None
 
                     match parseUint "hotkeyVKey" with
                     | Some v -> cfg.HotkeyVKey <- v
@@ -223,48 +238,81 @@ module ConfigStore =
                     | None -> ()
 
                     cfg.HotkeyDisplay <- getHotkeyDisplayString cfg.HotkeyVKey cfg.HotkeyModifiers
-                with _ -> ()
+
+                // Nạp bảng macros
+                let macroIdx = json.IndexOf("\"macros\"")
+                if macroIdx >= 0 then
+                    let openBrace = json.IndexOf('{', macroIdx)
+                    let closeBrace = if openBrace >= 0 then json.IndexOf('}', openBrace) else -1
+                    if openBrace >= 0 && closeBrace > openBrace then
+                        let macroContent = json.Substring(openBrace + 1, closeBrace - openBrace - 1)
+                        let pairs = macroContent.Split([| ','; '\r'; '\n' |], StringSplitOptions.RemoveEmptyEntries)
+                        let mutable map = Map.empty
+                        for p in pairs do
+                            let parts = p.Split(':')
+                            if parts.Length = 2 then
+                                let k = parts[0].Trim().Trim('"', ' ')
+                                let v = parts[1].Trim().Trim('"', ' ')
+                                if k.Length > 0 && v.Length > 0 then
+                                    map <- Map.add k v map
+                        if not map.IsEmpty then cfg.Macros <- map
+            with _ -> ()
 
         cfg
 
     let saveConfig (cfg: AppConfig) =
         setStartWithWindows cfg.StartWithWindows
 
-        // 1. Ghi file JSON để lưu bền vững trước tiên
+        // 1. Ghi file JSON để lưu bền vững theo Schema Version 2
         try
             let path = getConfigPath ()
-            let json = sprintf "{\n  \"toneStyle\": %d,\n  \"autoRestoreEnglishWords\": %b,\n  \"allowRepeatKeyUndo\": %b,\n  \"allowLeadingWAsU\": %b,\n  \"inputMethod\": %d,\n  \"charset\": %d,\n  \"toggleHotkey\": %d,\n  \"hotkeyVKey\": %u,\n  \"hotkeyModifiers\": %u,\n  \"startWithWindows\": %b\n}"
-                        cfg.ToneStyle
+            let macroEntries =
+                cfg.Macros
+                |> Map.toList
+                |> List.map (fun (k, v) -> sprintf "    \"%s\": \"%s\"" k v)
+                |> String.concat ",\n"
+
+            let macrosBlock =
+                if String.IsNullOrWhiteSpace(macroEntries) then "  \"macros\": {}"
+                else sprintf "  \"macros\": {\n%s\n  }" macroEntries
+
+            let json = sprintf "{\n  \"version\": %d,\n  \"inputMethod\": %d,\n  \"charset\": %d,\n  \"toggleHotkey\": %d,\n  \"hotkeyVKey\": %u,\n  \"hotkeyModifiers\": %u,\n  \"toneStyle\": %d,\n  \"autoRestoreEnglishWords\": %b,\n  \"allowRepeatKeyUndo\": %b,\n  \"allowLeadingWAsU\": %b,\n  \"startWithWindows\": %b,\n  \"macroEnabled\": %b,\n%s\n}"
+                        cfg.Version
+                        (int cfg.InputMethod)
+                        (int cfg.Charset)
+                        (int cfg.ToggleHotkey)
+                        cfg.HotkeyVKey
+                        cfg.HotkeyModifiers
+                        (int cfg.ToneStyle)
                         cfg.AutoRestoreEnglishWords
                         cfg.AllowRepeatKeyUndo
                         cfg.AllowLeadingWAsU
-                        cfg.InputMethod
-                        cfg.Charset
-                        cfg.ToggleHotkey
-                        cfg.HotkeyVKey
-                        cfg.HotkeyModifiers
                         cfg.StartWithWindows
+                        cfg.MacroEnabled
+                        macrosBlock
+
             File.WriteAllText(path, json)
-        with _ -> ()
+        with ex ->
+            Debug.WriteLine($"BambooMintKey saveConfig error: {ex.Message}")
 
         // 2. Ghi trực tiếp vào Shared Memory và phát tín hiệu broadcast
         try
             let mutable hMap = OpenFileMappingW(FILE_MAP_READ ||| FILE_MAP_WRITE, false, MapName)
             if hMap = IntPtr.Zero then
-                hMap <- CreateFileMappingW(new IntPtr(-1), IntPtr.Zero, PAGE_READWRITE, 0u, 64u, MapName)
+                hMap <- CreateFileMappingW(IntPtr(-1), IntPtr.Zero, PAGE_READWRITE, 0u, 64u, MapName)
 
             if hMap <> IntPtr.Zero then
                 let pView = MapViewOfFile(hMap, FILE_MAP_READ ||| FILE_MAP_WRITE, 0u, 0u, 64n)
                 if pView <> IntPtr.Zero then
                     let span = Span<byte>(pView.ToPointer(), 64)
-                    span.[0] <- if cfg.IsVietnameseMode then 1uy else 0uy
-                    span.[1] <- cfg.ToneStyle
-                    span.[2] <- if cfg.AutoRestoreEnglishWords then 1uy else 0uy
-                    span.[3] <- if cfg.AllowRepeatKeyUndo then 1uy else 0uy
-                    span.[4] <- if cfg.AllowLeadingWAsU then 1uy else 0uy
-                    span.[5] <- cfg.InputMethod
-                    span.[6] <- cfg.Charset
-                    span.[7] <- cfg.ToggleHotkey
+                    span[0] <- if cfg.IsVietnameseMode then 1uy else 0uy
+                    span[1] <- cfg.ToneStyle
+                    span[2] <- if cfg.AutoRestoreEnglishWords then 1uy else 0uy
+                    span[3] <- if cfg.AllowRepeatKeyUndo then 1uy else 0uy
+                    span[4] <- if cfg.AllowLeadingWAsU then 1uy else 0uy
+                    span[5] <- cfg.InputMethod
+                    span[6] <- cfg.Charset
+                    span[7] <- cfg.ToggleHotkey
 
                     let vKeyPtr : nativeptr<uint32> = NativePtr.ofNativeInt (pView + 12n)
                     NativePtr.write vKeyPtr cfg.HotkeyVKey
@@ -293,16 +341,6 @@ module ConfigStore =
         // 2. Ghi file JSON để lưu bền vững
         try
             let path = getConfigPath ()
-            let json = sprintf "{\n  \"toneStyle\": %d,\n  \"autoRestoreEnglishWords\": %b,\n  \"allowRepeatKeyUndo\": %b,\n  \"allowLeadingWAsU\": %b,\n  \"inputMethod\": %d,\n  \"charset\": %d,\n  \"toggleHotkey\": %d,\n  \"hotkeyVKey\": %u,\n  \"hotkeyModifiers\": %u,\n  \"startWithWindows\": %b\n}"
-                        cfg.ToneStyle
-                        cfg.AutoRestoreEnglishWords
-                        cfg.AllowRepeatKeyUndo
-                        cfg.AllowLeadingWAsU
-                        cfg.InputMethod
-                        cfg.Charset
-                        cfg.ToggleHotkey
-                        cfg.HotkeyVKey
-                        cfg.HotkeyModifiers
-                        cfg.StartWithWindows
+            let json = $"{{\n  \"toneStyle\": %d{cfg.ToneStyle},\n  \"autoRestoreEnglishWords\": %b{cfg.AutoRestoreEnglishWords},\n  \"allowRepeatKeyUndo\": %b{cfg.AllowRepeatKeyUndo},\n  \"allowLeadingWAsU\": %b{cfg.AllowLeadingWAsU},\n  \"inputMethod\": %d{cfg.InputMethod},\n  \"charset\": %d{cfg.Charset},\n  \"toggleHotkey\": %d{cfg.ToggleHotkey},\n  \"hotkeyVKey\": %u{cfg.HotkeyVKey},\n  \"hotkeyModifiers\": %u{cfg.HotkeyModifiers},\n  \"startWithWindows\": %b{cfg.StartWithWindows}\n}}"
             File.WriteAllText(path, json)
         with _ -> ()
