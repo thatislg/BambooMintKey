@@ -32,17 +32,15 @@ Menu áp dụng phong cách **Fluent Dark Acrylic** kết hợp điểm nhấn s
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│ 🎍  BambooMintKey                         v1.0             │  <-- Header thương hiệu xanh tre
-├────────────────────────────────────────────────────────────┤
-│   [✓]  Gõ tiếng Việt                          Ctrl + Shift │  <-- Checkmark xanh Mint (#22c55e)
+│   [✓]  Gõ tiếng Việt                          Ctrl + Shift │
 ├────────────────────────────────────────────────────────────┤
 │   [>]  Kiểu đặt dấu thanh                     ►            │
 │        ┌─────────────────────────────────────────────────┐ │
-│        │  (•)  Kiểu mới (òa, xòe, thủy)      - Mặc định  │ │  <-- Radio xanh Mint (#22c55e)
+│        │  (•)  Kiểu mới (òa, xòe, thủy)      - Mặc định  │ │
 │        │  ( )  Kiểu cũ  (oà, xoè, thuỷ)                  │ │
 │        └─────────────────────────────────────────────────┘ │
 │   [✓]  Tự động khôi phục từ tiếng Anh                      │
-│   [✓]  Gõ lặp dấu để hoàn tác (ss -> s)                    │
+│   [✓]  Gõ lặp dấu để khôi phục (ss -> s)                    │
 │   [ ]  Phím 'w' đầu từ thành 'ư' (w -> ư)                  │
 ├────────────────────────────────────────────────────────────┤
 │   [>]  Kiểu gõ:  Telex                        ►            │
@@ -138,6 +136,7 @@ public static class MenuCommands
     public const uint SubmenuInputMethod         = Base + 30;
     public const uint MethodTelex                = Base + 31;
     public const uint MethodVni                  = Base + 32;
+    public const uint MethodSimpleTelex          = Base + 33; // Simple Telex
 
     // 5. Bảng mã (Mở rộng)
     public const uint SubmenuCharset             = Base + 40;
@@ -155,11 +154,11 @@ public static class MenuCommands
 
 ## 5. Đặc tả C-ABI & Struct VTable cho `ITfMenu`
 
-Định nghĩa struct `ITfMenuVTable` trong `Interop/TsfLangBarTypes.cs`:
+Định nghĩa struct `TfMenuVTable` trong `Interop/TsfLangBarTypes.cs`:
 
 ```csharp
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct ITfMenuVTable
+public unsafe struct TfMenuVTable
 {
     // --- IUnknown (Slot 0 - 2) ---
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
@@ -191,7 +190,7 @@ private static int InitMenu(IntPtr thisPtr, IntPtr pMenu)
 {
     if (pMenu == IntPtr.Zero) return HResult.InvalidArgument;
 
-    var menuVTable = *(ITfMenuVTable**)pMenu;
+    var menuVTable = *(TfMenuVTable**)pMenu;
 
     // 1. Chế độ gõ tiếng Việt
     bool isVn = BridgeStateManager.IsVietnameseMode;
@@ -209,7 +208,7 @@ private static int InitMenu(IntPtr thisPtr, IntPtr pMenu)
     }
     if (pSubTone != IntPtr.Zero)
     {
-        var subVTable = *(ITfMenuVTable**)pSubTone;
+        var subVTable = *(TfMenuVTable**)pSubTone;
         byte toneStyle = SharedMemoryManager.ToneStyle; // 0 = Modern, 1 = Classic
         AddMenuItemText(subVTable, pSubTone, MenuCommands.ToneStyleModern,
             toneStyle == 0 ? TsfMenuFlags.TfLbMenuFlagRadioChecked : 0, "Kiểu mới (òa, xòe, thủy)");
@@ -231,14 +230,33 @@ private static int InitMenu(IntPtr thisPtr, IntPtr pMenu)
 
     AddMenuSeparator(menuVTable, pMenu);
 
-    // 4. Cài đặt & Thông tin
-    AddMenuItemText(menuVTable, pMenu, MenuCommands.OpenSettings, 0, "Bảng điều khiển & Cài đặt...");
-    AddMenuItemText(menuVTable, pMenu, MenuCommands.AboutApp, 0, "Thông tin BambooMintKey");
+    // 4. Submenu: Kiểu gõ
+    IntPtr pSubMethod = IntPtr.Zero;
+    fixed (char* pText = "Kiểu gõ")
+    {
+        menuVTable->AddMenuItem(pMenu, MenuCommands.SubmenuInputMethod,
+            TsfMenuFlags.TfLbMenuFlagSubMenu, IntPtr.Zero, IntPtr.Zero, pText, (uint)"Kiểu gõ".Length, &pSubMethod);
+    }
+    if (pSubMethod != IntPtr.Zero)
+    {
+        var subVTable = *(TfMenuVTable**)pSubMethod;
+        byte curMethod = SharedMemoryManager.InputMethod;
+        AddMenuItemText(subVTable, pSubMethod, MenuCommands.MethodTelex,
+            curMethod == 0 ? TsfMenuFlags.TfLbMenuFlagRadioChecked : 0, "Telex");
+        AddMenuItemText(subVTable, pSubMethod, MenuCommands.MethodVni,
+            curMethod == 1 ? TsfMenuFlags.TfLbMenuFlagRadioChecked : 0, "VNI");
+        AddMenuItemText(subVTable, pSubMethod, MenuCommands.MethodSimpleTelex,
+            curMethod == 2 ? TsfMenuFlags.TfLbMenuFlagRadioChecked : 0, "Simple Telex");
+        NativeCom.Release(pSubMethod);
+    }
+
+    // 5. Submenu: Bảng mã
+    IntPtr pSubCharset = IntPtr.Zero;
 
     return HResult.Ok;
 }
 
-private static void AddMenuItemText(ITfMenuVTable* vtable, IntPtr pMenu, uint id, uint flags, string text)
+private static void AddMenuItemText(TfMenuVTable* vtable, IntPtr pMenu, uint id, uint flags, string text)
 {
     fixed (char* pText = text)
     {
@@ -246,7 +264,7 @@ private static void AddMenuItemText(ITfMenuVTable* vtable, IntPtr pMenu, uint id
     }
 }
 
-private static void AddMenuSeparator(ITfMenuVTable* vtable, IntPtr pMenu)
+private static void AddMenuSeparator(TfMenuVTable* vtable, IntPtr pMenu)
 {
     vtable->AddMenuItem(pMenu, 0, TsfMenuFlags.TfLbMenuFlagSeparator, IntPtr.Zero, IntPtr.Zero, null, 0, null);
 }
@@ -285,7 +303,7 @@ private static extern IntPtr GetForegroundWindow();
 [DllImport("user32.dll")]
 private static extern bool SetForegroundWindow(IntPtr hWnd);
 
-public static void ShowNativeContextMenu(POINT pt)
+public static void ShowNativeContextMenu(Point pt)
 {
     IntPtr hMenu = CreatePopupMenu();
     if (hMenu == IntPtr.Zero) return;
@@ -304,12 +322,16 @@ public static void ShowNativeContextMenu(POINT pt)
         AppendMenuW(hMenu, MF_STRING | vFlag, MenuCommands.ToggleVietnameseMode, "Gõ tiếng Việt (Ctrl + Shift)");
         AppendMenuW(hMenu, MF_SEPARATOR, 0, string.Empty);
 
-        // 2. Submenu Kiểu đặt dấu thanh
-        IntPtr hSubTone = CreatePopupMenu();
-        byte toneStyle = SharedMemoryManager.ToneStyle;
-        AppendMenuW(hSubTone, MF_STRING | (toneStyle == 0 ? MF_CHECKED : 0), MenuCommands.ToneStyleModern, "Kiểu mới (òa, xòe, thủy)");
-        AppendMenuW(hSubTone, MF_STRING | (toneStyle == 1 ? MF_CHECKED : 0), MenuCommands.ToneStyleClassic, "Kiểu cũ (oà, xoè, thuỷ)");
-        AppendMenuW(hMenu, MF_POPUP, (nuint)hSubTone, "Kiểu đặt dấu thanh");
+        // 4. Submenu Kiểu gõ
+        IntPtr hSubMethod = CreatePopupMenu();
+        byte curMethod = SharedMemoryManager.InputMethod;
+        AppendMenuW(hSubMethod, mfString | (curMethod == 0 ? mfChecked : 0), MenuCommands.MethodTelex, "Telex");
+        AppendMenuW(hSubMethod, mfString | (curMethod == 1 ? mfChecked : 0), MenuCommands.MethodVni, "VNI");
+        AppendMenuW(hSubMethod, mfString | (curMethod == 2 ? mfChecked : 0), MenuCommands.MethodSimpleTelex, "Simple Telex");
+        AppendMenuW(hMenu, mfPopup, (nuint)hSubMethod, "Kiểu gõ");
+
+        // 5. Submenu Bảng mã
+        IntPtr hSubCharset = CreatePopupMenu();
 
         // 3. Tùy chọn ngữ pháp thông minh
         uint autoRestore = SharedMemoryManager.AutoRestoreEnglishWords ? MF_CHECKED : 0;
@@ -362,11 +384,11 @@ public static void ExecuteMenuCommand(uint cmdId)
             break;
 
         case MenuCommands.ToneStyleModern:
-            SharedMemoryManager.ToneStyle = 0; // 0 = Modern
+            SharedMemoryManager.ToneStyle = 0;
             break;
 
         case MenuCommands.ToneStyleClassic:
-            SharedMemoryManager.ToneStyle = 1; // 1 = Classic
+            SharedMemoryManager.ToneStyle = 1;
             break;
 
         case MenuCommands.ToggleAutoRestoreEnglish:
@@ -381,20 +403,36 @@ public static void ExecuteMenuCommand(uint cmdId)
             SharedMemoryManager.AllowLeadingWAsU = !SharedMemoryManager.AllowLeadingWAsU;
             break;
 
+        case MenuCommands.MethodTelex:
+            SharedMemoryManager.InputMethod = 0;
+            break;
+
+        case MenuCommands.MethodVni:
+            SharedMemoryManager.InputMethod = 1;
+            break;
+
+        case MenuCommands.MethodSimpleTelex:
+            SharedMemoryManager.InputMethod = 2;
+            break;
+
+        case MenuCommands.CharsetUnicodePrecomposed:
+            SharedMemoryManager.Charset = 0;
+            break;
+
+        case MenuCommands.CharsetUnicodeDecomposed:
+            SharedMemoryManager.Charset = 1;
+            break;
+
+        case MenuCommands.CharsetTcvn3:
+            SharedMemoryManager.Charset = 2;
+            break;
+
         case MenuCommands.OpenSettings:
             SettingsLauncher.LaunchSettingsGui();
             break;
 
         case MenuCommands.AboutApp:
-            try
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = "https://github.com/thatislg/BambooMintKey",
-                    UseShellExecute = true
-                });
-            }
-            catch { }
+            SettingsLauncher.LaunchSettingsGui("--about");
             break;
     }
 }
@@ -409,27 +447,29 @@ Tạo mới `TSF/SettingsLauncher.cs`:
 ```csharp
 public static class SettingsLauncher
 {
-    public static void LaunchSettingsGui()
+    public static void LaunchSettingsGui(string? argument = null)
     {
         try
         {
-            // Đường dẫn tới BambooMintKey.UI.exe nằm cùng thư mục hoặc thư mục cài đặt
-            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            string uiPath = Path.Combine(baseDir, "BambooMintKey.UI.exe");
+            string dllPath = NativeMethods.GetCurrentDllPath();
+            string dir = !string.IsNullOrEmpty(dllPath) ? Path.GetDirectoryName(dllPath)! : AppDomain.CurrentDomain.BaseDirectory;
+            string uiPath = Path.Combine(dir, "BambooMintKey.UI.exe");
 
             if (!File.Exists(uiPath))
             {
-                // Tìm kiếm trong publish/ hoặc bin/ nếu đang chạy debug/dev
-                uiPath = Path.Combine(baseDir, "..", "..", "publish", "win-x64", "BambooMintKey.UI.exe");
+                // Fallback nếu chạy trong dev
+                uiPath = @"D:\Kojin\BambooMintKey\publish\win-x64\BambooMintKey.UI.exe";
             }
 
             if (File.Exists(uiPath))
             {
-                Process.Start(new ProcessStartInfo
+                var psi = new ProcessStartInfo
                 {
                     FileName = uiPath,
+                    Arguments = argument ?? string.Empty,
                     UseShellExecute = true
-                });
+                };
+                Process.Start(psi);
             }
             else
             {
@@ -443,6 +483,16 @@ public static class SettingsLauncher
     }
 }
 ```
+
+Khi người dùng bấm từ Context Menu:
+- Mục **"Bảng điều khiển & Cài đặt..."** → gọi `SettingsLauncher.LaunchSettingsGui()`.
+- Mục **"Thông tin BambooMintKey"** → gọi `SettingsLauncher.LaunchSettingsGui("--about")` → Cửa sổ `BambooMintKey.UI` mở lên và **tự động chọn Tab 4 (Thông tin)**.
+
+### Hình ảnh thực tế
+
+![Context Menu trên Taskbar](../../../screenshot/Taskbar_Quicklook.png)
+
+*Hình: Menu ngữ cảnh chuột phải của BambooMintKey trên Windows Taskbar với đầy đủ các mục Kiểu đặt dấu thanh, Kiểu gõ, Bảng mã, Tùy chọn thông minh, Cài đặt và Thông tin.*
 
 ---
 

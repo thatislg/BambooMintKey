@@ -121,7 +121,7 @@ Tương tự thiết kế `BambooMintKeyTextService`, đối tượng COM đư�
 
 ```
 +------------------------------------+ <--- Con trỏ _comInstance (trả về cho Windows)
-| IntPtr VTableButton                | ---> Trỏ tới ITfLangBarItemButtonVTable
+| IntPtr VTableButton                | ---> Trỏ tới TfLangBarItemButtonVTable
 +------------------------------------+ <--- Offset +sizeof(IntPtr) (khi QI IID_ITfSource)
 | IntPtr VTableSource                | ---> Trỏ tới TfSourceVTable
 +------------------------------------+
@@ -139,7 +139,7 @@ namespace BambooMintKey.NativeBridge.Interop
 {
     /// <summary>[WinSDK: struct TF_LANGBARITEMINFO]</summary>
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public unsafe struct TF_LANGBARITEMINFO
+    public unsafe struct TfLangbariteminfo
     {
         public Guid clsidService;
         public Guid guidItem;
@@ -150,7 +150,7 @@ namespace BambooMintKey.NativeBridge.Interop
 
     /// <summary>[WinSDK: struct POINT (8 bytes)]</summary>
     [StructLayout(LayoutKind.Sequential)]
-    public struct POINT
+    public struct Point
     {
         public int X;
         public int Y;
@@ -158,7 +158,7 @@ namespace BambooMintKey.NativeBridge.Interop
 
     /// <summary>[WinSDK: struct RECT]</summary>
     [StructLayout(LayoutKind.Sequential)]
-    public struct RECT
+    public struct Rect
     {
         public int Left;
         public int Top;
@@ -178,7 +178,7 @@ namespace BambooMintKey.NativeBridge.Interop
     /// VTable cho ITfLangBarItemButton (kế thừa ITfLangBarItem -> IUnknown).
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
-    public unsafe struct ITfLangBarItemButtonVTable
+    public unsafe struct TfLangBarItemButtonVTable
     {
         // --- IUnknown (Slot 0 - 2) ---
         /// <summary>[WinSDK: IUnknown::QueryInterface]</summary>
@@ -190,7 +190,7 @@ namespace BambooMintKey.NativeBridge.Interop
 
         // --- ITfLangBarItem (Slot 3 - 6) ---
         /// <summary>[WinSDK: ITfLangBarItem::GetInfo]</summary>
-        public delegate* unmanaged[Stdcall]<IntPtr, TF_LANGBARITEMINFO*, int> GetInfo;
+        public delegate* unmanaged[Stdcall]<IntPtr, TfLangbariteminfo*, int> GetInfo;
         /// <summary>[WinSDK: ITfLangBarItem::GetStatus]</summary>
         public delegate* unmanaged[Stdcall]<IntPtr, uint*, int> GetStatus;
         /// <summary>[WinSDK: ITfLangBarItem::Show]</summary>
@@ -200,7 +200,7 @@ namespace BambooMintKey.NativeBridge.Interop
 
         // --- ITfLangBarItemButton (Slot 7 - 11) ---
         /// <summary>[WinSDK: ITfLangBarItemButton::OnClick (Slot 7)]</summary>
-        public delegate* unmanaged[Stdcall]<IntPtr, uint, POINT, RECT*, int> OnClick;
+        public delegate* unmanaged[Stdcall]<IntPtr, uint, Point, Rect*, int> OnClick;
         /// <summary>[WinSDK: ITfLangBarItemButton::InitMenu (Slot 8)]</summary>
         public delegate* unmanaged[Stdcall]<IntPtr, IntPtr, int> InitMenu;
         /// <summary>[WinSDK: ITfLangBarItemButton::OnMenuSelect (Slot 9)]</summary>
@@ -236,7 +236,7 @@ namespace BambooMintKey.NativeBridge.Interop
     /// VTable cho ITfLangBarItemSink (do Windows triển khai, chúng ta gọi OnUpdate).
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
-    public unsafe struct ITfLangBarItemSinkVTable
+    public unsafe struct TfLangBarItemSinkVTable
     {
         // --- IUnknown (Slot 0 - 2) ---
         /// <summary>[WinSDK: IUnknown::QueryInterface]</summary>
@@ -255,7 +255,7 @@ namespace BambooMintKey.NativeBridge.Interop
     /// VTable cho ITfLangBarItemMgr (chuẩn xác 100% theo thứ tự 15 slot trong ctfutb.h).
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
-    public unsafe struct ITfLangBarItemMgrVTable
+    public unsafe struct TfLangBarItemMgrVTable
     {
         // --- IUnknown (Slot 0 - 2) ---
         /// <summary>[WinSDK: IUnknown::QueryInterface (Slot 0)]</summary>
@@ -279,13 +279,13 @@ namespace BambooMintKey.NativeBridge.Interop
         /// <summary>[WinSDK: ITfLangBarItemMgr::UnadviseItemSink (Slot 8)]</summary>
         public delegate* unmanaged[Stdcall]<IntPtr, uint, int> UnadviseItemSink;
         /// <summary>[WinSDK: ITfLangBarItemMgr::GetItemFloatingRect (Slot 9)]</summary>
-        public delegate* unmanaged[Stdcall]<IntPtr, uint, Guid*, RECT*, int> GetItemFloatingRect;
+        public delegate* unmanaged[Stdcall]<IntPtr, uint, Guid*, Rect*, int> GetItemFloatingRect;
         /// <summary>[WinSDK: ITfLangBarItemMgr::GetItemsStatus (Slot 10)]</summary>
         public delegate* unmanaged[Stdcall]<IntPtr, uint, Guid*, uint*, int> GetItemsStatus;
         /// <summary>[WinSDK: ITfLangBarItemMgr::GetItemNum (Slot 11)]</summary>
         public delegate* unmanaged[Stdcall]<IntPtr, uint*, int> GetItemNum;
         /// <summary>[WinSDK: ITfLangBarItemMgr::GetItems (Slot 12)]</summary>
-        public delegate* unmanaged[Stdcall]<IntPtr, uint, IntPtr*, TF_LANGBARITEMINFO*, uint*, uint*, int> GetItems;
+        public delegate* unmanaged[Stdcall]<IntPtr, uint, IntPtr*, TfLangbariteminfo*, uint*, uint*, int> GetItems;
         /// <summary>[WinSDK: ITfLangBarItemMgr::AdviseItemsSink (Slot 13)]</summary>
         public delegate* unmanaged[Stdcall]<IntPtr, uint, IntPtr*, Guid*, uint*, int> AdviseItemsSink;
         /// <summary>[WinSDK: ITfLangBarItemMgr::UnadviseItemsSink (Slot 14)]</summary>
@@ -311,14 +311,17 @@ namespace BambooMintKey.NativeBridge.TSF
 {
     public static unsafe class LangBarItemButton
     {
-        private static ITfLangBarItemButtonVTable* _buttonVTable;
+        private static TfLangBarItemButtonVTable* _buttonVTable;
         private static TfSourceVTable* _sourceVTable;
         private static IntPtr _comInstance;
 
         // Con trỏ tới ITfLangBarItemSink mà Windows cung cấp qua ITfSource::AdviseSink
-        private static IntPtr _pLangBarSink = IntPtr.Zero;
+        private static volatile IntPtr _pLangBarSink = IntPtr.Zero;
         private static uint _sinkCookie = 0;
         private static IntPtr _langBarMgr = IntPtr.Zero;
+        private static readonly Lock SinkLock = new();
+        private static IntPtr _pThreadMgr = IntPtr.Zero;
+        private static uint _clientId = 0;
 
         static LangBarItemButton()
         {
@@ -334,8 +337,8 @@ namespace BambooMintKey.NativeBridge.TSF
         private static void InitializeVTables()
         {
             // 1. VTable cho ITfLangBarItemButton
-            _buttonVTable = (ITfLangBarItemButtonVTable*)RuntimeHelpers.AllocateTypeAssociatedMemory(
-                typeof(LangBarItemButton), sizeof(ITfLangBarItemButtonVTable));
+            _buttonVTable = (TfLangBarItemButtonVTable*)RuntimeHelpers.AllocateTypeAssociatedMemory(
+                typeof(LangBarItemButton), sizeof(TfLangBarItemButtonVTable));
 
             _buttonVTable->QueryInterface = &QueryInterface;
             _buttonVTable->AddRef = &AddRef;
@@ -421,14 +424,14 @@ namespace BambooMintKey.NativeBridge.TSF
 
         /// <summary>[WinSDK: ITfLangBarItem::GetInfo] - Cung cấp thông tin cấu hình nút cho Windows.</summary>
         [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-        private static int GetInfo(IntPtr thisPtr, TF_LANGBARITEMINFO* pInfo)
+        private static int GetInfo(IntPtr thisPtr, TfLangbariteminfo* pInfo)
         {
             if (pInfo == null) return HResult.InvalidArgument;
 
             pInfo->clsidService = Guids.TextServiceClsid;
-            pInfo->guidItem = Guids.GuidLbiBambooMintKeyMode;
-            pInfo->dwStyle = TsfLangBarFlags.TfLbiStyleBtnButton |
-                             TsfLangBarFlags.TfLbiStyleBtnMenu |
+            pInfo->guidItem = Guids.GuidLbiInputMode;
+            // Dùng TfLbiStyleBtnToggle | TfLbiStyleShownInTray để Taskbar xử lý đảo trạng thái hai chiều tức thì
+            pInfo->dwStyle = TsfLangBarFlags.TfLbiStyleBtnToggle |
                              TsfLangBarFlags.TfLbiStyleShownInTray;
             pInfo->ulSort = 0;
 
@@ -475,13 +478,26 @@ namespace BambooMintKey.NativeBridge.TSF
 
         /// <summary>[WinSDK: ITfLangBarItemButton::OnClick] - Xử lý sự kiện click chuột từ người dùng.</summary>
         [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-        private static int OnClick(IntPtr thisPtr, uint click, POINT pt, RECT* prcArea)
+        private static int OnClick(IntPtr thisPtr, uint click, Point pt, Rect* prcArea)
         {
-            // SDK: TF_LBI_CLK_LEFT = 2 (Click chuột trái -> đảo chế độ gõ V/E)
-            if (click == TsfLangBarFlags.TfLbiClkLeft)
+            if (click == TsfLangBarFlags.TfLbiClkRight)
             {
-                BridgeStateManager.ToggleVietnameseMode();
+                // Click chuột phải: Mở Context Menu trực tiếp tại tọa độ chuột
+                ShowNativeContextMenu(pt);
+            }
+            else
+            {
+                // Click chuột trái: Đảo chế độ V/E tức thì
+                bool newMode = BridgeStateManager.ToggleVietnameseMode();
+
+                // 1. Gửi thông báo OnUpdate tới Sink để vẽ lại Icon ngay
                 NotifyStateChanged();
+
+                // 2. Đồng bộ lập tức tới TSF Input Mode Compartment của Windows 10/11 Shell
+                if (_pThreadMgr != IntPtr.Zero)
+                {
+                    TsfCompartmentHelper.SetConversionMode(_pThreadMgr, _clientId, newMode);
+                }
             }
             return HResult.Ok;
         }
@@ -507,8 +523,12 @@ namespace BambooMintKey.NativeBridge.TSF
         private static int GetIcon(IntPtr thisPtr, IntPtr* phIcon)
         {
             if (phIcon == null) return HResult.InvalidArgument;
-            // Trả về HICON động từ Win32 GDI (chi tiết tại 003_04_IconHelper_DynamicRendering.md)
-            *phIcon = IntPtr.Zero;
+
+            // Cung cấp bản sao HICON độc lập từ cache tĩnh qua IconHelper.GetBambooIconHandle
+            // Windows Taskbar Shell sẽ tự động gọi DestroyIcon sau khi vẽ.
+            string text = BridgeStateManager.IsVietnameseMode ? "V" : "E";
+            *phIcon = IconHelper.GetBambooIconHandle(text);
+
             return HResult.Ok;
         }
 
@@ -535,11 +555,28 @@ namespace BambooMintKey.NativeBridge.TSF
 
             if (*riid == Guids.IidITfLangBarItemSink)
             {
-                _pLangBarSink = punk;
-                NativeCom.AddRef(punk);
-                _sinkCookie = 1;
-                *pdwCookie = _sinkCookie;
-                return HResult.Ok;
+                Guid iidSink = Guids.IidITfLangBarItemSink;
+                IntPtr pSink = IntPtr.Zero;
+                var unk = *(TfSourceVTable**)punk;
+                int hrQi = unk->QueryInterface(punk, &iidSink, &pSink);
+
+                if (hrQi == HResult.Ok && pSink != IntPtr.Zero)
+                {
+                    lock (SinkLock)
+                    {
+                        if (_pLangBarSink != IntPtr.Zero)
+                        {
+                            NativeCom.Release(_pLangBarSink);
+                        }
+                        _pLangBarSink = pSink;
+                        _sinkCookie = 1;
+                        *pdwCookie = _sinkCookie;
+                    }
+                    return HResult.Ok;
+                }
+
+                *pdwCookie = 0;
+                return hrQi != HResult.Ok ? hrQi : HResult.NoInterface;
             }
 
             *pdwCookie = 0;
@@ -567,22 +604,53 @@ namespace BambooMintKey.NativeBridge.TSF
         /// <summary>
         /// Đăng ký nút Language Bar vào hệ thống thông qua ITfLangBarItemMgr.
         /// </summary>
-        public static void Register(IntPtr pThreadMgr)
+        public static void Register(IntPtr pThreadMgr, uint clientId = 0)
         {
-            if (pThreadMgr == IntPtr.Zero) return;
+            if (pThreadMgr == IntPtr.Zero)
+            {
+                DebugLog.Write("LangBarItemButton.Register: pThreadMgr is NULL");
+                return;
+            }
+
+            _pThreadMgr = pThreadMgr;
+            _clientId = clientId;
+
+            if (!_listenerStarted)
+            {
+                _listenerStarted = true;
+                StartEventListener();
+            }
 
             Guid iidMgr = Guids.IidITfLangBarItemMgr;
             IntPtr pMgr = IntPtr.Zero;
 
-            var unk = **(TfSourceVTable**)pThreadMgr;
-            if (unk.QueryInterface(pThreadMgr, &iidMgr, &pMgr) == HResult.Ok && pMgr != IntPtr.Zero)
+            var unk = *(TfSourceVTable**)pThreadMgr;
+            int hrQi = unk->QueryInterface(pThreadMgr, &iidMgr, &pMgr);
+            DebugLog.Write($"LangBarItemButton.Register QI ITfLangBarItemMgr hr=0x{hrQi:X8}, pMgr={pMgr}");
+
+            if (hrQi != HResult.Ok || pMgr == IntPtr.Zero)
+            {
+                // Fallback sang CoCreateInstance với CLSID_TF_LangBarItemMgr nếu pThreadMgr không hỗ trợ QI trực tiếp
+                Guid clsidMgr = Guids.ClsidTfLangBarItemMgr;
+                const uint clsctxInprocServer = 1;
+                hrQi = NativeCom.CoCreateInstance(&clsidMgr, IntPtr.Zero, clsctxInprocServer, &iidMgr, &pMgr);
+                DebugLog.Write($"LangBarItemButton.Register CoCreateInstance ITfLangBarItemMgr hr=0x{hrQi:X8}, pMgr={pMgr}");
+            }
+
+            if (pMgr != IntPtr.Zero)
             {
                 _langBarMgr = pMgr;
-                var mgrVTable = **(ITfLangBarItemMgrVTable**)_langBarMgr;
-                
+                var mgrVTable = *(TfLangBarItemMgrVTable**)_langBarMgr;
+
                 // [WinSDK: ITfLangBarItemMgr::AddItem]
                 // Windows sẽ tự gọi QI(ITfSource) -> AdviseSink trên _comInstance để trao Sink
-                mgrVTable.AddItem(_langBarMgr, _comInstance);
+                int hr = mgrVTable->AddItem(_langBarMgr, _comInstance);
+                DebugLog.Write($"LangBarItemButton.Register AddItem result=0x{hr:X8}");
+                NotifyStateChanged();
+            }
+            else
+            {
+                DebugLog.Write("LangBarItemButton.Register: Failed to obtain ITfLangBarItemMgr");
             }
         }
 
@@ -593,7 +661,7 @@ namespace BambooMintKey.NativeBridge.TSF
         {
             if (_langBarMgr != IntPtr.Zero)
             {
-                var mgrVTable = **(ITfLangBarItemMgrVTable**)_langBarMgr;
+                var mgrVTable = *(TfLangBarItemMgrVTable**)_langBarMgr;
                 // [WinSDK: ITfLangBarItemMgr::RemoveItem]
                 mgrVTable.RemoveItem(_langBarMgr, _comInstance);
 
@@ -615,14 +683,64 @@ namespace BambooMintKey.NativeBridge.TSF
         /// </summary>
         public static void NotifyStateChanged()
         {
-            if (_pLangBarSink != IntPtr.Zero)
+            IntPtr sink = _pLangBarSink;
+            if (sink != IntPtr.Zero)
             {
-                var sinkVTable = **(ITfLangBarItemSinkVTable**)_pLangBarSink;
+                var sinkVTable = *(TfLangBarItemSinkVTable**)sink;
                 // [WinSDK: ITfLangBarItemSink::OnUpdate]
-                sinkVTable.OnUpdate(
-                    _pLangBarSink,
+                sinkVTable->OnUpdate(
+                    sink,
                     TsfLangBarFlags.TfLbiIcon | TsfLangBarFlags.TfLbiText | TsfLangBarFlags.TfLbiTooltip);
             }
+        }
+
+        // =====================================================================
+        // Cross-Process State Listener
+        // =====================================================================
+
+        private static bool _listenerStarted = false;
+
+        private static void StartEventListener()
+        {
+            var thread = new Thread(() =>
+            {
+                IntPtr hEv = SharedMemoryManager.StateChangedEventHandle;
+                uint localSeq = SharedMemoryManager.StateSequence;
+                bool lastMode = BridgeStateManager.IsVietnameseMode;
+
+                while (true)
+                {
+                    // Chờ event Manual-Reset broadcast (timeout 250ms phòng trường hợp trễ)
+                    if (hEv != IntPtr.Zero)
+                    {
+                        uint wr = SharedMemoryManager.WaitForSingleObject(hEv, 250);
+                        if (wr != 0 /* WAIT_OBJECT_0 */ && wr != 258 /* WAIT_TIMEOUT */)
+                        {
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        Thread.Sleep(250);
+                    }
+
+                    // Kiểm tra StateSequence để phát hiện mọi thay đổi từ bất kỳ tiến trình nào
+                    uint currentSeq = SharedMemoryManager.StateSequence;
+                    bool currentMode = BridgeStateManager.IsVietnameseMode;
+
+                    if (currentSeq != localSeq || currentMode != lastMode)
+                    {
+                        localSeq = currentSeq;
+                        lastMode = currentMode;
+                        NotifyStateChanged();
+                    }
+                }
+            })
+            {
+                IsBackground = true,
+                Name = "BambooMintKey_StateEventListener"
+            };
+            thread.Start();
         }
     }
 }
@@ -658,10 +776,14 @@ private static int DeactivateImpl(IntPtr thisPtr)
     var target = GetTarget(thisPtr);
     if (!target._isActivated) return HResult.Ok;
 
-    // 1. Gỡ nút khỏi Language Bar Taskbar
-    LangBarItemButton.Unregister();
+    // Lưu ý: Không gọi LangBarItemButton.Unregister() ở đây vì Windows Shell
+    // tự quản lý hiển thị/ẩn icon theo trạng thái kích hoạt của TIP.
+    // Gỡ bỏ nút ở đây sẽ làm icon biến mất khi chuyển đổi tiêu điểm giữa các cửa sổ.
 
-    // ... (Các bước 2, 3, 4: Unadvise KeyEventSink, ThreadMgrSink, Terminate Composition)
+    // 1. Unadvise KeyEventSink & Unregister Preserved Keys
+    // 2. Unadvise ThreadMgrEventSink
+    // 3. Kết thúc composition và reset state
+    // 4. Giải phóng ITfThreadMgr
     return HResult.Ok;
 }
 ```
@@ -716,3 +838,12 @@ public static bool ToggleVietnameseMode()
    - Hover chuột: Tooltip hiển thị `"BambooMintKey: Tiếng Việt"`.
    - Click chuột trái: Nút lập tức chuyển sang chữ **E**, Tooltip chuyển thành `"BambooMintKey: English"`.
    - Nhấn phím tắt toggle (hoặc gõ thử phím): Xác nhận engine tuân thủ đúng trạng thái bật/tắt gõ tiếng Việt mà không gây crash `ctfmon.exe` hay `explorer.exe`.
+
+   ---
+
+   ## 7. Hình ảnh thực tế
+
+   | Ảnh | Mô tả |
+   | --- | --- |
+   | ![Icon V](../../../screenshot/TaskbarIcon_V.png) | Nút Taskbar hiển thị chữ **V** khi đang ở chế độ Tiếng Việt. |
+   | ![Icon E](../../../screenshot/TaskbarIcon_E.png) | Nút Taskbar chuyển sang chữ **E** khi chuyển sang Tiếng Anh. |

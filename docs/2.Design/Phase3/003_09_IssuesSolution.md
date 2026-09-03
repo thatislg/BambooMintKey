@@ -99,9 +99,13 @@ Giải pháp gồm 4 trụ cột kỹ thuật đồng bộ:
 | `2` | 1 byte | `byte` | `AutoRestoreEnglishWords` (1 = Bật, 0 = Tắt) |
 | `3` | 1 byte | `byte` | `AllowRepeatKeyUndo` (1 = Bật, 0 = Tắt) |
 | `4` | 1 byte | `byte` | `AllowLeadingWAsU` (1 = Bật, 0 = Tắt) |
-| `5 - 7` | 3 bytes | - | Reserved / Padding |
+| `5` | 1 byte | `byte` | `InputMethod` (0 = Telex, 1 = VNI, 2 = Simple Telex) |
+| `6` | 1 byte | `byte` | `Charset` (0 = Unicode dựng sẵn, 1 = Unicode tổ hợp, 2 = TCVN3) |
+| `7` | 1 byte | `byte` | `ToggleHotkey` (0 = Ctrl+Shift, 1 = Alt+Z, 2 = Ctrl+Space, 3 = None, 4 = Custom) |
 | `8 - 11` | 4 bytes | `uint` | **`StateSequence`**: Số đếm phiên bản trạng thái (tăng 1 mỗi lần có thay đổi) |
-| `12 - 63`| 52 bytes | - | Reserved cho cấu hình mở rộng tương lai |
+| `12 - 15` | 4 bytes | `uint32` | `HotkeyVKey`: Win32 Virtual Key code của phím tắt tùy chọn |
+| `16 - 19` | 4 bytes | `uint32` | `HotkeyModifiers`: Cờ bổ trợ TSF của phím tắt tùy chọn |
+| `20 - 63`| 44 bytes | - | Reserved cho cấu hình mở rộng tương lai |
 
 #### 3.1.2. Chuyển đổi sang Manual-Reset Event
 - Thay đổi tham số `bManualReset` trong `CreateEventW`:
@@ -243,14 +247,16 @@ Khi chế độ thay đổi, hàm `SetInputModeCompartment(IntPtr pThreadMgr, ui
 
 ## 4. Kế hoạch Triển khai (Implementation Steps)
 
+Tất cả các bước dưới đây **đã được triển khai và chạy ổn định** trong source code hiện tại:
+
 | Bước | Thành phần | File thực hiện | Nội dung chi tiết |
 |---|---|---|---|
-| **1** | Shared Memory | `src/.../Common/SharedMemoryManager.cs` | Thêm `StateSequence`, đổi sang Manual-Reset Event, thêm `Pulse/ResetEvent`. |
-| **2** | Icon Caching | `src/.../TSF/IconHelper.cs` | Thêm `CopyIcon` P/Invoke, tạo cache tĩnh `_cachedIconV`/`_cachedIconE`, tối ưu `CreateBambooIcon`. |
-| **3** | Compartment Sync | `src/.../TSF/TsfCompartmentHelper.cs` | Tạo helper quản lý `GUID_COMPARTMENT_KEYBOARD_INPUTMODE_CONVERSION`. |
-| **4** | Taskbar Button | `src/.../TSF/LangBarItemButton.cs` | Chuẩn hóa `AdviseSink`, cập nhật `StartEventListener` dựa theo `StateSequence`. |
-| **5** | Service Lifecycle | `src/.../TSF/BambooMintKeyTextService.cs` | Đồng bộ Compartment khi `ActivateEx`, kết nối `StateSequence`. |
-| **6** | Validation | `BambooMintKey.DevHarness` | Thêm kịch bản test chuyển đổi đa tiến trình giả lập, đo GDI handles và kiểm tra tính toàn vẹn. |
+| **1** | Shared Memory | `src/BambooMintKey.NativeBridge/Common/SharedMemoryManager.cs` | Thêm `StateSequence` (offset 8), `HotkeyVKey` (offset 12), `HotkeyModifiers` (offset 16), đổi sang Manual-Reset Event, thêm `SignalStateChanged` với `SetEvent` + `ResetEvent`. |
+| **2** | Icon Caching | `src/BambooMintKey.NativeBridge/TSF/IconHelper.cs` | Thêm `CopyIcon` P/Invoke, tạo cache tĩnh `_cachedIconV`/`_cachedIconE`, trả về bản sao `CopyIcon` trong `GetBambooIconHandle`. |
+| **3** | Compartment Sync | `src/BambooMintKey.NativeBridge/TSF/TsfCompartmentHelper.cs` | Tạo helper quản lý `GUID_COMPARTMENT_KEYBOARD_INPUTMODE_CONVERSION`, gọi `SetConversionMode` từ `OnClick`, `OnKeyDown`, `OnPreservedKey`, `ActivateEx` và `StateWatcher`. |
+| **4** | Taskbar Button | `src/BambooMintKey.NativeBridge/TSF/LangBarItemButton.cs` | Chuẩn hóa `AdviseSink` qua `QueryInterface(IID_ITfLangBarItemSink)`, cập nhật `StartEventListener` dựa theo `StateSequence`, dùng `dwStyle = TF_LBI_STYLE_BTN_TOGGLE \| TF_LBI_STYLE_SHOWNINTRAY`. |
+| **5** | Service Lifecycle | `src/BambooMintKey.NativeBridge/TSF/BambooMintKeyTextService.cs` | Đồng bộ Compartment khi `ActivateEx`, khởi động `StateWatcher`, **không gọi `LangBarItemButton.Unregister()` trong `Deactivate`** để tránh Zombie COM Instance. |
+| **6** | UI Integration | `src/BambooMintKey.UI/SharedConfig.fs`, `MainWindow.axaml(.fs)` | GUI ghi đồng thời `config.json` và Shared Memory, phát Event broadcast để mọi tiến trình NativeBridge đồng bộ. |
 
 ---
 
@@ -260,3 +266,13 @@ Khi chế độ thay đổi, hàm `SetInputModeCompartment(IntPtr pThreadMgr, ui
 2. **Không phụ thuộc vào tiến trình đầu tiên:** Mở Notepad 1 -> Mở Notepad 2 -> Đóng Notepad 1 -> Icon trên Taskbar vẫn hoạt động bình thường trên Notepad 2, không biến mất, không đơ.
 3. **Đồng bộ Phím tắt xuyên suốt:** Nhấn phím tắt toggle (`Ctrl + Shift` hoặc `Alt + Z`) ở bất kỳ ứng dụng nào (kể cả trong game, trình duyệt, terminal) thì icon Taskbar cũng đổi trạng thái theo ngay lập tức.
 4. **Không rò rỉ tài nguyên (Zero GDI Leak):** Số lượng GDI Objects của các tiến trình không tăng khi click liên tục 500 lần vào icon Taskbar.
+
+---
+
+## 6. Hình ảnh thực tế sau khi áp dụng giải pháp
+
+| Ảnh | Mô tả |
+| --- | --- |
+| ![Icon V](../../../screenshot/TaskbarIcon_V.png) | Icon chữ **V** đồng bộ tức thì khi ở chế độ Tiếng Việt. |
+| ![Icon E](../../../screenshot/TaskbarIcon_E.png) | Icon chuyển sang chữ **E** ngay khi click chuột hoặc phím tắt. |
+| ![Taskbar Quicklook](../../../screenshot/Taskbar_Quicklook.png) | Góc nhìn Taskbar và menu ngữ cảnh hoạt động ổn định sau khi áp dụng giải pháp đồng bộ. |

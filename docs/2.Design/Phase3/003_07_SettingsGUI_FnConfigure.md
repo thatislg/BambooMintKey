@@ -18,8 +18,9 @@
 
 ### 1.2. Chuẩn hóa COM Windows SDK
 Theo `msctf.idl` của Windows SDK:
-- Nút **Options** trong `Windows Settings -> Time & Language -> Language -> Preferred Languages -> [Tiếng Việt] -> Options -> BambooMintKey` yêu cầu triển khai `ITfFunctionProvider` và `ITfFnConfigure`.
-- Khi người dùng bấm nút Options (hoặc bấm "Bảng điều khiển & Cài đặt..." từ Context Menu Taskbar), Windows/NativeBridge sẽ gọi `ITfFnConfigure::Show()` để khởi chạy ứng dụng GUI.
+- Nút **Options** trong `Windows Settings -> Time & Language -> Language -> Preferred Languages -> [Tiếng Việt] -> Options -> BambooMintKey` theo chuẩn TSF yêu cầu triển khai `ITfFunctionProvider` và `ITfFnConfigure`.
+- **Trạng thái hiện tại:** phần COM `ITfFunctionProvider`/`ITfFnConfigure` **chưa được cài đặt** trong source. Thay vào đó, việc mở GUI cấu hình được thực hiện thông qua `SettingsLauncher.LaunchSettingsGui()` từ **Context Menu Taskbar** (mục *Bảng điều khiển & Cài đặt...* và *Thông tin BambooMintKey*). Tích hợp chuẩn `ITfFnConfigure` sẽ được bổ sung trong phiên bản sau để nút **Options** trong Windows Settings cũng mở được GUI.
+- Khi người dùng bấm "Bảng điều khiển & Cài đặt..." từ Context Menu Taskbar, `SettingsLauncher` khởi chạy `BambooMintKey.UI.exe` nằm cùng thư mục với DLL NativeBridge.
 
 | **Thành phần** | **File SDK gốc** | **GUID chuẩn xác** |
 |---|---|---|
@@ -31,24 +32,27 @@ Theo `msctf.idl` của Windows SDK:
 
 ## 2. Hệ Thống Thẩm Mỹ & Màu Sắc "Bamboo Mint" (Visual Identity)
 
-Giao diện cài đặt được thiết kế theo phong cách **Fluent Acrylic Glassmorphism** hiện đại trên nền tối sang trọng:
+Giao diện cài đặt được thiết kế theo phong cách **hiện đại, sáng và gọn gàng** (Light Mint Theme), tối ưu cho cả giao diện sáng mặc định của Windows:
 
 | Token | Mã Hex | Ứng dụng trong Giao diện Cài đặt |
 |---|---|---|
-| **Bamboo Primary** | `#16a34a` (Xanh tre) | Nút bấm chính (Save/Apply), tiêu đề tab đang chọn, header badge |
-| **Mint Accent** | `#22c55e` (Xanh bạc hà) | Toggle switch khi bật (ON), viền focus, chấm radio active |
-| **Mint Glow** | `#4ade80` (Xanh Mint neon) | Hiệu ứng phát sáng nhẹ quanh ô gõ thử nghiệm (Live Sandbox) |
-| **Deep Forest Dark** | `#111613` (Đen ánh rêu) | Màu nền cửa sổ chính bán trong suốt (Acrylic Window) |
-| **Card Surface** | `#18221c` (Thẻ Acrylic) | Màu nền các khối nhóm cài đặt (Container Cards) |
-| **Card Border** | `#22c55e20` (Viền xanh mờ 12%) | Đường viền phân cách bo góc 8px - 12px tinh tế |
-| **Text Bright** | `#f8fafc` (Trắng sáng) | Tiêu đề và nhãn chữ chính |
-| **Text Muted** | `#94a3b8` (Xám bạc) | Chú thích hướng dẫn, phiên bản, thông tin phụ |
+| **Bamboo Primary** | `#16a34a` (Xanh tre) | Nút bấm chính (Áp dụng & Đóng), tiêu đề tab đang chọn, header badge, viền ô gõ thử |
+| **Bamboo Primary Hover** | `#15803d` (Xanh tre đậm) | Trạng thái pointerover của nút chính |
+| **Mint Glow** | `#16a34a15` / `#16a34a40` (Xanh mint nhạt) | Badge header, viền focus, hiệu ứng nổi bật nhẹ |
+| **Window Background** | `#f8fafc` (Xám trắng) | Màu nền cửa sổ chính |
+| **Card Surface** | `#ffffff` (Trắng) | Màu nền các khối nhóm cài đặt (Container Cards) |
+| **Card Border** | `#e2e8f0` (Xám nhạt) | Đường viền phân cách bo góc 8px tinh tế |
+| **Text Bright** | `#0f172a` (Xanh đen đậm) | Tiêu đề và nhãn chữ chính |
+| **Text Muted** | `#64748b` (Xám slate) | Chú thích hướng dẫn, phiên bản, thông tin phụ |
+| **Text Accent** | `#334155` (Xám đậm) | Nội dung phụ trung bình |
+
+> **Lưu ý:** Thiết kế giao diện hiện tại sử dụng nền sáng (`#f8fafc`) và các card trắng (`#ffffff`), khác với một số bản nháp thiết kế ban đầu đề xuất nền tối Acrylic. Màu sắc này phản ánh đúng file XAML trong `src/BambooMintKey.UI/MainWindow.axaml`.
 
 ---
 
 ## 3. Cấu Trúc Bố Cục Giao Diện (`BambooMintKey.UI`)
 
-Cửa sổ có kích thước tiêu chuẩn `520 x 480` pixel, căn giữa màn hình (`CenterScreen`), không cho phép resize méo giao diện, gồm thanh tiêu đề thương hiệu và **4 Tab chức năng**:
+Cửa sổ có kích thước **`580 x 540`** pixel, căn giữa màn hình (`CenterScreen`), không cho phép resize méo giao diện, gồm thanh tiêu đề thương hiệu và **4 Tab chức năng**:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -66,15 +70,14 @@ Cửa sổ có kích thước tiêu chuẩn `520 x 480` pixel, căn giữa màn 
 │  │   [ Unicode dựng sẵn (Mặc định)                     ▼ ]          │  │
 │  ├──────────────────────────────────────────────────────────────────┤  │
 │  │ ⚡ Phím tắt chuyển đổi Việt / Anh:                                │  │
-│  │   [ Ctrl + Shift (Mặc định)                         ▼ ]          │  │
-│  │   (Tùy chọn: Ctrl+Shift, Alt+Z, Ctrl+Space, Không sử dụng)        │  │
+│  │   [ Ctrl + Shift                          ]  [Gán phím] [Gỡ]     │  │
+│  │   Chọn nhanh: [Ctrl+Shift] [Alt+Z] [Ctrl+Space] [Ctrl+~]           │  │
 │  ├──────────────────────────────────────────────────────────────────┤  │
 │  │ 🚀 Hệ thống:                                                     │  │
 │  │   [✓] Khởi động cùng Windows                                     │  │
-│  │   [✓] Bật âm thanh click nhẹ khi chuyển đổi (Tùy chọn)           │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
 │                                                                        │
-│                                     [ Mặc định ]  [ Áp dụng ]  [ Đóng ]│
+│                                     [ Mặc định ]  [ Áp dụng & Đóng ]   │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -90,10 +93,11 @@ Cửa sổ có kích thước tiêu chuẩn `520 x 480` pixel, căn giữa màn 
   - `Unicode tổ hợp` (Decomposed)
   - `TCVN3 (ABC)` (Phục vụ văn phòng legacy)
 - **Phím tắt chuyển đổi chế độ gõ (Toggle Hotkey):**
-  - `Ctrl + Shift` (Phổ biến nhất tại Việt Nam)
-  - `Alt + Z` (Tránh xung đột phím tắt đồ họa Adobe/Figma)
-  - `Ctrl + Space` (Chuẩn macOS/Linux)
-  - `Không sử dụng` (Chỉ chuyển đổi bằng click chuột trên Taskbar)
+  - Khung hiển thị phím tắt hiện tại (ví dụ `Ctrl + Shift`) chỉ đọc.
+  - Nút **⌨ Bấm để gán phím** cho phép người dùng nhấn tổ hợp phím bất kỳ trên bàn phím để gán.
+  - Nút **✕ Gỡ phím** để tắt phím tắt.
+  - Các chip chọn nhanh: `Ctrl + Shift`, `Alt + Z`, `Ctrl + Space`, `Ctrl + ~`.
+  - Khi gán phím, giá trị `hotkeyVKey` và `hotkeyModifiers` được lưu vào `config.json` và Shared Memory; NativeBridge tự động cập nhật Preserved Key trong TSF.
 - **Khởi động cùng Windows:** Ghi vào Registry `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
 
 #### Tab 2: Tùy chọn gõ (Typing Options)
@@ -121,8 +125,7 @@ Cửa sổ có kích thước tiêu chuẩn `520 x 480` pixel, căn giữa màn 
   - **Tác giả:** Dương Gia Long & LMO contributors.
   - **Bản quyền:** Mã nguồn mở theo giấy phép MIT License.
   - **Các nút tương tác nội bộ:**
-    - `[ 🌐 Trang chủ Dự án ]`: Mở liên kết trình duyệt tới repo GitHub.
-    - `[ 📖 Hướng dẫn Sử dụng ]`: Mở tài liệu hướng dẫn gõ Telex & phím tắt.
+    - `[ 🌐 Trang chủ GitHub ]`: Mở liên kết trình duyệt tới repo GitHub.
     - `[ 🔄 Kiểm tra Cập nhật ]`: Kiểm tra phiên bản mới từ GitHub Releases.
 
 ---
@@ -204,12 +207,17 @@ public static class SettingsLauncher
     {
         try
         {
-            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            string uiPath = Path.Combine(baseDir, "BambooMintKey.UI.exe");
+            // Ưu tiên tìm UI.exe cùng thư mục với DLL NativeBridge đang chạy
+            string dllPath = NativeMethods.GetCurrentDllPath();
+            string dir = !string.IsNullOrEmpty(dllPath)
+                ? Path.GetDirectoryName(dllPath)!
+                : AppDomain.CurrentDomain.BaseDirectory;
+            string uiPath = Path.Combine(dir, "BambooMintKey.UI.exe");
 
             if (!File.Exists(uiPath))
             {
-                uiPath = Path.Combine(baseDir, "..", "..", "publish", "win-x64", "BambooMintKey.UI.exe");
+                // Fallback khi chạy trong môi trường dev chưa publish
+                uiPath = @"D:\Kojin\BambooMintKey\publish\win-x64\BambooMintKey.UI.exe";
             }
 
             if (File.Exists(uiPath))
@@ -255,3 +263,17 @@ Khi người dùng bấm từ Context Menu:
    - Chọn mục bất kỳ $\rightarrow$ Dấu radio `(•)` di chuyển tương ứng và cấu hình được lưu lại vào hệ thống.
 5. **Kiểm tra Live Typing Sandbox:**
    - Chuyển sang Tab *Gõ thử nghiệm* $\rightarrow$ Gõ trực tiếp câu `"Tiếng Việt mượt mà cùng BambooMintKey"` trong ô test để nghiệm thu.
+
+---
+
+## 8. Hình ảnh thực tế trên GUI
+
+Các ảnh chụp màn hình từ giao diện `BambooMintKey.UI.exe` nằm trong thư mục `BambooMintKey/screenshot/`:
+
+| Ảnh | Mô tả |
+| --- | --- |
+| ![Cài đặt chung](../../../screenshot/OptionSettings.png) | Giao diện tổng thể cửa sổ **Bảng Điều Khiển Cài Đặt** với 4 tab. |
+| ![Bàn phím & Phím tắt](../../../screenshot/ShortcutKey_InputMethod.png) | Tab **Bàn phím & Phím tắt** với kiểu gõ, bảng mã và khung ghi nhận phím tắt tùy chọn. |
+| ![Thông tin](../../../screenshot/Information.png) | Tab **Thông tin** hiển thị logo 🎍, phiên bản, tác giả và bản quyền MIT. |
+
+Nếu ảnh không hiển thị trực tiếp, có thể mở các file `*.png` trong thư mục `BambooMintKey/screenshot/`.

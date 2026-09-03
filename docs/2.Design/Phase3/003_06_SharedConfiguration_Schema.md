@@ -31,9 +31,9 @@ Cấu trúc tệp cấu hình thực tế được phiên bản hóa qua trườ
   "version": 2,
   "inputMethod": 0,
   "charset": 0,
-  "toggleHotkey": 4,
-  "hotkeyVKey": 81,
-  "hotkeyModifiers": 6,
+  "toggleHotkey": 0,
+  "hotkeyVKey": 16,
+  "hotkeyModifiers": 514,
   "toneStyle": 0,
   "autoRestoreEnglishWords": true,
   "allowRepeatKeyUndo": true,
@@ -56,8 +56,8 @@ Cấu trúc tệp cấu hình thực tế được phiên bản hóa qua trườ
 | `inputMethod` | `byte (int)` | `0` | **Kiểu gõ:**<br>• `0`: Telex (Mặc định)<br>• `1`: VNI<br>• `2`: Simple Telex |
 | `charset` | `byte (int)` | `0` | **Bảng mã ký tự đầu ra:**<br>• `0`: Unicode dựng sẵn (NFC)<br>• `1`: Unicode tổ hợp (NFD)<br>• `2`: TCVN3 (ABC tiêu chuẩn cũ) |
 | `toggleHotkey` | `byte (int)` | `0` | **Preset phím tắt nhanh:**<br>• `0`: `Ctrl + Shift`<br>• `1`: `Alt + Z`<br>• `2`: `Ctrl + Space`<br>• `3`: Không dùng<br>• `4`: Phím tùy biến tự do (Custom) |
-| `hotkeyVKey` | `uint32` | `81` *(0x51)* | **Win32 Virtual Key code** của phím chính (ví dụ: `81` = Phím `Q`, `90` = Phím `Z`, `32` = Phím `Space`, `16` = Phím `Shift`). |
-| `hotkeyModifiers` | `uint32` | `6` *(0x0006)* | **Mã cờ bổ trợ TSF (`TsfModFlags`):**<br>• `0x0001`: Alt<br>• `0x0002`: Control<br>• `0x0004`: Shift<br>• `0x0200`: OnKeyUp (dành cho tổ hợp thuần modifier như Ctrl+Shift)<br>*(Ví dụ: `6` = `0x0002 \| 0x0004` $\rightarrow$ `Ctrl + Shift`)* |
+| `hotkeyVKey` | `uint32` | `16` *(0x10)* | **Win32 Virtual Key code** của phím chính (ví dụ: `16` = Phím `Shift`, `81` = Phím `Q`, `90` = Phím `Z`, `32` = Phím `Space`). |
+| `hotkeyModifiers` | `uint32` | `514` *(0x0202)* | **Mã cờ bổ trợ TSF (`TsfModFlags`):**<br>• `0x0001`: Alt<br>• `0x0002`: Control<br>• `0x0004`: Shift<br>• `0x0200`: OnKeyUp (dành cho tổ hợp thuần modifier như Ctrl+Shift)<br>*(Ví dụ: `514` = `0x0202` → `Control \| OnKeyUp` cho `Ctrl + Shift`)* |
 | `toneStyle` | `byte (int)` | `0` | **Quy tắc đặt dấu thanh tiếng Việt:**<br>• `0`: Chuẩn mới / Hiện đại (`òa, úy`)<br>• `1`: Chuẩn cũ / Truyền thống (`oà, uý`) |
 | `autoRestoreEnglishWords` | `bool` | `true` | Tự động trả lại từ tiếng Anh nguyên bản khi phát hiện từ gõ sai quy tắc chính tả tiếng Việt. |
 | `allowRepeatKeyUndo` | `bool` | `true` | Cho phép gõ lại chính phím dấu vừa gõ để hủy dấu (Undo) (ví dụ: `as` $\rightarrow$ `á`, `ass` $\rightarrow$ `as`). |
@@ -126,7 +126,7 @@ Tài liệu thiết kế sơ khai trước đây từng đề xuất dùng `File
 
 ---
 
-## 5. Đặc tả Mở rộng cho Phase 4 (Bảng Gõ Tắt / Macro Expansion)
+## 6. Đặc tả Mở rộng cho Phase 4 (Bảng Gõ Tắt / Macro Expansion)
 
 Cấu trúc `macros` trong `config.json` được bảo toàn và định nghĩa sẵn sàng cho Phase 4:
 
@@ -148,7 +148,7 @@ Cấu trúc `macros` trong `config.json` được bảo toàn và định nghĩa
 
 ---
 
-## 6. Quy trình Kiểm thử & Nghiệm thu (Verification Checklist)
+## 7. Quy trình Kiểm thử & Nghiệm thu (Verification Checklist)
 
 | STT | Kịch bản kiểm thử | Hành động thực hiện | Kết quả kỳ vọng đạt chuẩn |
 | :--- | :--- | :--- | :--- |
@@ -157,3 +157,14 @@ Cấu trúc `macros` trong `config.json` được bảo toàn và định nghĩa
 | **3** | **Chống bắt nhầm phím** | Khi đang cài `Ctrl + Shift + Q`, thử bấm riêng `Ctrl + Shift`. | Bộ gõ **không** được đổi chế độ. Chỉ đổi khi phím `Q` được nhấn cùng với `Ctrl` và `Shift`. |
 | **4** | **Lưu bền vững sau Reboot** | Đổi thiết lập dấu thanh truyền thống, khởi động lại `ctfmon`. | Bộ gõ tự động nạp lại đúng chuẩn dấu truyền thống từ file `config.json` mà không bị reset về mặc định. |
 | **5** | **Khả năng chịu lỗi (Fault-Tolerance)** | Sửa file `config.json` thành file rỗng hoặc gõ lỗi cú pháp JSON. | Bộ gõ tự động fallback về cấu hình an toàn mặc định (Telex, Unicode dựng sẵn), không phát sinh lỗi unhandled crash. |
+
+---
+
+## 8. Hình ảnh thực tế của GUI Cấu hình
+
+Cấu hình trong `config.json` và Shared Memory được quản lý trực quan qua giao diện `BambooMintKey.UI.exe`:
+
+| Ảnh | Mô tả |
+| --- | --- |
+| ![Cài đặt chung](../../../screenshot/OptionSettings.png) | Giao diện **Bảng Điều Khiển Cài Đặt** với 4 tab, nơi người dùng thay đổi mọi thiết lập và khi bấm **Áp dụng & Đóng** sẽ ghi đồng thời vào `config.json` và Shared Memory. |
+| ![Bàn phím & Phím tắt](../../../screenshot/ShortcutKey_InputMethod.png) | Tab quản lý kiểu gõ, bảng mã và phím tắt tùy chọn, phản ánh trực tiếp các trường `inputMethod`, `charset`, `hotkeyVKey`, `hotkeyModifiers`. |

@@ -97,22 +97,22 @@ public static class IconHelper
     // =========================================================================
 
     /// <summary>Nền xanh lá Bamboo (#16a34a -> RGB 22, 163, 74 -> BGR 0x004AA316).</summary>
-    public const uint ColorBackground = 0x004AA316;
+    private const uint ColorBackground = 0x004AA316;
 
     /// <summary>Viền xanh mint nhạt (#86efac -> RGB 134, 239, 172 -> BGR 0x00ACEF86).</summary>
-    public const uint ColorBorder = 0x00ACEF86;
+    private const uint ColorBorder = 0x00ACEF86;
 
     /// <summary>Chữ trắng ngà (#fbf8f9 -> RGB 251, 248, 249 -> BGR 0x00F9F8FB).</summary>
-    public const uint ColorText = 0x00F9F8FB;
+    private const uint ColorText = 0x00F9F8FB;
 
     /// <summary>Đếm số lần tạo HICON để debug leak / race condition.</summary>
-    public static long CreationCount = 0;
+    public static long CreationCount;
 
     /// <summary>Số lần tạo HICON thất bại (trả về NULL).</summary>
-    public static long FailureCount = 0;
+    private static long _failureCount;
 
     /// <summary>Lỗi Win32 lần thất bại gần nhất.</summary>
-    public static int LastWin32Error = 0;
+    public static int LastWin32Error;
 
     // =========================================================================
     // Win32 GDI & User32 P/Invoke
@@ -187,9 +187,9 @@ public static class IconHelper
 
     private static IntPtr _cachedIconV = IntPtr.Zero;
     private static IntPtr _cachedIconE = IntPtr.Zero;
-    private static int _cachedWidth = 0;
-    private static int _cachedHeight = 0;
-    private static readonly object _cacheLock = new();
+    private static int _cachedWidth;
+    private static int _cachedHeight;
+    private static readonly Lock CacheLock = new();
 
     [StructLayout(LayoutKind.Sequential)]
     private struct ICONINFO
@@ -220,7 +220,7 @@ public static class IconHelper
     public static IntPtr GetBambooIconHandle(string text)
     {
         var (w, h) = GetTrayIconMetrics();
-        lock (_cacheLock)
+        lock (CacheLock)
         {
             if (_cachedIconV == IntPtr.Zero || _cachedIconE == IntPtr.Zero || _cachedWidth != w || _cachedHeight != h)
             {
@@ -998,9 +998,13 @@ Mã nguồn tại [`src/BambooMintKey.NativeBridge/Common/SharedMemoryManager.cs
 | `2` | 1 byte | `byte` | `AutoRestoreEnglishWords` |
 | `3` | 1 byte | `byte` | `AllowRepeatKeyUndo` |
 | `4` | 1 byte | `byte` | `AllowLeadingWAsU` |
-| `5 - 7` | 3 bytes | - | Reserved / Padding |
+| `5` | 1 byte | `byte` | `InputMethod` (0 = Telex, 1 = VNI, 2 = Simple Telex) |
+| `6` | 1 byte | `byte` | `Charset` (0 = Unicode dựng sẵn, 1 = Unicode tổ hợp, 2 = TCVN3) |
+| `7` | 1 byte | `byte` | `ToggleHotkey` (0 = Ctrl+Shift, 1 = Alt+Z, 2 = Ctrl+Space, 3 = None, 4 = Custom) |
 | `8 - 11` | 4 bytes | `uint` | `StateSequence`: Số đếm phiên bản trạng thái |
-| `12 - 63` | 52 bytes | - | Reserved cho cấu hình mở rộng |
+| `12 - 15` | 4 bytes | `uint32` | `HotkeyVKey`: Win32 Virtual Key code của phím tắt tùy chọn |
+| `16 - 19` | 4 bytes | `uint32` | `HotkeyModifiers`: Cờ bổ trợ TSF của phím tắt tùy chọn |
+| `20 - 63` | 44 bytes | - | Reserved cho cấu hình mở rộng |
 
 ### 6.2. Khởi tạo Manual-Reset Event & StateSequence
 
@@ -1205,4 +1209,16 @@ Shell của Windows (Taskbar Explorer) là bên gọi (`caller`). Sau khi nhận
 | **6. Phím tắt Toggle** | Bấm `Ctrl + Shift + Q` hoặc `Alt + Z` | Icon trên Taskbar tự động đổi giữa **V** ↔ **E**. Chế độ gõ tiếng Việt tắt/bật đồng bộ. |
 | **7. Đồng bộ Xuyên tiến trình** | Mở Notepad 1 → Mở Notepad 2 → Đóng Notepad 1 → Đổi mode trên Notepad 2 | Icon Taskbar vẫn đồng bộ, không biến mất, không đơ. |
 | **8. GDI Leak Check** | Dùng Task Manager (cột GDI Objects) click toggle 500 lần | Số lượng GDI Objects của tiến trình không tăng lũy tiến (đạt tiêu chuẩn 0 GDI Leak nhờ CopyIcon + cache). |
-| **9. Sandbox AppContainer** | Gõ trong Chrome/Edge/VS Code (Electron) | Trạng thái V/E đồng bộ với Taskbar, không bị Access Denied dẫn đến lệch pha. |
+---
+
+## 9. Hình ảnh thực tế trên Taskbar
+
+Các ảnh chụp màn hình minh họa icon BambooMintKey trên Windows Taskbar nằm trong thư mục `BambooMintKey/screenshot/`:
+
+| Ảnh | Mô tả |
+| --- | --- |
+| ![Icon V](../../../screenshot/TaskbarIcon_V.png) | Icon chữ **V** khi đang ở chế độ Tiếng Việt (nền xanh lá `#16a34a`, chữ trắng ngà). |
+| ![Icon E](../../../screenshot/TaskbarIcon_E.png) | Icon chữ **E** khi đang ở chế độ Tiếng Anh (cùng bảng màu Bamboo Mint). |
+| ![Taskbar Quicklook](../../../screenshot/Taskbar_Quicklook.png) | Góc nhìn tổng thể icon trên Taskbar cùng menu ngữ cảnh. |
+
+Nếu ảnh không hiển thị trực tiếp, có thể mở các file `*.png` trong thư mục `BambooMintKey/screenshot/`.
