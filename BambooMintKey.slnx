@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <File Path="src/media/bamboo_mint_key_ico.svg" />
     <Project Path="src/BambooMintKey.Core/BambooMintKey.Core.fsproj" />
     <Project Path="src/BambooMintKey.DevHarness/BambooMintKey.DevHarness.csproj" />
     <Project Path="src/BambooMintKey.NativeBridge/BambooMintKey.NativeBridge.csproj" />
