@@ -1,9 +1,7 @@
 // BambooMintKey - Vietnamese Telex Input Method Editor for Windows
 // Copyright (c) 2026 Dương Gia Long and LMO contributors
 // SPDX-License-Identifier: MIT
-using System;
 using System.Diagnostics;
-using System.IO;
 using BambooMintKey.NativeBridge.Interop;
 
 namespace BambooMintKey.NativeBridge.TSF;

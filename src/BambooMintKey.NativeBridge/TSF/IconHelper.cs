@@ -1,7 +1,6 @@
 // BambooMintKey - Vietnamese Telex Input Method Editor for Windows
 // Copyright (c) 2026 Dương Gia Long and LMO contributors
 // SPDX-License-Identifier: MIT
-using System;
 using System.Runtime.InteropServices;
 using System.Text;
 using BambooMintKey.NativeBridge.Interop;
@@ -44,22 +43,22 @@ public static class IconHelper
     // =========================================================================
 
     /// <summary>Nền xanh lá Bamboo (#16a34a -> RGB 22, 163, 74 -> BGR 0x004AA316).</summary>
-    public const uint ColorBackground = 0x004AA316;
+    private const uint ColorBackground = 0x004AA316;
 
     /// <summary>Viền xanh mint nhạt (#86efac -> RGB 134, 239, 172 -> BGR 0x00ACEF86).</summary>
-    public const uint ColorBorder = 0x00ACEF86;
+    private const uint ColorBorder = 0x00ACEF86;
 
     /// <summary>Chữ trắng ngà (#fbf8f9 -> RGB 251, 248, 249 -> BGR 0x00F9F8FB).</summary>
-    public const uint ColorText = 0x00F9F8FB;
+    private const uint ColorText = 0x00F9F8FB;
 
     /// <summary>Đếm số lần tạo HICON để debug leak / race condition.</summary>
-    public static long CreationCount = 0;
+    public static long CreationCount;
 
     /// <summary>Số lần tạo HICON thất bại (trả về NULL).</summary>
-    public static long FailureCount = 0;
+    private static long _failureCount ;
 
     /// <summary>Lỗi Win32 lần thất bại gần nhất.</summary>
-    public static int LastWin32Error = 0;
+    public static int LastWin32Error;
 
     // =========================================================================
     // Win32 GDI & User32 P/Invoke
@@ -78,7 +77,7 @@ public static class IconHelper
     private static extern IntPtr GetDC(IntPtr hWnd);
 
     [DllImport("user32.dll", ExactSpelling = true)]
-    private static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+    private static extern int ReleaseDC(IntPtr hWnd, IntPtr hDc);
 
     [DllImport("gdi32.dll", ExactSpelling = true)]
     private static extern IntPtr CreateCompatibleDC(IntPtr hdc);
@@ -121,25 +120,25 @@ public static class IconHelper
         uint fdwPitchAndFamily, string lpszFace);
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern int DrawTextW(IntPtr hDC, string lpchText, int nCount, ref RECT lpRect, uint uFormat);
+    private static extern int DrawTextW(IntPtr hDc, string lpchText, int nCount, ref Rect lpRect, uint uFormat);
 
     [DllImport("user32.dll", ExactSpelling = true, SetLastError = true)]
-    private static extern IntPtr CreateIconIndirect(ref ICONINFO piconinfo);
+    private static extern IntPtr CreateIconIndirect(ref Iconinfo piconinfo);
 
     [DllImport("user32.dll", ExactSpelling = true, SetLastError = true)]
     public static extern bool DestroyIcon(IntPtr hIcon);
 
     [DllImport("user32.dll", ExactSpelling = true, SetLastError = true)]
-    public static extern IntPtr CopyIcon(IntPtr hIcon);
+    private static extern IntPtr CopyIcon(IntPtr hIcon);
 
     private static IntPtr _cachedIconV = IntPtr.Zero;
     private static IntPtr _cachedIconE = IntPtr.Zero;
-    private static int _cachedWidth = 0;
-    private static int _cachedHeight = 0;
-    private static readonly object _cacheLock = new();
+    private static int _cachedWidth;
+    private static int _cachedHeight;
+    private static readonly Lock CacheLock = new();
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct ICONINFO
+    private struct Iconinfo
     {
         public bool fIcon;
         public int xHotspot;
@@ -167,7 +166,7 @@ public static class IconHelper
     public static IntPtr GetBambooIconHandle(string text)
     {
         var (w, h) = GetTrayIconMetrics();
-        lock (_cacheLock)
+        lock (CacheLock)
         {
             if (_cachedIconV == IntPtr.Zero || _cachedIconE == IntPtr.Zero || _cachedWidth != w || _cachedHeight != h)
             {
@@ -203,7 +202,7 @@ public static class IconHelper
     /// <returns>IntPtr trỏ tới HICON hợp lệ (cần được giải phóng bằng DestroyIcon khi tắt app)</returns>
     public static IntPtr CreateBambooIcon(string text, int width = 0, int height = 0)
     {
-        long seq = System.Threading.Interlocked.Increment(ref CreationCount);
+        long seq = Interlocked.Increment(ref CreationCount);
         var sb = new StringBuilder();
         sb.AppendLine($"[ICON {seq}] CreateBambooIcon ENTER text='{text}', requested={width}x{height}");
 
@@ -217,26 +216,26 @@ public static class IconHelper
         int cornerRadius = Math.Max(4, width / 4);
         sb.AppendLine($"[ICON {seq}] Will draw at {width}x{height}, cornerRadius={cornerRadius}");
 
-        IntPtr hScreenDC = GetDC(IntPtr.Zero);
-        sb.AppendLine($"[ICON {seq}] GetDC(0)={hScreenDC}");
+        IntPtr hScreenDc = GetDC(IntPtr.Zero);
+        sb.AppendLine($"[ICON {seq}] GetDC(0)={hScreenDc}");
 
         // ---------------------------------------------------------------------
         // 1. Tạo Color Bitmap (Nền xanh lá #16a34a, viền mint #86efac, chữ trắng)
         // ---------------------------------------------------------------------
-        IntPtr hColorDC = CreateCompatibleDC(hScreenDC);
-        IntPtr hColorBmp = CreateCompatibleBitmap(hScreenDC, width, height);
-        IntPtr hOldColorBmp = SelectObject(hColorDC, hColorBmp);
-        sb.AppendLine($"[ICON {seq}] Color DC={hColorDC}, BMP={hColorBmp}, OldBMP={hOldColorBmp}");
+        IntPtr hColorDc = CreateCompatibleDC(hScreenDc);
+        IntPtr hColorBmp = CreateCompatibleBitmap(hScreenDc, width, height);
+        IntPtr hOldColorBmp = SelectObject(hColorDc, hColorBmp);
+        sb.AppendLine($"[ICON {seq}] Color DC={hColorDc}, BMP={hColorBmp}, OldBMP={hOldColorBmp}");
 
         // Tạo Brush nền xanh và Pen viền mint
         IntPtr hBrushBg = CreateSolidBrush(ColorBackground);
         IntPtr hPenBorder = CreatePen(0 /* PS_SOLID */, 1, ColorBorder);
-        IntPtr hOldBrush = SelectObject(hColorDC, hBrushBg);
-        IntPtr hOldPen = SelectObject(hColorDC, hPenBorder);
+        IntPtr hOldBrush = SelectObject(hColorDc, hBrushBg);
+        IntPtr hOldPen = SelectObject(hColorDc, hPenBorder);
         sb.AppendLine($"[ICON {seq}] BrushBg={hBrushBg}, PenBorder={hPenBorder}, OldBrush={hOldBrush}, OldPen={hOldPen}");
 
         // Vẽ hình chữ nhật bo góc
-        RoundRect(hColorDC, 0, 0, width, height, cornerRadius, cornerRadius);
+        RoundRect(hColorDc, 0, 0, width, height, cornerRadius, cornerRadius);
 
         // Tạo font chữ nét đậm Segoe UI
         int fontHeight = -((height * 7) / 10);
@@ -245,42 +244,42 @@ public static class IconHelper
             0, 0, 0, 1 /* DEFAULT_CHARSET */,
             0, 0, 5 /* CLEARTYPE_QUALITY */,
             0, "Segoe UI");
-        IntPtr hOldFont = SelectObject(hColorDC, hFont);
+        IntPtr hOldFont = SelectObject(hColorDc, hFont);
         sb.AppendLine($"[ICON {seq}] Font={hFont}, OldFont={hOldFont}, fontHeight={fontHeight}");
 
-        SetBkMode(hColorDC, BkModeTransparent);
-        SetTextColor(hColorDC, ColorText);
+        SetBkMode(hColorDc, BkModeTransparent);
+        SetTextColor(hColorDc, ColorText);
 
-        RECT textRect = new() { Left = 0, Top = 0, Right = width, Bottom = height };
-        DrawTextW(hColorDC, text, text.Length, ref textRect, DtCenter | DtVcenter | DtSingleline);
+        Rect textRect = new() { Left = 0, Top = 0, Right = width, Bottom = height };
+        DrawTextW(hColorDc, text, text.Length, ref textRect, DtCenter | DtVcenter | DtSingleline);
 
         // ---------------------------------------------------------------------
         // 2. Tạo Mask Bitmap (Monochrome 1-bit: 0 = đục, 1 = trong suốt)
         // ---------------------------------------------------------------------
-        IntPtr hMaskDC = CreateCompatibleDC(hScreenDC);
+        IntPtr hMaskDc = CreateCompatibleDC(hScreenDc);
         IntPtr hMaskBmp = CreateBitmap(width, height, 1, 1, IntPtr.Zero);
-        IntPtr hOldMaskBmp = SelectObject(hMaskDC, hMaskBmp);
-        sb.AppendLine($"[ICON {seq}] Mask DC={hMaskDC}, BMP={hMaskBmp}, OldBMP={hOldMaskBmp}");
+        IntPtr hOldMaskBmp = SelectObject(hMaskDc, hMaskBmp);
+        sb.AppendLine($"[ICON {seq}] Mask DC={hMaskDc}, BMP={hMaskBmp}, OldBMP={hOldMaskBmp}");
 
         // Phủ toàn bộ Mask màu trắng (0x00FFFFFF -> Trong suốt hoàn toàn)
         IntPtr hBrushWhite = CreateSolidBrush(0x00FFFFFF);
         IntPtr hPenWhite = CreatePen(0, 1, 0x00FFFFFF);
-        IntPtr hOldMaskBrush = SelectObject(hMaskDC, hBrushWhite);
-        IntPtr hOldMaskPen = SelectObject(hMaskDC, hPenWhite);
+        IntPtr hOldMaskBrush = SelectObject(hMaskDc, hBrushWhite);
+        IntPtr hOldMaskPen = SelectObject(hMaskDc, hPenWhite);
         sb.AppendLine($"[ICON {seq}] BrushWhite={hBrushWhite}, PenWhite={hPenWhite}, OldBrush={hOldMaskBrush}, OldPen={hOldMaskPen}");
-        RoundRect(hMaskDC, -1, -1, width + 1, height + 1, 0, 0);
+        RoundRect(hMaskDc, -1, -1, width + 1, height + 1, 0, 0);
 
         // Vẽ hình chữ nhật bo góc màu đen (0x00000000 -> Đục/Hiển thị Color)
         IntPtr hBrushBlack = CreateSolidBrush(0x00000000);
         IntPtr hPenBlack = CreatePen(0, 1, 0x00000000);
-        SelectObject(hMaskDC, hBrushBlack);
-        SelectObject(hMaskDC, hPenBlack);
-        RoundRect(hMaskDC, 0, 0, width, height, cornerRadius, cornerRadius);
+        SelectObject(hMaskDc, hBrushBlack);
+        SelectObject(hMaskDc, hPenBlack);
+        RoundRect(hMaskDc, 0, 0, width, height, cornerRadius, cornerRadius);
 
         // ---------------------------------------------------------------------
         // 3. Đóng gói vào ICONINFO và sinh HICON
         // ---------------------------------------------------------------------
-        ICONINFO iconInfo = new()
+        Iconinfo iconInfo = new()
         {
             fIcon = true,
             xHotspot = 0,
@@ -296,34 +295,34 @@ public static class IconHelper
 
         if (hIcon == IntPtr.Zero)
         {
-            System.Threading.Interlocked.Increment(ref FailureCount);
+            Interlocked.Increment(ref _failureCount);
             LastWin32Error = (int)err;
         }
 
         // ---------------------------------------------------------------------
         // 4. Dọn dẹp tài nguyên trung gian (Tránh GDI Leak)
         // ---------------------------------------------------------------------
-        SelectObject(hColorDC, hOldFont);
-        SelectObject(hColorDC, hOldBrush);
-        SelectObject(hColorDC, hOldPen);
-        SelectObject(hColorDC, hOldColorBmp);
+        SelectObject(hColorDc, hOldFont);
+        SelectObject(hColorDc, hOldBrush);
+        SelectObject(hColorDc, hOldPen);
+        SelectObject(hColorDc, hOldColorBmp);
         DeleteObject(hFont);
         DeleteObject(hBrushBg);
         DeleteObject(hPenBorder);
         DeleteObject(hColorBmp);
-        DeleteDC(hColorDC);
+        DeleteDC(hColorDc);
 
-        SelectObject(hMaskDC, hOldMaskBrush);
-        SelectObject(hMaskDC, hOldMaskPen);
-        SelectObject(hMaskDC, hOldMaskBmp);
+        SelectObject(hMaskDc, hOldMaskBrush);
+        SelectObject(hMaskDc, hOldMaskPen);
+        SelectObject(hMaskDc, hOldMaskBmp);
         DeleteObject(hBrushWhite);
         DeleteObject(hPenWhite);
         DeleteObject(hBrushBlack);
         DeleteObject(hPenBlack);
         DeleteObject(hMaskBmp);
-        DeleteDC(hMaskDC);
+        DeleteDC(hMaskDc);
 
-        ReleaseDC(IntPtr.Zero, hScreenDC);
+        ReleaseDC(IntPtr.Zero, hScreenDc);
 
         sb.AppendLine($"[ICON {seq}] CreateBambooIcon EXIT hIcon={hIcon}");
         DebugLog.Write(sb.ToString());

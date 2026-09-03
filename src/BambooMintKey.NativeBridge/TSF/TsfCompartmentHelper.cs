@@ -1,7 +1,6 @@
 // BambooMintKey - Vietnamese Telex Input Method Editor for Windows
 // Copyright (c) 2026 Dương Gia Long and LMO contributors
 // SPDX-License-Identifier: MIT
-using System;
 using System.Runtime.InteropServices;
 using BambooMintKey.NativeBridge.Common;
 using BambooMintKey.NativeBridge.Interop;
@@ -12,7 +11,7 @@ namespace BambooMintKey.NativeBridge.TSF;
 /// Cấu trúc VARIANT Win32 dùng cho ITfCompartment::SetValue/GetValue.
 /// </summary>
 [StructLayout(LayoutKind.Explicit, Size = 24)]
-public struct VARIANT
+public struct Variant
 {
     [FieldOffset(0)]
     public ushort vt;
@@ -30,7 +29,7 @@ public struct VARIANT
 
 /// <summary>VTable cho ITfCompartmentMgr (msctf.h)</summary>
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct ITfCompartmentMgrVTable
+public unsafe struct TfCompartmentMgrVTable
 {
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
     public delegate* unmanaged[Stdcall]<IntPtr, uint> AddRef;
@@ -43,14 +42,14 @@ public unsafe struct ITfCompartmentMgrVTable
 
 /// <summary>VTable cho ITfCompartment (msctf.h)</summary>
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct ITfCompartmentVTable
+public unsafe struct TfCompartmentVTable
 {
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
     public delegate* unmanaged[Stdcall]<IntPtr, uint> AddRef;
     public delegate* unmanaged[Stdcall]<IntPtr, uint> Release;
 
-    public delegate* unmanaged[Stdcall]<IntPtr, uint, VARIANT*, int> SetValue;
-    public delegate* unmanaged[Stdcall]<IntPtr, VARIANT*, int> GetValue;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint, Variant*, int> SetValue;
+    public delegate* unmanaged[Stdcall]<IntPtr, Variant*, int> GetValue;
 }
 
 /// <summary>
@@ -58,7 +57,7 @@ public unsafe struct ITfCompartmentVTable
 /// </summary>
 public static unsafe class TsfCompartmentHelper
 {
-    public const ushort VtI4 = 3;
+    private const ushort VtI4 = 3;
 
     /// <summary>
     /// Đồng bộ chế độ gõ V (Conversion On = 1) hoặc E (Conversion Off = 0) vào Thread Manager Compartment.
@@ -70,7 +69,7 @@ public static unsafe class TsfCompartmentHelper
         Guid iidCompMgr = Guids.IidITfCompartmentMgr;
         IntPtr pCompMgr = IntPtr.Zero;
 
-        var unk = *(ITfCompartmentMgrVTable**)pThreadMgr;
+        var unk = *(TfCompartmentMgrVTable**)pThreadMgr;
         int hr = unk->QueryInterface(pThreadMgr, &iidCompMgr, &pCompMgr);
         if (hr != HResult.Ok || pCompMgr == IntPtr.Zero)
         {
@@ -79,7 +78,7 @@ public static unsafe class TsfCompartmentHelper
 
         try
         {
-            var compMgrVTable = *(ITfCompartmentMgrVTable**)pCompMgr;
+            var compMgrVTable = *(TfCompartmentMgrVTable**)pCompMgr;
             Guid guidConversion = Guids.GuidCompartmentKeyboardInputModeConversion;
             IntPtr pComp = IntPtr.Zero;
 
@@ -91,8 +90,8 @@ public static unsafe class TsfCompartmentHelper
 
             try
             {
-                var compVTable = *(ITfCompartmentVTable**)pComp;
-                VARIANT varVal = new()
+                var compVTable = *(TfCompartmentVTable**)pComp;
+                Variant varVal = new()
                 {
                     vt = VtI4,
                     lVal = isVietnamese ? 1 : 0

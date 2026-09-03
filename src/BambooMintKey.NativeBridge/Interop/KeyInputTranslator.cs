@@ -128,7 +128,7 @@ public static class KeyInputTranslator
     // =========================================================================
 
     /// <summary>VK_SHIFT (0x10) - Phím Shift (modifier).</summary>
-    public const uint VkShift = 0x10;
+    private const uint VkShift = 0x10;
 
     /// <summary>VK_Q (0x51) - Phím ký tự Q.</summary>
     public const uint VkQ = 0x51;
@@ -155,11 +155,7 @@ public static class KeyInputTranslator
         }
 
         // 1. Kiểm tra Virtual Key chính
-        bool vkMatches = (currentVk == targetVk);
-        if (targetVk == 0x10 /* Shift */ && (currentVk == 0x10 || currentVk == 0x11 || currentVk == 0xA0 || currentVk == 0xA1 || currentVk == 0xA2 || currentVk == 0xA3))
-        {
-            vkMatches = true;
-        }
+        bool vkMatches = (currentVk == targetVk) || targetVk == 0x10 /* Shift */ && (currentVk == 0x10 || currentVk == 0x11 || currentVk == 0xA0 || currentVk == 0xA1 || currentVk == 0xA2 || currentVk == 0xA3);
 
         if (!vkMatches)
         {

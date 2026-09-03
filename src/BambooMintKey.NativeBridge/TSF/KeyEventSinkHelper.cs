@@ -12,7 +12,7 @@ namespace BambooMintKey.NativeBridge.TSF;
 // =========================================================================
 
 [StructLayout(LayoutKind.Sequential)]
-public struct TF_PRESERVEDKEY
+public struct TfPreservedkey
 {
     public uint uVKey;
     public uint uModifiers;
@@ -53,10 +53,10 @@ public unsafe struct TfKeystrokeMgrVTable
     public delegate* unmanaged[Stdcall]<IntPtr, UIntPtr, IntPtr, int*, int> TestKeyUp;
     public delegate* unmanaged[Stdcall]<IntPtr, UIntPtr, IntPtr, int*, int> KeyDown;
     public delegate* unmanaged[Stdcall]<IntPtr, UIntPtr, IntPtr, int*, int> KeyUp;
-    public delegate* unmanaged[Stdcall]<IntPtr, IntPtr, TF_PRESERVEDKEY*, Guid*, int> GetPreservedKey;
-    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, TF_PRESERVEDKEY*, int*, int> IsPreservedKey;
-    public delegate* unmanaged[Stdcall]<IntPtr, uint, Guid*, TF_PRESERVEDKEY*, char*, uint, int> PreserveKey;
-    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, TF_PRESERVEDKEY*, int> UnpreserveKey;
+    public delegate* unmanaged[Stdcall]<IntPtr, IntPtr, TfPreservedkey*, Guid*, int> GetPreservedKey;
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, TfPreservedkey*, int*, int> IsPreservedKey;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint, Guid*, TfPreservedkey*, char*, uint, int> PreserveKey;
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, TfPreservedkey*, int> UnpreserveKey;
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, char*, uint, int> SetPreservedKeyDescription;
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> GetPreservedKeyDescription;
     public delegate* unmanaged[Stdcall]<IntPtr, IntPtr, Guid*, int*, int> SimulatePreservedKey;
@@ -131,7 +131,7 @@ public static unsafe class KeyEventSinkHelper
         (0x51 /* 'Q' */, TsfModFlags.Control | TsfModFlags.Shift)
     ];
 
-    private static TF_PRESERVEDKEY _lastCustomKey = new() { uVKey = 0, uModifiers = 0 };
+    private static TfPreservedkey _lastCustomKey = new() { uVKey = 0, uModifiers = 0 };
 
     /// <summary>
     /// Lấy tổ hợp phím tắt đang được kích hoạt từ SharedMemoryManager (hỗ trợ tùy biến phím tắt tự do).
@@ -172,7 +172,7 @@ public static unsafe class KeyEventSinkHelper
         var activeKeys = GetActiveToggleKeys();
         foreach (var (vKey, modifiers, desc) in activeKeys)
         {
-            TF_PRESERVEDKEY prekey = new() { uVKey = vKey, uModifiers = modifiers };
+            TfPreservedkey prekey = new() { uVKey = vKey, uModifiers = modifiers };
             _lastCustomKey = prekey;
             fixed (char* pDesc = desc)
             {
@@ -211,14 +211,14 @@ public static unsafe class KeyEventSinkHelper
 
         if (_lastCustomKey.uVKey != 0 || _lastCustomKey.uModifiers != 0)
         {
-            TF_PRESERVEDKEY lastKey = _lastCustomKey;
+            TfPreservedkey lastKey = _lastCustomKey;
             pkmVTable->UnpreserveKey(pKeystrokeMgr, &guidToggle, &lastKey);
             _lastCustomKey = new() { uVKey = 0, uModifiers = 0 };
         }
 
         foreach (var (vKey, modifiers) in AllPossibleKeys)
         {
-            TF_PRESERVEDKEY prekey = new() { uVKey = vKey, uModifiers = modifiers };
+            TfPreservedkey prekey = new() { uVKey = vKey, uModifiers = modifiers };
             pkmVTable->UnpreserveKey(pKeystrokeMgr, &guidToggle, &prekey);
         }
 

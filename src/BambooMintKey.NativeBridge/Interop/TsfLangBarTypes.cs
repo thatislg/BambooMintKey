@@ -1,7 +1,6 @@
 // BambooMintKey - Vietnamese Telex Input Method Editor for Windows
 // Copyright (c) 2026 Dương Gia Long and LMO contributors
 // SPDX-License-Identifier: MIT
-using System;
 using System.Runtime.InteropServices;
 
 namespace BambooMintKey.NativeBridge.Interop;
@@ -85,7 +84,7 @@ public static class TsfLangBarFlags
 
 /// <summary>[WinSDK: struct TF_LANGBARITEMINFO]</summary>
 [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-public unsafe struct TF_LANGBARITEMINFO
+public unsafe struct TfLangbariteminfo
 {
     public Guid clsidService;
     public Guid guidItem;
@@ -96,7 +95,7 @@ public unsafe struct TF_LANGBARITEMINFO
 
 /// <summary>[WinSDK: struct POINT (8 bytes)]</summary>
 [StructLayout(LayoutKind.Sequential)]
-public struct POINT
+public struct Point
 {
     public int X;
     public int Y;
@@ -104,7 +103,7 @@ public struct POINT
 
 /// <summary>[WinSDK: struct RECT]</summary>
 [StructLayout(LayoutKind.Sequential)]
-public struct RECT
+public struct Rect
 {
     public int Left;
     public int Top;
@@ -124,7 +123,7 @@ public struct LangBarButtonNativeLayout
 /// VTable cho ITfLangBarItemButton (kế thừa ITfLangBarItem -> IUnknown).
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct ITfLangBarItemButtonVTable
+public unsafe struct TfLangBarItemButtonVTable
 {
     // --- IUnknown (Slot 0 - 2) ---
     /// <summary>[WinSDK: IUnknown::QueryInterface]</summary>
@@ -136,7 +135,7 @@ public unsafe struct ITfLangBarItemButtonVTable
 
     // --- ITfLangBarItem (Slot 3 - 6) ---
     /// <summary>[WinSDK: ITfLangBarItem::GetInfo]</summary>
-    public delegate* unmanaged[Stdcall]<IntPtr, TF_LANGBARITEMINFO*, int> GetInfo;
+    public delegate* unmanaged[Stdcall]<IntPtr, TfLangbariteminfo*, int> GetInfo;
     /// <summary>[WinSDK: ITfLangBarItem::GetStatus]</summary>
     public delegate* unmanaged[Stdcall]<IntPtr, uint*, int> GetStatus;
     /// <summary>[WinSDK: ITfLangBarItem::Show]</summary>
@@ -146,7 +145,7 @@ public unsafe struct ITfLangBarItemButtonVTable
 
     // --- ITfLangBarItemButton (Slot 7 - 11) ---
     /// <summary>[WinSDK: ITfLangBarItemButton::OnClick (Slot 7)]</summary>
-    public delegate* unmanaged[Stdcall]<IntPtr, uint, POINT, RECT*, int> OnClick;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint, Point, Rect*, int> OnClick;
     /// <summary>[WinSDK: ITfLangBarItemButton::InitMenu (Slot 8)]</summary>
     public delegate* unmanaged[Stdcall]<IntPtr, IntPtr, int> InitMenu;
     /// <summary>[WinSDK: ITfLangBarItemButton::OnMenuSelect (Slot 9)]</summary>
@@ -182,7 +181,7 @@ public unsafe struct TfSourceVTable
 /// VTable cho ITfLangBarItemSink (do Windows triển khai, chúng ta gọi OnUpdate).
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct ITfLangBarItemSinkVTable
+public unsafe struct TfLangBarItemSinkVTable
 {
     // --- IUnknown (Slot 0 - 2) ---
     /// <summary>[WinSDK: IUnknown::QueryInterface]</summary>
@@ -201,7 +200,7 @@ public unsafe struct ITfLangBarItemSinkVTable
 /// VTable cho ITfLangBarItemMgr (chuẩn xác 100% theo thứ tự 15 slot trong ctfutb.h).
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct ITfLangBarItemMgrVTable
+public unsafe struct TfLangBarItemMgrVTable
 {
     // --- IUnknown (Slot 0 - 2) ---
     /// <summary>[WinSDK: IUnknown::QueryInterface (Slot 0)]</summary>
@@ -225,13 +224,13 @@ public unsafe struct ITfLangBarItemMgrVTable
     /// <summary>[WinSDK: ITfLangBarItemMgr::UnadviseItemSink (Slot 8)]</summary>
     public delegate* unmanaged[Stdcall]<IntPtr, uint, int> UnadviseItemSink;
     /// <summary>[WinSDK: ITfLangBarItemMgr::GetItemFloatingRect (Slot 9)]</summary>
-    public delegate* unmanaged[Stdcall]<IntPtr, uint, Guid*, RECT*, int> GetItemFloatingRect;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint, Guid*, Rect*, int> GetItemFloatingRect;
     /// <summary>[WinSDK: ITfLangBarItemMgr::GetItemsStatus (Slot 10)]</summary>
     public delegate* unmanaged[Stdcall]<IntPtr, uint, Guid*, uint*, int> GetItemsStatus;
     /// <summary>[WinSDK: ITfLangBarItemMgr::GetItemNum (Slot 11)]</summary>
     public delegate* unmanaged[Stdcall]<IntPtr, uint*, int> GetItemNum;
     /// <summary>[WinSDK: ITfLangBarItemMgr::GetItems (Slot 12)]</summary>
-    public delegate* unmanaged[Stdcall]<IntPtr, uint, IntPtr*, TF_LANGBARITEMINFO*, uint*, uint*, int> GetItems;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint, IntPtr*, TfLangbariteminfo*, uint*, uint*, int> GetItems;
     /// <summary>[WinSDK: ITfLangBarItemMgr::AdviseItemsSink (Slot 13)]</summary>
     public delegate* unmanaged[Stdcall]<IntPtr, uint, IntPtr*, Guid*, uint*, int> AdviseItemsSink;
     /// <summary>[WinSDK: ITfLangBarItemMgr::UnadviseItemsSink (Slot 14)]</summary>
@@ -256,7 +255,7 @@ public static class TsfMenuFlags
 /// VTable cho ITfMenu (kế thừa IUnknown, dùng để xây dựng menu TSF).
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct ITfMenuVTable
+public unsafe struct TfMenuVTable
 {
     // --- IUnknown (Slot 0 - 2) ---
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;

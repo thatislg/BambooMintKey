@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Threading;
 using BambooMintKey.NativeBridge.COM;
 using BambooMintKey.NativeBridge.Common;
 using BambooMintKey.NativeBridge.Interop;
@@ -12,16 +11,16 @@ namespace BambooMintKey.NativeBridge.TSF;
 
 public static class DebugLog
 {
-    private static readonly bool _enabled = Environment.GetEnvironmentVariable("BAMBOOMINTKEY_DEBUG") == "1";
-    private static readonly object _lock = new();
+    private static readonly bool Enabled = Environment.GetEnvironmentVariable("BAMBOOMINTKEY_DEBUG") == "1";
+    private static readonly Lock Lock = new();
 
     public static void Write(string msg)
     {
-        if (!_enabled) return;
+        if (!Enabled) return;
         try
         {
             var path = Path.Combine(Path.GetTempPath(), "BambooMintKey_Runtime.log");
-            lock (_lock)
+            lock (Lock)
             {
                 using var fs = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
                 using var sw = new StreamWriter(fs);
@@ -29,7 +28,8 @@ public static class DebugLog
                 sw.Flush();
             }
         }
-        catch { }
+        catch (Exception)
+        { }
     }
 
     public static void WriteAndFlush(string msg) => Write(msg);

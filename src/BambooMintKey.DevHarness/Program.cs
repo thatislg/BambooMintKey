@@ -9,6 +9,7 @@ using BambooMintKey.NativeBridge.COM;
 using BambooMintKey.NativeBridge.Common;
 using BambooMintKey.NativeBridge.Interop;
 using BambooMintKey.NativeBridge.TSF;
+using Point = BambooMintKey.NativeBridge.Interop.Point;
 
 namespace BambooMintKey.DevHarness;
 
@@ -32,13 +33,13 @@ public unsafe class Program
     [DllImport("user32.dll")]
     private static extern int GetGuiResources(IntPtr hProcess, uint uiFlags);
 
-    private const uint GR_GDIOBJECTS = 0;
-    private const uint GR_USEROBJECTS = 1;
+    private const uint GrGdiobjects = 0;
+    private const uint GrUserobjects = 1;
 
     private static int GetGdiCount()
     {
         using var proc = Process.GetCurrentProcess();
-        return GetGuiResources(proc.Handle, GR_GDIOBJECTS);
+        return GetGuiResources(proc.Handle, GrGdiobjects);
     }
 
     private static void StressTestIconHelper()
@@ -198,7 +199,7 @@ public unsafe class Program
                 return 1;
             }
 
-            var buttonUnk = *(ITfLangBarItemButtonVTable**)pLangBar;
+            var buttonUnk = *(TfLangBarItemButtonVTable**)pLangBar;
             IntPtr pButton = IntPtr.Zero;
             Guid iidButton = Guids.IidITfLangBarItemButton;
             hr = buttonUnk->QueryInterface(pLangBar, &iidButton, &pButton);
@@ -224,7 +225,7 @@ public unsafe class Program
             Console.WriteLine("  [OK] QI ITfSource từ LangBarItemButton thành công.");
 
             // Kiểm tra GetInfo
-            TF_LANGBARITEMINFO info;
+            TfLangbariteminfo info;
             buttonUnk->GetInfo(pLangBar, &info);
             char* descPtr = info.szDescription;
             string desc = new string(descPtr);
@@ -245,8 +246,8 @@ public unsafe class Program
             }
 
             // Giả lập người dùng click chuột trái (TfLbiClkLeft = 2)
-            POINT pt = new() { X = 100, Y = 100 };
-            RECT rc = new() { Left = 90, Top = 90, Right = 110, Bottom = 110 };
+            Point pt = new() { X = 100, Y = 100 };
+            Rect rc = new() { Left = 90, Top = 90, Right = 110, Bottom = 110 };
             buttonUnk->OnClick(pLangBar, TsfLangBarFlags.TfLbiClkLeft, pt, &rc);
 
             // Kiểm tra GetText sau click (phải là E)

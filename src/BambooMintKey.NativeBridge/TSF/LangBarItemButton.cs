@@ -1,9 +1,6 @@
 // BambooMintKey - Vietnamese Telex Input Method Editor for Windows
 // Copyright (c) 2026 Dương Gia Long and LMO contributors
 // SPDX-License-Identifier: MIT
-using System;
-using System.Diagnostics;
-using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using BambooMintKey.NativeBridge.Common;
@@ -18,15 +15,15 @@ namespace BambooMintKey.NativeBridge.TSF;
 /// </summary>
 public static unsafe class LangBarItemButton
 {
-    private static ITfLangBarItemButtonVTable* _buttonVTable;
+    private static TfLangBarItemButtonVTable* _buttonVTable;
     private static TfSourceVTable* _sourceVTable;
-    private static IntPtr _comInstance;
+    private static readonly IntPtr ComInstance;
 
     // Con trỏ tới ITfLangBarItemSink mà Windows cung cấp qua ITfSource::AdviseSink
     private static volatile IntPtr _pLangBarSink = IntPtr.Zero;
     private static uint _sinkCookie = 0;
     private static IntPtr _langBarMgr = IntPtr.Zero;
-    private static readonly object _sinkLock = new();
+    private static readonly Lock SinkLock = new();
     private static IntPtr _pThreadMgr = IntPtr.Zero;
     private static uint _clientId = 0;
 
@@ -36,7 +33,7 @@ public static unsafe class LangBarItemButton
     private static extern IntPtr CreatePopupMenu();
 
     [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern bool AppendMenuW(IntPtr hMenu, uint uFlags, nuint uIDNewItem, string lpNewItem);
+    private static extern bool AppendMenuW(IntPtr hMenu, uint uFlags, nuint uIdNewItem, string lpNewItem);
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern uint TrackPopupMenuEx(IntPtr hMenu, uint uFlags, int x, int y, IntPtr hwnd, IntPtr lptpm);
@@ -51,7 +48,7 @@ public static unsafe class LangBarItemButton
     private static extern bool SetForegroundWindow(IntPtr hWnd);
 
     [DllImport("user32.dll")]
-    private static extern bool GetCursorPos(out POINT lpPoint);
+    private static extern bool GetCursorPos(out Point lpPoint);
 
     [DllImport("uxtheme.dll", EntryPoint = "#135", SetLastError = true)]
     private static extern int SetPreferredAppMode(int appMode);
@@ -65,14 +62,14 @@ public static unsafe class LangBarItemButton
         var layout = (LangBarButtonNativeLayout*)NativeMemory.Alloc((nuint)sizeof(LangBarButtonNativeLayout));
         layout->VTableButton = (IntPtr)_buttonVTable;
         layout->VTableSource = (IntPtr)_sourceVTable;
-        _comInstance = (IntPtr)layout;
+        ComInstance = (IntPtr)layout;
     }
 
     private static void InitializeVTables()
     {
         // 1. VTable cho ITfLangBarItemButton
-        _buttonVTable = (ITfLangBarItemButtonVTable*)RuntimeHelpers.AllocateTypeAssociatedMemory(
-            typeof(LangBarItemButton), sizeof(ITfLangBarItemButtonVTable));
+        _buttonVTable = (TfLangBarItemButtonVTable*)RuntimeHelpers.AllocateTypeAssociatedMemory(
+            typeof(LangBarItemButton), sizeof(TfLangBarItemButtonVTable));
 
         _buttonVTable->QueryInterface = &QueryInterface;
         _buttonVTable->AddRef = &AddRef;
@@ -101,13 +98,13 @@ public static unsafe class LangBarItemButton
     }
 
     /// <summary>Con trỏ COM Instance của LangBarItemButton.</summary>
-    public static IntPtr Instance => _comInstance;
+    public static IntPtr Instance => ComInstance;
 
     // =====================================================================
     // IUnknown Implementation (Dual-Interface Routing)
     // =====================================================================
-    internal static uint AddRefImpl(IntPtr thisPtr) => 2;
-    internal static uint ReleaseImpl(IntPtr thisPtr) => 1;
+    private static uint AddRefImpl() => 2;
+    private static uint ReleaseImpl() => 1;
 
     private static int QueryInterfaceImpl(IntPtr rootPtr, Guid* riid, IntPtr* ppv)
     {
@@ -120,7 +117,7 @@ public static unsafe class LangBarItemButton
             *riid == Guids.IidITfLangBarItemButton)
         {
             *ppv = rootPtr;
-            AddRefImpl(rootPtr);
+            AddRefImpl();
             return HResult.Ok;
         }
 
@@ -128,7 +125,7 @@ public static unsafe class LangBarItemButton
         if (*riid == Guids.IidITfSource)
         {
             *ppv = rootPtr + sizeof(IntPtr);
-            AddRefImpl(rootPtr);
+            AddRefImpl();
             return HResult.Ok;
         }
 
@@ -140,10 +137,10 @@ public static unsafe class LangBarItemButton
         => QueryInterfaceImpl(thisPtr, riid, ppv);
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static uint AddRef(IntPtr thisPtr) => AddRefImpl(thisPtr);
+    private static uint AddRef(IntPtr thisPtr) => AddRefImpl();
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static uint Release(IntPtr thisPtr) => ReleaseImpl(thisPtr);
+    private static uint Release(IntPtr thisPtr) => ReleaseImpl();
 
     // Proxy IUnknown cho Slot 1 (ITfSource)
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
@@ -151,10 +148,10 @@ public static unsafe class LangBarItemButton
         => QueryInterfaceImpl(thisPtr - sizeof(IntPtr), riid, ppv);
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static uint AddRef_Source(IntPtr thisPtr) => AddRefImpl(thisPtr - sizeof(IntPtr));
+    private static uint AddRef_Source(IntPtr thisPtr) => AddRefImpl();
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static uint Release_Source(IntPtr thisPtr) => ReleaseImpl(thisPtr - sizeof(IntPtr));
+    private static uint Release_Source(IntPtr thisPtr) => ReleaseImpl();
 
     // =====================================================================
     // ITfLangBarItem Implementation
@@ -162,7 +159,7 @@ public static unsafe class LangBarItemButton
 
     /// <summary>[WinSDK: ITfLangBarItem::GetInfo] - Cung cấp thông tin cấu hình nút cho Windows.</summary>
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static int GetInfo(IntPtr thisPtr, TF_LANGBARITEMINFO* pInfo)
+    private static int GetInfo(IntPtr thisPtr, TfLangbariteminfo* pInfo)
     {
         if (pInfo == null) return HResult.InvalidArgument;
 
@@ -216,7 +213,7 @@ public static unsafe class LangBarItemButton
 
     /// <summary>[WinSDK: ITfLangBarItemButton::OnClick] - Xử lý sự kiện click chuột từ người dùng.</summary>
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static int OnClick(IntPtr thisPtr, uint click, POINT pt, RECT* prcArea)
+    private static int OnClick(IntPtr thisPtr, uint click, Point pt, Rect* prcArea)
     {
         DebugLog.Write($"LangBarItemButton OnClick ENTER click={click}, pt=({pt.X}, {pt.Y}), thread={Environment.CurrentManagedThreadId}");
         if (click == TsfLangBarFlags.TfLbiClkRight)
@@ -251,7 +248,7 @@ public static unsafe class LangBarItemButton
         DebugLog.Write($"LangBarItemButton InitMenu ENTER pMenu={pMenu}");
         if (pMenu == IntPtr.Zero) return HResult.InvalidArgument;
 
-        var menuVTable = *(ITfMenuVTable**)pMenu;
+        var menuVTable = *(TfMenuVTable**)pMenu;
 
         // 1. Chế độ gõ tiếng Việt
         bool isVn = BridgeStateManager.IsVietnameseMode;
@@ -269,7 +266,7 @@ public static unsafe class LangBarItemButton
         }
         if (pSubTone != IntPtr.Zero)
         {
-            var subVTable = *(ITfMenuVTable**)pSubTone;
+            var subVTable = *(TfMenuVTable**)pSubTone;
             byte toneStyle = SharedMemoryManager.ToneStyle; // 0 = Modern, 1 = Classic
             AddMenuItemText(subVTable, pSubTone, MenuCommands.ToneStyleModern,
                 toneStyle == 0 ? TsfMenuFlags.TfLbMenuFlagRadioChecked : 0, "Kiểu mới (òa, xòe, thủy)");
@@ -300,7 +297,7 @@ public static unsafe class LangBarItemButton
         }
         if (pSubMethod != IntPtr.Zero)
         {
-            var subVTable = *(ITfMenuVTable**)pSubMethod;
+            var subVTable = *(TfMenuVTable**)pSubMethod;
             byte curMethod = SharedMemoryManager.InputMethod;
             AddMenuItemText(subVTable, pSubMethod, MenuCommands.MethodTelex,
                 curMethod == 0 ? TsfMenuFlags.TfLbMenuFlagRadioChecked : 0, "Telex");
@@ -320,7 +317,7 @@ public static unsafe class LangBarItemButton
         }
         if (pSubCharset != IntPtr.Zero)
         {
-            var subVTable = *(ITfMenuVTable**)pSubCharset;
+            var subVTable = *(TfMenuVTable**)pSubCharset;
             byte curCharset = SharedMemoryManager.Charset;
             AddMenuItemText(subVTable, pSubCharset, MenuCommands.CharsetUnicodePrecomposed,
                 curCharset == 0 ? TsfMenuFlags.TfLbMenuFlagRadioChecked : 0, "Unicode dựng sẵn");
@@ -340,7 +337,7 @@ public static unsafe class LangBarItemButton
         return HResult.Ok;
     }
 
-    private static void AddMenuItemText(ITfMenuVTable* vtable, IntPtr pMenu, uint id, uint flags, string text)
+    private static void AddMenuItemText(TfMenuVTable* vtable, IntPtr pMenu, uint id, uint flags, string text)
     {
         fixed (char* pText = text)
         {
@@ -348,7 +345,7 @@ public static unsafe class LangBarItemButton
         }
     }
 
-    private static void AddMenuSeparator(ITfMenuVTable* vtable, IntPtr pMenu)
+    private static void AddMenuSeparator(TfMenuVTable* vtable, IntPtr pMenu)
     {
         vtable->AddMenuItem(pMenu, 0, TsfMenuFlags.TfLbMenuFlagSeparator, IntPtr.Zero, IntPtr.Zero, null, 0, null);
     }
@@ -363,9 +360,9 @@ public static unsafe class LangBarItemButton
     }
 
     /// <summary>Hiển thị menu ngữ cảnh chuột phải native (Win32 TrackPopupMenuEx) tại vị trí chuột.</summary>
-    public static void ShowNativeContextMenu(POINT pt)
+    private static void ShowNativeContextMenu(Point pt)
     {
-        if (pt.X == 0 && pt.Y == 0)
+        if (pt is { X: 0, Y: 0 })
         {
             GetCursorPos(out pt);
         }
@@ -375,64 +372,64 @@ public static unsafe class LangBarItemButton
 
         try
         {
-            const uint MF_STRING       = 0x00000000;
-            const uint MF_SEPARATOR    = 0x00000800;
-            const uint MF_CHECKED      = 0x00000008;
-            const uint MF_POPUP        = 0x00000010;
-            const uint TPM_RETURNCMD   = 0x0100;
-            const uint TPM_RIGHTBUTTON = 0x0002;
+            const uint mfString       = 0x00000000;
+            const uint mfSeparator    = 0x00000800;
+            const uint mfChecked      = 0x00000008;
+            const uint mfPopup        = 0x00000010;
+            const uint tpmReturncmd   = 0x0100;
+            const uint tpmRightbutton = 0x0002;
 
             // 1. Chế độ gõ tiếng Việt
-            uint vFlag = BridgeStateManager.IsVietnameseMode ? MF_CHECKED : 0;
-            AppendMenuW(hMenu, MF_STRING | vFlag, MenuCommands.ToggleVietnameseMode, "Gõ tiếng Việt (Ctrl + Shift)");
-            AppendMenuW(hMenu, MF_SEPARATOR, 0, string.Empty);
+            uint vFlag = BridgeStateManager.IsVietnameseMode ? mfChecked : 0;
+            AppendMenuW(hMenu, mfString | vFlag, MenuCommands.ToggleVietnameseMode, "Gõ tiếng Việt (Ctrl + Shift)");
+            AppendMenuW(hMenu, mfSeparator, 0, string.Empty);
 
             // 2. Submenu Kiểu đặt dấu thanh
             IntPtr hSubTone = CreatePopupMenu();
             byte toneStyle = SharedMemoryManager.ToneStyle;
-            AppendMenuW(hSubTone, MF_STRING | (toneStyle == 0 ? MF_CHECKED : 0), MenuCommands.ToneStyleModern, "Kiểu mới (òa, xòe, thủy)");
-            AppendMenuW(hSubTone, MF_STRING | (toneStyle == 1 ? MF_CHECKED : 0), MenuCommands.ToneStyleClassic, "Kiểu cũ (oà, xoè, thuỷ)");
-            AppendMenuW(hMenu, MF_POPUP, (nuint)hSubTone, "Kiểu đặt dấu thanh");
+            AppendMenuW(hSubTone, mfString | (toneStyle == 0 ? mfChecked : 0), MenuCommands.ToneStyleModern, "Kiểu mới (òa, xòe, thủy)");
+            AppendMenuW(hSubTone, mfString | (toneStyle == 1 ? mfChecked : 0), MenuCommands.ToneStyleClassic, "Kiểu cũ (oà, xoè, thuỷ)");
+            AppendMenuW(hMenu, mfPopup, (nuint)hSubTone, "Kiểu đặt dấu thanh");
 
             // 3. Tùy chọn ngữ pháp thông minh
-            uint autoRestore = SharedMemoryManager.AutoRestoreEnglishWords ? MF_CHECKED : 0;
-            AppendMenuW(hMenu, MF_STRING | autoRestore, MenuCommands.ToggleAutoRestoreEnglish, "Tự động khôi phục từ tiếng Anh");
+            uint autoRestore = SharedMemoryManager.AutoRestoreEnglishWords ? mfChecked : 0;
+            AppendMenuW(hMenu, mfString | autoRestore, MenuCommands.ToggleAutoRestoreEnglish, "Tự động khôi phục từ tiếng Anh");
 
-            uint repeatUndo = SharedMemoryManager.AllowRepeatKeyUndo ? MF_CHECKED : 0;
-            AppendMenuW(hMenu, MF_STRING | repeatUndo, MenuCommands.ToggleRepeatKeyUndo, "Gõ lặp dấu để khôi phục (ss -> s)");
+            uint repeatUndo = SharedMemoryManager.AllowRepeatKeyUndo ? mfChecked : 0;
+            AppendMenuW(hMenu, mfString | repeatUndo, MenuCommands.ToggleRepeatKeyUndo, "Gõ lặp dấu để khôi phục (ss -> s)");
 
-            uint leadingW = SharedMemoryManager.AllowLeadingWAsU ? MF_CHECKED : 0;
-            AppendMenuW(hMenu, MF_STRING | leadingW, MenuCommands.ToggleLeadingWAsU, "Phím 'w' đầu từ thành 'ư' (w -> ư)");
+            uint leadingW = SharedMemoryManager.AllowLeadingWAsU ? mfChecked : 0;
+            AppendMenuW(hMenu, mfString | leadingW, MenuCommands.ToggleLeadingWAsU, "Phím 'w' đầu từ thành 'ư' (w -> ư)");
 
-            AppendMenuW(hMenu, MF_SEPARATOR, 0, string.Empty);
+            AppendMenuW(hMenu, mfSeparator, 0, string.Empty);
 
             // 4. Submenu Kiểu gõ
             IntPtr hSubMethod = CreatePopupMenu();
             byte curMethod = SharedMemoryManager.InputMethod;
-            AppendMenuW(hSubMethod, MF_STRING | (curMethod == 0 ? MF_CHECKED : 0), MenuCommands.MethodTelex, "Telex");
-            AppendMenuW(hSubMethod, MF_STRING | (curMethod == 1 ? MF_CHECKED : 0), MenuCommands.MethodVni, "VNI");
-            AppendMenuW(hSubMethod, MF_STRING | (curMethod == 2 ? MF_CHECKED : 0), MenuCommands.MethodSimpleTelex, "Simple Telex");
-            AppendMenuW(hMenu, MF_POPUP, (nuint)hSubMethod, "Kiểu gõ");
+            AppendMenuW(hSubMethod, mfString | (curMethod == 0 ? mfChecked : 0), MenuCommands.MethodTelex, "Telex");
+            AppendMenuW(hSubMethod, mfString | (curMethod == 1 ? mfChecked : 0), MenuCommands.MethodVni, "VNI");
+            AppendMenuW(hSubMethod, mfString | (curMethod == 2 ? mfChecked : 0), MenuCommands.MethodSimpleTelex, "Simple Telex");
+            AppendMenuW(hMenu, mfPopup, (nuint)hSubMethod, "Kiểu gõ");
 
             // 5. Submenu Bảng mã
             IntPtr hSubCharset = CreatePopupMenu();
             byte curCharset = SharedMemoryManager.Charset;
-            AppendMenuW(hSubCharset, MF_STRING | (curCharset == 0 ? MF_CHECKED : 0), MenuCommands.CharsetUnicodePrecomposed, "Unicode dựng sẵn");
-            AppendMenuW(hSubCharset, MF_STRING | (curCharset == 1 ? MF_CHECKED : 0), MenuCommands.CharsetUnicodeDecomposed, "Unicode tổ hợp");
-            AppendMenuW(hSubCharset, MF_STRING | (curCharset == 2 ? MF_CHECKED : 0), MenuCommands.CharsetTcvn3, "TCVN3 (ABC)");
-            AppendMenuW(hMenu, MF_POPUP, (nuint)hSubCharset, "Bảng mã");
+            AppendMenuW(hSubCharset, mfString | (curCharset == 0 ? mfChecked : 0), MenuCommands.CharsetUnicodePrecomposed, "Unicode dựng sẵn");
+            AppendMenuW(hSubCharset, mfString | (curCharset == 1 ? mfChecked : 0), MenuCommands.CharsetUnicodeDecomposed, "Unicode tổ hợp");
+            AppendMenuW(hSubCharset, mfString | (curCharset == 2 ? mfChecked : 0), MenuCommands.CharsetTcvn3, "TCVN3 (ABC)");
+            AppendMenuW(hMenu, mfPopup, (nuint)hSubCharset, "Bảng mã");
 
-            AppendMenuW(hMenu, MF_SEPARATOR, 0, string.Empty);
+            AppendMenuW(hMenu, mfSeparator, 0, string.Empty);
 
             // 6. Cài đặt & Thông tin
-            AppendMenuW(hMenu, MF_STRING, MenuCommands.OpenSettings, "Bảng điều khiển & Cài đặt...");
-            AppendMenuW(hMenu, MF_STRING, MenuCommands.AboutApp, "Thông tin BambooMintKey");
+            AppendMenuW(hMenu, mfString, MenuCommands.OpenSettings, "Bảng điều khiển & Cài đặt...");
+            AppendMenuW(hMenu, mfString, MenuCommands.AboutApp, "Thông tin BambooMintKey");
 
             // Đặt Foreground window để menu tự đóng khi người dùng click ra ngoài
             IntPtr hWndFore = GetForegroundWindow();
             if (hWndFore != IntPtr.Zero) SetForegroundWindow(hWndFore);
 
-            uint selectedCmd = TrackPopupMenuEx(hMenu, TPM_RETURNCMD | TPM_RIGHTBUTTON, pt.X, pt.Y, hWndFore, IntPtr.Zero);
+            uint selectedCmd = TrackPopupMenuEx(hMenu, tpmReturncmd | tpmRightbutton, pt.X, pt.Y, hWndFore, IntPtr.Zero);
             
             if (selectedCmd != 0)
             {
@@ -446,7 +443,7 @@ public static unsafe class LangBarItemButton
     }
 
     /// <summary>Xử lý tập trung các mã lệnh từ Menu (dùng chung cho cả TSF và Win32 Popup).</summary>
-    public static void ExecuteMenuCommand(uint cmdId)
+    private static void ExecuteMenuCommand(uint cmdId)
     {
         DebugLog.Write($"LangBarItemButton ExecuteMenuCommand cmdId={cmdId}");
         switch (cmdId)
@@ -568,7 +565,7 @@ public static unsafe class LangBarItemButton
 
             if (hrQi == HResult.Ok && pSink != IntPtr.Zero)
             {
-                lock (_sinkLock)
+                lock (SinkLock)
                 {
                     if (_pLangBarSink != IntPtr.Zero)
                     {
@@ -597,7 +594,7 @@ public static unsafe class LangBarItemButton
     private static int UnadviseSink(IntPtr thisPtr, uint dwCookie)
     {
         DebugLog.Write($"LangBarItemButton.UnadviseSink ENTER dwCookie={dwCookie}, _sinkCookie={_sinkCookie}, _pLangBarSink={_pLangBarSink}");
-        lock (_sinkLock)
+        lock (SinkLock)
         {
             if (dwCookie == _sinkCookie && _pLangBarSink != IntPtr.Zero)
             {
@@ -620,7 +617,7 @@ public static unsafe class LangBarItemButton
 
     private static void StartEventListener()
     {
-        var thread = new System.Threading.Thread(() =>
+        var thread = new Thread(() =>
         {
             IntPtr hEv = SharedMemoryManager.StateChangedEventHandle;
             uint localSeq = SharedMemoryManager.StateSequence;
@@ -641,7 +638,7 @@ public static unsafe class LangBarItemButton
                 }
                 else
                 {
-                    System.Threading.Thread.Sleep(250);
+                    Thread.Sleep(250);
                 }
 
                 // Kiểm tra StateSequence để phát hiện mọi thay đổi từ bất kỳ tiến trình nào
@@ -696,19 +693,19 @@ public static unsafe class LangBarItemButton
         {
             // Fallback sang CoCreateInstance với CLSID_TF_LangBarItemMgr nếu pThreadMgr không hỗ trợ QI trực tiếp
             Guid clsidMgr = Guids.ClsidTfLangBarItemMgr;
-            const uint CLSCTX_INPROC_SERVER = 1;
-            hrQi = NativeCom.CoCreateInstance(&clsidMgr, IntPtr.Zero, CLSCTX_INPROC_SERVER, &iidMgr, &pMgr);
+            const uint clsctxInprocServer = 1;
+            hrQi = NativeCom.CoCreateInstance(&clsidMgr, IntPtr.Zero, clsctxInprocServer, &iidMgr, &pMgr);
             DebugLog.Write($"LangBarItemButton.Register CoCreateInstance ITfLangBarItemMgr hr=0x{hrQi:X8}, pMgr={pMgr}");
         }
 
         if (pMgr != IntPtr.Zero)
         {
             _langBarMgr = pMgr;
-            var mgrVTable = *(ITfLangBarItemMgrVTable**)_langBarMgr;
+            var mgrVTable = *(TfLangBarItemMgrVTable**)_langBarMgr;
             
             // [WinSDK: ITfLangBarItemMgr::AddItem]
             // Windows sẽ tự gọi QI(ITfSource) -> AdviseSink trên _comInstance để trao Sink
-            int hr = mgrVTable->AddItem(_langBarMgr, _comInstance);
+            int hr = mgrVTable->AddItem(_langBarMgr, ComInstance);
             DebugLog.Write($"LangBarItemButton.Register AddItem result=0x{hr:X8}");
             NotifyStateChanged();
         }
@@ -725,9 +722,9 @@ public static unsafe class LangBarItemButton
     {
         if (_langBarMgr != IntPtr.Zero)
         {
-            var mgrVTable = *(ITfLangBarItemMgrVTable**)_langBarMgr;
+            var mgrVTable = *(TfLangBarItemMgrVTable**)_langBarMgr;
             // [WinSDK: ITfLangBarItemMgr::RemoveItem]
-            int hr = mgrVTable->RemoveItem(_langBarMgr, _comInstance);
+            int hr = mgrVTable->RemoveItem(_langBarMgr, ComInstance);
             DebugLog.Write($"LangBarItemButton.Unregister RemoveItem hr=0x{hr:X8}");
 
             NativeCom.Release(_langBarMgr);
@@ -756,7 +753,7 @@ public static unsafe class LangBarItemButton
         DebugLog.Write($"LangBarItemButton.NotifyStateChanged ENTER _pLangBarSink={sink}, thread={Environment.CurrentManagedThreadId}");
         if (sink != IntPtr.Zero)
         {
-            var sinkVTable = *(ITfLangBarItemSinkVTable**)sink;
+            var sinkVTable = *(TfLangBarItemSinkVTable**)sink;
             // [WinSDK: ITfLangBarItemSink::OnUpdate]
             int hr = sinkVTable->OnUpdate(
                 sink,

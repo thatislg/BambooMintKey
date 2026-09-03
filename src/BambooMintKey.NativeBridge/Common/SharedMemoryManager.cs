@@ -1,8 +1,8 @@
 // BambooMintKey - Vietnamese Telex Input Method Editor for Windows
 // Copyright (c) 2026 Dương Gia Long and LMO contributors
 // SPDX-License-Identifier: MIT
-using System;
 using System.Runtime.InteropServices;
+using BambooMintKey.NativeBridge.TSF;
 
 namespace BambooMintKey.NativeBridge.Common;
 
@@ -25,10 +25,10 @@ public static unsafe class SharedMemoryManager
     private static IntPtr _hEvent = IntPtr.Zero;
     private static byte* _pShared = null;
     private static bool _fallbackVietnameseMode = true;
-    private static readonly object _initLock = new();
+    private static readonly Lock InitLock = new();
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct SECURITY_ATTRIBUTES
+    private struct SecurityAttributes
     {
         public int nLength;
         public IntPtr lpSecurityDescriptor;
@@ -39,10 +39,10 @@ public static unsafe class SharedMemoryManager
     [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool ConvertStringSecurityDescriptorToSecurityDescriptorW(
-        string StringSecurityDescriptor,
-        uint StringSDRevision,
-        out IntPtr SecurityDescriptor,
-        IntPtr SecurityDescriptorSize);
+        string stringSecurityDescriptor,
+        uint stringSdRevision,
+        out IntPtr securityDescriptor,
+        IntPtr securityDescriptorSize);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern IntPtr LocalFree(IntPtr hMem);
@@ -109,13 +109,15 @@ public static unsafe class SharedMemoryManager
     {
         if (_pShared != null) return;
 
-        lock (_initLock)
+        lock (InitLock)
         {
             if (_pShared != null) return;
 
-            SECURITY_ATTRIBUTES sa = new();
-            sa.nLength = Marshal.SizeOf<SECURITY_ATTRIBUTES>();
-            sa.bInheritHandle = false;
+            SecurityAttributes sa = new()
+            {
+                nLength = Marshal.SizeOf<SecurityAttributes>(),
+                bInheritHandle = false
+            };
 
             IntPtr pSd = IntPtr.Zero;
             bool hasSd = ConvertStringSecurityDescriptorToSecurityDescriptorW(UniversalSddl, 1, out pSd, IntPtr.Zero);
@@ -156,6 +158,9 @@ public static unsafe class SharedMemoryManager
                             *(uint*)(_pShared + 8) = 1; // StateSequence ban đầu
                             *(uint*)(_pShared + 12) = 0x10; // HotkeyVKey: VK_SHIFT (0x10) mặc định
                             *(uint*)(_pShared + 16) = 0x0202; // HotkeyModifiers: Control | OnKeyUp (0x0202) mặc định
+
+                            // Đọc cấu hình người dùng đã lưu trong file config.json nếu có
+                            LoadInitialConfigFromDisk(_pShared);
                         }
                     }
                 }
@@ -172,6 +177,56 @@ public static unsafe class SharedMemoryManager
                     LocalFree(pSd);
                 }
             }
+        }
+    }
+
+    private static void LoadInitialConfigFromDisk(byte* pShared)
+    {
+        try
+        {
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string path = Path.Combine(appData, "BambooMintKey", "config.json");
+            if (!File.Exists(path)) return;
+
+            string json = File.ReadAllText(path);
+
+            uint ParseUint(string key, uint defaultVal)
+            {
+                string prefix = $"\"{key}\":";
+                int idx = json.IndexOf(prefix);
+                if (idx < 0) return defaultVal;
+                string sub = json.Substring(idx + prefix.Length).Trim();
+                int endIdx = sub.IndexOfAny([',', '\n', '\r', '}']);
+                string token = endIdx >= 0 ? sub.Substring(0, endIdx).Trim() : sub;
+                return uint.TryParse(token, out uint v) ? v : defaultVal;
+            }
+
+            bool ParseBool(string key, bool defaultVal)
+            {
+                string prefix = $"\"{key}\":";
+                int idx = json.IndexOf(prefix);
+                if (idx < 0) return defaultVal;
+                string sub = json.Substring(idx + prefix.Length).Trim();
+                if (sub.StartsWith("true", StringComparison.OrdinalIgnoreCase)) return true;
+                if (sub.StartsWith("false", StringComparison.OrdinalIgnoreCase)) return false;
+                return defaultVal;
+            }
+
+            pShared[1] = (byte)ParseUint("toneStyle", 0);
+            pShared[2] = (byte)(ParseBool("autoRestoreEnglishWords", true) ? 1 : 0);
+            pShared[3] = (byte)(ParseBool("allowRepeatKeyUndo", true) ? 1 : 0);
+            pShared[4] = (byte)(ParseBool("allowLeadingWAsU", false) ? 1 : 0);
+            pShared[5] = (byte)ParseUint("inputMethod", 0);
+            pShared[6] = (byte)ParseUint("charset", 0);
+            pShared[7] = (byte)ParseUint("toggleHotkey", 0);
+            *(uint*)(pShared + 12) = ParseUint("hotkeyVKey", 0x10);
+            *(uint*)(pShared + 16) = ParseUint("hotkeyModifiers", 0x0202);
+
+            DebugLog.Write($"Loaded config from disk: vKey={*(uint*)(pShared + 12)}, mods={*(uint*)(pShared + 16)}");
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Write($"LoadInitialConfigFromDisk error: {ex.Message}");
         }
     }
 

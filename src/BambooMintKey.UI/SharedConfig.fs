@@ -42,6 +42,9 @@ module ConfigStore =
     [<DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)>]
     extern IntPtr OpenFileMappingW(uint32 dwDesiredAccess, bool bInheritHandle, string lpName)
 
+    [<DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)>]
+    extern IntPtr CreateFileMappingW(IntPtr hFile, IntPtr lpFileMappingAttributes, uint32 flProtect, uint32 dwMaximumSizeHigh, uint32 dwMaximumSizeLow, string lpName)
+
     [<DllImport("kernel32.dll", SetLastError = true)>]
     extern IntPtr MapViewOfFile(IntPtr hFileMappingObject, uint32 dwDesiredAccess, uint32 dwFileOffsetHigh, uint32 dwFileOffsetLow, nativeint dwNumberOfBytesToMap)
 
@@ -63,9 +66,11 @@ module ConfigStore =
     [<DllImport("kernel32.dll", SetLastError = true)>]
     extern void Sleep(uint32 dwMilliseconds)
 
-    let private FILE_MAP_ALL_ACCESS = 0x000F001Fu
+    let private FILE_MAP_WRITE = 0x0002u
+    let private FILE_MAP_READ = 0x0004u
+    let private PAGE_READWRITE = 0x04u
     let private EVENT_MODIFY_STATE = 0x0002u
-    let private MapName = @"Local\BambooMintKey_SharedMemory_v1"
+    let private MapName = @"Local\BambooMintKey_SharedConfig_v1"
     let private EventName = @"Local\BambooMintKey_StateChangedEvent_v1"
     let private RunRegistryKey = @"Software\Microsoft\Windows\CurrentVersion\Run"
     let private AppName = "BambooMintKey"
@@ -146,9 +151,9 @@ module ConfigStore =
         // 1. Thử đọc trực tiếp từ Shared Memory
         let mutable loadedFromMemory = false
         try
-            let hMap = OpenFileMappingW(FILE_MAP_ALL_ACCESS, false, MapName)
+            let hMap = OpenFileMappingW(FILE_MAP_READ, false, MapName)
             if hMap <> IntPtr.Zero then
-                let pView = MapViewOfFile(hMap, FILE_MAP_ALL_ACCESS, 0u, 0u, 64n)
+                let pView = MapViewOfFile(hMap, FILE_MAP_READ, 0u, 0u, 64n)
                 if pView <> IntPtr.Zero then
                     let span = Span<byte>(pView.ToPointer(), 64)
                     cfg.IsVietnameseMode <- span.[0] <> 0uy
@@ -225,11 +230,31 @@ module ConfigStore =
     let saveConfig (cfg: AppConfig) =
         setStartWithWindows cfg.StartWithWindows
 
-        // 1. Ghi trực tiếp vào Shared Memory và phát tín hiệu broadcast
+        // 1. Ghi file JSON để lưu bền vững trước tiên
         try
-            let hMap = OpenFileMappingW(FILE_MAP_ALL_ACCESS, false, MapName)
+            let path = getConfigPath ()
+            let json = sprintf "{\n  \"toneStyle\": %d,\n  \"autoRestoreEnglishWords\": %b,\n  \"allowRepeatKeyUndo\": %b,\n  \"allowLeadingWAsU\": %b,\n  \"inputMethod\": %d,\n  \"charset\": %d,\n  \"toggleHotkey\": %d,\n  \"hotkeyVKey\": %u,\n  \"hotkeyModifiers\": %u,\n  \"startWithWindows\": %b\n}"
+                        cfg.ToneStyle
+                        cfg.AutoRestoreEnglishWords
+                        cfg.AllowRepeatKeyUndo
+                        cfg.AllowLeadingWAsU
+                        cfg.InputMethod
+                        cfg.Charset
+                        cfg.ToggleHotkey
+                        cfg.HotkeyVKey
+                        cfg.HotkeyModifiers
+                        cfg.StartWithWindows
+            File.WriteAllText(path, json)
+        with _ -> ()
+
+        // 2. Ghi trực tiếp vào Shared Memory và phát tín hiệu broadcast
+        try
+            let mutable hMap = OpenFileMappingW(FILE_MAP_READ ||| FILE_MAP_WRITE, false, MapName)
+            if hMap = IntPtr.Zero then
+                hMap <- CreateFileMappingW(new IntPtr(-1), IntPtr.Zero, PAGE_READWRITE, 0u, 64u, MapName)
+
             if hMap <> IntPtr.Zero then
-                let pView = MapViewOfFile(hMap, FILE_MAP_ALL_ACCESS, 0u, 0u, 64n)
+                let pView = MapViewOfFile(hMap, FILE_MAP_READ ||| FILE_MAP_WRITE, 0u, 0u, 64n)
                 if pView <> IntPtr.Zero then
                     let span = Span<byte>(pView.ToPointer(), 64)
                     span.[0] <- if cfg.IsVietnameseMode then 1uy else 0uy
@@ -254,11 +279,11 @@ module ConfigStore =
 
                     UnmapViewOfFile(pView) |> ignore
 
-                    // Phát tín hiệu Manual-Reset Event broadcast
+                    // Phát tín hiệu Event broadcast cho các tiến trình đang lắng nghe
                     let hEvent = OpenEventW(EVENT_MODIFY_STATE, false, EventName)
                     if hEvent <> IntPtr.Zero then
                         SetEvent(hEvent) |> ignore
-                        Sleep(10u)
+                        Sleep(20u)
                         ResetEvent(hEvent) |> ignore
                         CloseHandle(hEvent) |> ignore
 
