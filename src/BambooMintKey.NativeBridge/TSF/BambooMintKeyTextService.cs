@@ -11,10 +11,12 @@ namespace BambooMintKey.NativeBridge.TSF;
 
 public static class DebugLog
 {
+    private static readonly bool _enabled = Environment.GetEnvironmentVariable("BAMBOOMINTKEY_DEBUG") == "1";
     private static readonly object _lock = new();
 
     public static void Write(string msg)
     {
+        if (!_enabled) return;
         try
         {
             var path = Path.Combine(Path.GetTempPath(), "BambooMintKey_Runtime.log");
@@ -22,7 +24,7 @@ public static class DebugLog
             {
                 using var fs = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
                 using var sw = new StreamWriter(fs);
-                sw.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {msg}");
+                sw.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [{Environment.ProcessId}] {msg}");
                 sw.Flush();
             }
         }
@@ -219,6 +221,9 @@ public unsafe class BambooMintKeyTextService
             pThreadMgr, tfClientId, keySinkPtr);
         DebugLog.Write($"Advise KeyEventSink cookie={target._keyEventSinkCookie}");
 
+        // 3.1. Đăng ký Preserved Keys cho phím tắt chuyển chế độ V/E
+        KeyEventSinkHelper.RegisterPreservedKeys(pThreadMgr, tfClientId);
+
         // 4. Khởi tạo / Đồng bộ Engine State
         BridgeStateManager.InitializeEngine();
 
@@ -258,9 +263,10 @@ public unsafe class BambooMintKeyTextService
         // tự quản lý hiển thị/ẩn icon theo trạng thái kích hoạt của TIP.
         // Gỡ bỏ nút ở đây sẽ làm icon biến mất khi chuyển đổi tiêu điểm giữa các cửa sổ.
 
-        // 1. Unadvise KeyEventSink
+        // 1. Unadvise KeyEventSink & Unregister Preserved Keys
         if (target._keyEventSinkCookie != 0)
         {
+            KeyEventSinkHelper.UnregisterPreservedKeys(target._pThreadMgr, target._clientId);
             KeyEventSinkHelper.UnadviseKeyEventSink(target._pThreadMgr, target._clientId);
             target._keyEventSinkCookie = 0;
         }

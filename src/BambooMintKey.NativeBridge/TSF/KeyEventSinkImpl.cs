@@ -226,8 +226,19 @@ public static unsafe class KeyEventSinkImpl
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int OnPreservedKey(IntPtr thisPtr, IntPtr pic, Guid* rguid, int* pfEaten)
     {
+        DebugLog.Write($"OnPreservedKey ENTER rguid={(rguid != null ? (*rguid).ToString() : "null")}");
         if (pfEaten == null) return HResult.Pointer;
         *pfEaten = 0;
+
+        if (rguid != null && *rguid == Guids.GuidPreservedKeyToggle)
+        {
+            bool newMode = BridgeStateManager.ToggleVietnameseMode();
+            LangBarItemButton.NotifyStateChanged();
+            DebugLog.Write($"OnPreservedKey Toggle triggered! New IsVietnameseMode={newMode}");
+            *pfEaten = 1;
+            return HResult.Ok;
+        }
+
         return HResult.Ok;
     }
 }

@@ -55,10 +55,12 @@ foreach ($cat in $categories) {
     reg add "HKCU\SOFTWARE\Microsoft\CTF\TIP\$Clsid\Category\Item\$Clsid\$cat" /ve /f | Out-Null
 }
 
-# 4. Restart ctfmon de nhan profile moi
+# 4. Restart ctfmon va explorer de nhan profile moi va nap DLL moi
 Write-Host "[OK] Da ghi Registry HKCU Profile & SortOrder thanh cong." -ForegroundColor Green
-Write-Host "Dang khoi dong lai ctfmon.exe..." -ForegroundColor Yellow
+Write-Host "Dang khoi dong lai ctfmon.exe va explorer.exe..." -ForegroundColor Yellow
 Stop-Process -Name ctfmon -Force -ErrorAction SilentlyContinue
+Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
 Start-Process ctfmon
+Start-Sleep -Milliseconds 500
 Write-Host "[OK] Hoan tat kich hoat TIP cho user hien tai." -ForegroundColor Green
 

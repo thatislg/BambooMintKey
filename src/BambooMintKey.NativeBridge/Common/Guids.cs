@@ -119,4 +119,7 @@ public static class Guids
     /// <summary>GUID_LBI_INPUTMODE - Bắt buộc trên Windows 8/10/11 để Taskbar hiển thị icon của IME trong system tray.</summary>
     /// <remarks>Lấy từ Windows SDK ctffunc.h: uuid(2c77a81e-41cc-4178-a3a7-5f8a987568e6).</remarks>
     public static readonly Guid GuidLbiInputMode = new("2C77A81E-41CC-4178-A3A7-5F8A987568E6");
+
+    /// <summary>GUID định danh cho Preserved Key chuyển đổi chế độ V/E trong TSF.</summary>
+    public static readonly Guid GuidPreservedKeyToggle = new("E58A4372-B147-49D6-8C45-76DF53E65B01");
 }

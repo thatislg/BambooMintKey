@@ -71,9 +71,6 @@ public static class IconHelper
     /// <summary>TRANSPARENT (1) - Nền chữ trong suốt trong GDI.</summary>
     private const int BkModeTransparent = 1;
 
-    /// <summary>FW_BOLD (700) - Độ đậm nét chữ Bold.</summary>
-    private const int FwBold = 700;
-
     /// <summary>FW_HEAVY (900) - Độ đậm nét chữ Heavy (hiển thị rõ ở kích thước nhỏ).</summary>
     private const int FwHeavy = 900;
 
@@ -187,10 +184,18 @@ public static class IconHelper
     /// Tạo một HICON động chứa ký tự text ("V" hoặc "E") với nền xanh lá bo góc BambooMintKey.
     /// </summary>
     /// <param name="text">Ký tự cần vẽ ("V" hoặc "E")</param>
-    /// <returns>IntPtr trỏ tới HICON hợp lệ (cần được giải phóng bằng DestroyIcon khi tắt app)</returns>
-    public static IntPtr CreateBambooIcon(string text)
+    /// <param name="width">Chiều rộng tùy chọn (mặc định 0 để tự lấy theo DPI)</param>
+    /// <param name="height">Chiều cao tùy chọn (mặc định 0 để tự lấy theo DPI)</param>
+    /// <returns>IntPtr trỏ tới HICON hợp lệ</returns>
+    public static IntPtr CreateBambooIcon(string text, int width = 0, int height = 0)
     {
-        var (width, height) = GetTrayIconMetrics();
+        if (width <= 0 || height <= 0)
+        {
+            var metrics = GetTrayIconMetrics();
+            width = metrics.width;
+            height = metrics.height;
+        }
+
         int cornerRadius = Math.Max(4, width / 4);
 
         IntPtr hScreenDC = GetDC(IntPtr.Zero);
@@ -211,7 +216,7 @@ public static class IconHelper
         // Vẽ hình chữ nhật bo góc
         RoundRect(hColorDC, 0, 0, width, height, cornerRadius, cornerRadius);
 
-        // Tạo font chữ nét đậm Segoe UI / Arial
+        // Tạo font chữ nét đậm Segoe UI
         int fontHeight = -((height * 7) / 10);
         IntPtr hFont = CreateFontW(
             fontHeight, 0, 0, 0, FwHeavy,
@@ -293,146 +298,133 @@ public static class IconHelper
 
 ---
 
-## 3. Tích hợp Quản lý Cache Icon vào `LangBarItemButton.cs`
+## 3. Quản lý Hiển thị Icon & Đồng bộ trong `LangBarItemButton.cs`
 
-Trong [LangBarItemButton.cs](file:///D:/Kojin/BambooMintKey/src/BambooMintKey.NativeBridge/TSF/LangBarItemButton.cs):
+Mã nguồn tại [`src/BambooMintKey.NativeBridge/TSF/LangBarItemButton.cs`](file:///d:/Kojin/BambooMintKey/src/BambooMintKey.NativeBridge/TSF/LangBarItemButton.cs):
 
-### 3.1. Caching Handle `_hIconV` và `_hIconE`
-Windows TSF gọi `GetIcon` liên tục khi người dùng di chuột qua thanh Taskbar. Để tránh tạo và hủy GDI bitmap hàng trăm lần mỗi giây, hai handle `_hIconV` và `_hIconE` được tạo theo cơ chế Lazy Initialization và lưu vào bộ nhớ cache:
+### 3.1. Cung cấp Icon qua `ITfLangBarItemButton::GetIcon`
 
 ```csharp
-private static IntPtr _hIconV = IntPtr.Zero;
-private static IntPtr _hIconE = IntPtr.Zero;
-
 /// <summary>[WinSDK: ITfLangBarItemButton::GetIcon] - Cung cấp con trỏ HICON để Windows vẽ icon Taskbar.</summary>
 [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
 private static int GetIcon(IntPtr thisPtr, IntPtr* phIcon)
 {
     if (phIcon == null) return HResult.InvalidArgument;
 
-    if (BridgeStateManager.IsVietnameseMode)
-    {
-        if (_hIconV == IntPtr.Zero)
-        {
-            _hIconV = IconHelper.CreateBambooIcon("V");
-        }
-        *phIcon = _hIconV;
-    }
-    else
-    {
-        if (_hIconE == IntPtr.Zero)
-        {
-            _hIconE = IconHelper.CreateBambooIcon("E");
-        }
-        *phIcon = _hIconE;
-    }
+    // Theo đặc tả Microsoft WinSDK cho ITfLangBarItemButton::GetIcon:
+    // "The caller is responsible for destroying this icon when it is no longer required."
+    // Windows Taskbar Shell sẽ tự động gọi DestroyIcon sau khi vẽ.
+    // Bắt buộc phải tạo HICON mới mỗi lần để tránh cung cấp handle đã bị hủy.
+    string text = BridgeStateManager.IsVietnameseMode ? "V" : "E";
+    *phIcon = IconHelper.CreateBambooIcon(text);
+    DebugLog.Write($"LangBarItemButton.GetIcon: Created fresh HICON for '{text}' -> {*phIcon}");
 
     return HResult.Ok;
 }
 ```
 
-### 3.2. Giải phóng Cache trong `Unregister`
-Khi bộ gõ bị hủy kích hoạt hoặc gỡ cài đặt, bắt buộc phải giải phóng hai handle icon để tránh rò rỉ tài nguyên hệ thống (GDI Handle Leak):
+### 3.2. Xử lý Sự kiện Click Chuột Trái (`OnClick`)
 
 ```csharp
-public static void Unregister()
+/// <summary>[WinSDK: ITfLangBarItemButton::OnClick] - Xử lý sự kiện click chuột từ người dùng.</summary>
+[UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+private static int OnClick(IntPtr thisPtr, uint click, POINT pt, RECT* prcArea)
 {
-    // 1. Gỡ Item khỏi Language Bar Manager
-    if (_langBarMgr != IntPtr.Zero)
+    DebugLog.Write($"LangBarItemButton OnClick received click={click}");
+    // Bất kỳ click chuột trái nào -> Đảo chế độ gõ V/E
+    if (click != TsfLangBarFlags.TfLbiClkRight)
     {
-        var mgrVTable = **(ITfLangBarItemMgrVTable**)_langBarMgr;
-        mgrVTable.RemoveItem(_langBarMgr, _comInstance);
-
-        NativeCom.Release(_langBarMgr);
-        _langBarMgr = IntPtr.Zero;
+        bool newMode = BridgeStateManager.ToggleVietnameseMode();
+        NotifyStateChanged();
+        DebugLog.Write($"LangBarItemButton OnClick toggled IsVietnameseMode={newMode}");
     }
+    return HResult.Ok;
+}
+```
 
-    // 2. Giải phóng con trỏ Sink kết nối từ Windows
-    if (_pLangBarSink != IntPtr.Zero)
+### 3.3. Đồng bộ Liên tiến trình qua `StartEventListener`
+
+Để khi một tiến trình ứng dụng thay đổi trạng thái (hoặc phím tắt được bấm ở bất kỳ ứng dụng nào), Taskbar Language Bar nhận diện và vẽ lại:
+
+```csharp
+private static bool _listenerStarted = false;
+
+private static void StartEventListener()
+{
+    var thread = new System.Threading.Thread(() =>
     {
-        NativeCom.Release(_pLangBarSink);
-        _pLangBarSink = IntPtr.Zero;
-        _sinkCookie = 0;
-    }
+        IntPtr hEv = SharedMemoryManager.StateChangedEventHandle;
+        if (hEv == IntPtr.Zero) return;
 
-    // 3. Giải phóng bộ đệm HICON (Tránh rò rỉ GDI Objects)
-    if (_hIconV != IntPtr.Zero)
+        while (true)
+        {
+            uint wr = SharedMemoryManager.WaitForSingleObject(hEv, 0xFFFFFFFF /* INFINITE */);
+            if (wr == 0 /* WAIT_OBJECT_0 */)
+            {
+                NotifyStateChanged();
+            }
+            else
+            {
+                break;
+            }
+        }
+    })
     {
-        IconHelper.DestroyIcon(_hIconV);
-        _hIconV = IntPtr.Zero;
-    }
-
-    if (_hIconE != IntPtr.Zero)
-    {
-        IconHelper.DestroyIcon(_hIconE);
-        _hIconE = IntPtr.Zero;
-    }
+        IsBackground = true,
+        Name = "BambooMintKey_StateEventListener"
+    };
+    thread.Start();
 }
 ```
 
 ---
 
-## 4. Tích hợp Phím tắt Chuyển chế độ vào `KeyEventSinkImpl.cs`
+## 4. Tích hợp Phím tắt Chuyển chế độ vào `KeyInputTranslator.cs` và `KeyEventSinkImpl.cs`
 
-Để người dùng có thể chuyển đổi nhanh giữa tiếng Việt và tiếng Anh bằng bàn phím (không cần dùng chuột click vào khay hệ thống), `KeyEventSinkImpl` cài đặt bộ kiểm tra phím tắt.
+Mã nguồn hiện tại đã cập nhật phím tắt chính là **`Ctrl + Shift + Q`** (thay vì `Ctrl + Shift` để tránh trùng lặp với phím tắt mặc định chuyển ngôn ngữ của Windows), kèm phím tắt phụ **`Alt + Z`**.
 
-### 4.1. Định nghĩa Tổ hợp Phím tắt
-* **Tổ hợp 1 (`Ctrl + Shift`):** Nhấn phím `Shift` khi phím `Ctrl` đang được giữ (hoặc ngược lại).
-* **Tổ hợp 2 (`Alt + Z`):** Nhấn phím `Z` khi phím `Alt` đang được giữ.
+### 4.1. Mã nguồn Kiểm tra Phím tắt trong `KeyInputTranslator.cs`
 
-### 4.2. Mã nguồn Xử lý trong `KeyEventSinkImpl.cs`
-Trong `OnTestKeyDown` và `OnKeyDown`:
+Mã nguồn tại [`src/BambooMintKey.NativeBridge/Interop/KeyInputTranslator.cs`](file:///d:/Kojin/BambooMintKey/src/BambooMintKey.NativeBridge/Interop/KeyInputTranslator.cs):
 
 ```csharp
-// Kiểm tra tổ hợp phím tắt Toggle V/E
-if (KeyInputTranslator.IsToggleHotkeyPressed(wParam, lParam))
+[DllImport("user32.dll")]
+private static extern short GetAsyncKeyState(int vKey);
+
+private static bool IsKeyDown(int vKey)
 {
-    *pfEaten = 1; // Nuốt phím để không phát ký tự ra ứng dụng
-    return HResult.Ok;
+    return ((GetKeyState(vKey) & 0x8000) != 0) || ((GetAsyncKeyState(vKey) & 0x8000) != 0);
 }
-```
 
-Trong `OnKeyDown`:
-```csharp
-if (KeyInputTranslator.IsToggleHotkeyPressed(wParam, lParam))
-{
-    // 1. Đảo trạng thái bộ gõ trong BridgeStateManager
-    BridgeStateManager.ToggleVietnameseMode();
+// =========================================================================
+// Hotkey detection
+// =========================================================================
 
-    // 2. Thông báo cho Windows Taskbar vẽ lại icon V/E và cập nhật Tooltip
-    LangBarItemButton.NotifyStateChanged();
+public const uint VkShift = 0x10;
+public const uint VkQ = 0x51;
+public const uint VkZ = 0x5A;
 
-    *pfEaten = 1;
-    return HResult.Ok;
-}
-```
-
-Trong `KeyInputTranslator.cs`:
-```csharp
 /// <summary>
 /// Kiểm tra xem sự kiện bàn phím hiện tại có phải là phím tắt chuyển đổi chế độ V/E hay không.
-/// Hỗ trợ: Ctrl + Shift hoặc Alt + Z.
+/// Theo yêu cầu người dùng: Ctrl + Shift + Q.
 /// </summary>
 public static bool IsToggleHotkeyPressed(UIntPtr wParam, IntPtr lParam)
 {
     uint vk = (uint)wParam;
 
-    // Trường hợp 1: Alt + Z (vk == 0x5A và phím Alt đang giữ)
-    if (vk == 0x5A /* 'Z' */ && (GetKeyState((int)VkMenu) & 0x8000) != 0)
+    // Phím tắt chính: Ctrl + Shift + Q
+    if (vk == VkQ)
     {
-        return true;
+        bool isCtrl = IsKeyDown((int)VkControl) || IsKeyDown(0xA2) || IsKeyDown(0xA3);
+        bool isShift = IsKeyDown((int)VkShift) || IsKeyDown(0xA0) || IsKeyDown(0xA1);
+        if (isCtrl && isShift)
+        {
+            return true;
+        }
     }
 
-    // Trường hợp 2: Ctrl + Shift (bấm Shift khi Ctrl đang giữ, hoặc bấm Ctrl khi Shift đang giữ)
-    bool isCtrl = (vk == 0x11 /* VK_CONTROL */ || vk == 0xA2 /* VK_LCONTROL */ || vk == 0xA3 /* VK_RCONTROL */);
-    bool isShift = (vk == 0x10 /* VK_SHIFT */ || vk == 0xA0 /* VK_LSHIFT */ || vk == 0xA1 /* VK_RSHIFT */);
-
-    if (isShift && (GetKeyState((int)VkControl) & 0x8000) != 0)
-    {
-        return true;
-    }
-
-    if (isCtrl && (GetKeyState(0x10 /* VK_SHIFT */) & 0x8000) != 0)
+    // Phím tắt dự phòng: Alt + Z
+    if (vk == VkZ && (IsKeyDown((int)VkMenu) || IsKeyDown(0xA4) || IsKeyDown(0xA5)))
     {
         return true;
     }
@@ -441,15 +433,130 @@ public static bool IsToggleHotkeyPressed(UIntPtr wParam, IntPtr lParam)
 }
 ```
 
+### 4.2. Mã nguồn Bắt Phím trong `KeyEventSinkImpl.cs`
+
+Mã nguồn tại [`src/BambooMintKey.NativeBridge/TSF/KeyEventSinkImpl.cs`](file:///d:/Kojin/BambooMintKey/src/BambooMintKey.NativeBridge/TSF/KeyEventSinkImpl.cs):
+
+```csharp
+[UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+private static int OnTestKeyDown(IntPtr thisPtr, IntPtr pic, UIntPtr wParam, IntPtr lParam, int* pfEaten)
+{
+    if (pfEaten == null) return HResult.Pointer;
+    *pfEaten = 0;
+
+    // 0. Kiểm tra phím tắt chuyển đổi chế độ V/E (Ctrl + Shift + Q hoặc Alt + Z)
+    if (KeyInputTranslator.IsToggleHotkeyPressed(wParam, lParam))
+    {
+        *pfEaten = 1;
+        return HResult.Ok;
+    }
+    ...
+}
+
+[UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+private static int OnKeyDown(IntPtr thisPtr, IntPtr pic, UIntPtr wParam, IntPtr lParam, int* pfEaten)
+{
+    if (pfEaten == null) return HResult.Pointer;
+    *pfEaten = 0;
+
+    // 0. Bắt phím tắt chuyển đổi chế độ V/E (Ctrl + Shift + Q hoặc Alt + Z)
+    if (KeyInputTranslator.IsToggleHotkeyPressed(wParam, lParam))
+    {
+        bool newMode = BridgeStateManager.ToggleVietnameseMode();
+        LangBarItemButton.NotifyStateChanged();
+        DebugLog.Write($"OnKeyDown ToggleHotkey triggered! New IsVietnameseMode={newMode}");
+        *pfEaten = 1;
+        return HResult.Ok;
+    }
+    ...
+}
+```
+
+### 4.3. Bắt Phím tắt Chuẩn TSF qua `PreserveKey` và `OnPreservedKey`
+
+Để đảm bảo phím tắt hoạt động độc lập 100% không phụ thuộc vào trạng thái hàng đợi thông điệp của cửa sổ ứng dụng:
+1. Trong `KeyEventSinkHelper.cs`: Đăng ký các phím tắt (`Ctrl + Shift + Q`, `Alt + Z`, `Ctrl + Space`, `Ctrl + Shift` KeyUp) với `ITfKeystrokeMgr::PreserveKey`.
+2. Trong `KeyEventSinkImpl.cs`: Callback `OnPreservedKey` được Windows TSF gọi trực tiếp khi người dùng bấm phím tắt:
+
+```csharp
+[UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+private static int OnPreservedKey(IntPtr thisPtr, IntPtr pic, Guid* rguid, int* pfEaten)
+{
+    DebugLog.Write($"OnPreservedKey ENTER rguid={(rguid != null ? (*rguid).ToString() : "null")}");
+    if (pfEaten == null) return HResult.Pointer;
+    *pfEaten = 0;
+
+    if (rguid != null && *rguid == Guids.GuidPreservedKeyToggle)
+    {
+        bool newMode = BridgeStateManager.ToggleVietnameseMode();
+        LangBarItemButton.NotifyStateChanged();
+        DebugLog.Write($"OnPreservedKey Toggle triggered! New IsVietnameseMode={newMode}");
+        *pfEaten = 1;
+        return HResult.Ok;
+    }
+
+    return HResult.Ok;
+}
+```
+
 ---
 
-## 5. Kế hoạch Kiểm thử & Nghiệm thu (Verification Matrix)
+## 5. Phân tích Nguyên nhân & Cơ chế Lỗi Thực tế (Root Cause Analysis)
+
+Qua quá trình chạy kiểm thử thực tế và phân tích chi tiết log thời gian thực (`BambooMintKey_Runtime.log`), phát hiện hai nguyên nhân kỹ thuật cốt lõi sau:
+
+### 5.1. Nguyên nhân Lỗi 1: Click chuột trực tiếp vào Icon E/V thường chỉ đổi được đúng 1 lần
+
+#### Cơ chế của Windows TSF đối với `HICON`:
+* Theo quy định kỹ thuật của Microsoft Windows SDK cho interface `ITfLangBarItemButton::GetIcon`:
+  > *"phIcon: [out] Pointer to an HICON value that receives the icon handle. **The caller is responsible for destroying this icon when it is no longer required**."*
+* Shell của Windows (Taskbar Explorer) là bên gọi (`caller`). Sau khi nhận `HICON` và vẽ icon lên khay hệ thống, **Windows tự động gọi `DestroyIcon(hIcon)`** để giải phóng tài nguyên GDI.
+
+#### Nguyên nhân gây lỗi:
+1. Ban đầu ở trạng thái **V**: `GetIcon` cấp phát `_hIconV` (ví dụ con trỏ `0x1000`). Windows nhận `0x1000`, vẽ chữ V, sau đó Windows gọi `DestroyIcon(0x1000)`. Con trỏ `0x1000` **đã bị hủy hoàn toàn trong bảng GDI của Windows**!
+2. Người dùng click lần 1 (đổi sang **E**): `GetIcon` cấp phát `_hIconE` (ví dụ `0x2000`). Windows nhận `0x2000`, vẽ chữ E, sau đó gọi `DestroyIcon(0x2000)`.
+3. Người dùng click lần 2 (muốn đổi lại **V**): `GetIcon` thấy `_hIconV != IntPtr.Zero`, nên **trả lại con trỏ cũ `0x1000`**!
+4. Do `0x1000` đã bị Windows hủy ở bước 1, Windows gặp lỗi GDI Handle không hợp lệ (`ERROR_INVALID_HANDLE`) nên **không thể vẽ lại icon, icon bị đơ/đứng hình hoặc biến mất**!
+5. **Giải pháp khắc phục:** Không lưu cache vĩnh viễn con trỏ `HICON`. Mỗi lần Windows gọi `GetIcon`, hàm phải tạo mới một `HICON` tươi (`IconHelper.CreateBambooIcon(...)`) để trao quyền sở hữu cho Windows giải phóng, hoặc tạo bản sao độc lập.
+
+---
+
+### 5.2. Nguyên nhân Lỗi 2: Phím tắt `Ctrl + Shift + Q` không đổi được E/V
+
+#### Phân tích luồng bắt phím từ Runtime Log:
+Log thực tế ghi nhận khi người dùng bấm `Ctrl + Shift + Q`:
+```text
+[15:10:31.221] OnKeyDown ENTER vk=17  (VK_CONTROL)
+[15:10:31.781] OnKeyDown ENTER vk=16  (VK_SHIFT)
+[15:10:31.956] OnKeyDown ENTER vk=81  (VK_Q)
+[15:10:31.957] RequestEdit: action=UpdateText, text=Q
+[15:10:31.964] OnKeyDown ProcessKey char=Q, text=Q
+```
+Khi mã phím `vk=81` ('Q') vào `OnKeyDown`, hệ thống gõ ra chữ **'Q'** thay vì kích hoạt phím tắt vì những lý do sau:
+
+1. **Trạng thái Modifier trong TSF Message Pump không đồng bộ:**
+   * `KeyInputTranslator` dùng `GetKeyState` và `GetAsyncKeyState`.
+   * `GetKeyState` kiểm tra trạng thái phím trong hàng đợi thông điệp (`message queue`) của thread hiện tại.
+   * `ToUnicode` tại thời điểm `vk=81` trả về ký tự in hoa `'Q'`. Điều này chứng minh tại thời điểm phím `Q` được gửi đến `OnKeyDown`, cờ `VK_CONTROL` trong thread message queue đã là `0` (không còn được tính là đang giữ `Ctrl`).
+2. **Xung đột phím hệ thống Windows (`Ctrl + Shift`):**
+   * Trong Windows 10 & 11, phím tắt mặc định toàn hệ thống để chuyển đổi ngôn ngữ nhập liệu (Input Language Switching) chính là **`Ctrl + Shift`** (hoặc `Left Alt + Shift`).
+   * Khi người dùng ấn giữ `Ctrl` rồi ấn tiếp `Shift`, Windows Shell lập tức đánh chặn tổ hợp này trước khi người dùng kịp ấn đến `Q`, khiến chuỗi trạng thái phím bị nuốt hoặc làm mất trạng thái modifier của thread.
+3. **Quy tắc nuốt phím của TSF (`OnTestKeyDown` -> `OnKeyDown`):**
+   * Trong Windows TSF, nếu `ITfKeyEventSink::OnTestKeyDown` trả về `*pfEaten = 0`, Windows coi như IME không xử lý phím đó và **sẽ không gọi `OnKeyDown`**, mà gửi thẳng `WM_KEYDOWN` đến ứng dụng.
+   * Khi đang ở chế độ Tiếng Anh (`E`), nếu `IsToggleHotkeyPressed` trả về `false` trong `OnTestKeyDown`, `*pfEaten` bị gán bằng `0`. Sau đó `OnKeyDown` không bao giờ được gọi nữa, khiến người dùng **không thể chuyển từ E ngược lại V**.
+4. **Giải pháp chuẩn TSF (Preserved Key):**
+   * Trong TSF, chuẩn để đăng ký phím tắt IME là dùng API **`ITfKeystrokeMgr::PreserveKey`** và callback **`ITfKeyEventSink::OnPreservedKey`**.
+   * Khi đăng ký qua `PreserveKey`, Windows TSF sẽ chịu trách nhiệm giám sát toàn cục tổ hợp phím và kích hoạt trực tiếp `OnPreservedKey`, khắc phục triệt để việc sai lệch trạng thái phím modifier do hàng đợi thông điệp.
+
+---
+
+## 6. Kế hoạch Kiểm thử & Nghiệm thu (Verification Matrix)
 
 | Bước kiểm thử | Thao tác thực hiện | Kết quả mong đợi |
 | :--- | :--- | :--- |
 | **1. DevHarness Test** | Chạy `dotnet run --project src/BambooMintKey.DevHarness` | `CreateBambooIcon("V")` và `"E"` trả về `HICON != IntPtr.Zero`. `GetIcon` phản hồi đúng icon theo trạng thái. Không rò rỉ bộ nhớ. |
 | **2. NativeAOT Build** | Chạy `pwsh scripts/build-native.ps1` | Biên dịch ra DLL `publish/win-x64/BambooMintKey.dll` thành công không cảnh báo calling convention hay AOT trim. |
 | **3. Hiển thị Icon Taskbar** | Đăng ký TIP, chuyển sang BambooMintKey bằng `Win + Space` | Khay Taskbar xuất hiện ngay lập tức icon hình vuông nền xanh lá cây bo góc có chữ **V** màu trắng ngà cạnh chữ `VIE`. |
-| **4. Click Chuột Đổi Icon** | Click chuột trái vào icon chữ **V** | Icon chuyển tức thì sang chữ **E** (nền xanh lá, chữ E màu trắng), tooltip chuyển thành `"BambooMintKey: English"`. Click tiếp đổi lại chữ **V**. |
-| **5. Phím tắt Toggle** | Bấm `Ctrl + Shift` hoặc `Alt + Z` | Icon trên Taskbar tự động đổi giữa **V** $\leftrightarrow$ **E**. Chế độ gõ tiếng Việt tắt/bật đồng bộ. |
+| **4. Click Chuột Đổi Icon** | Click chuột trái vào icon chữ **V** | Icon chuyển tức thì sang chữ **E** (nền xanh lá, chữ E màu trắng), tooltip chuyển thành `"BambooMintKey: English"`. Click tiếp đổi lại chữ **V** liên tục không bị đơ. |
+| **5. Phím tắt Toggle** | Bấm `Ctrl + Shift + Q` hoặc `Alt + Z` | Icon trên Taskbar tự động đổi giữa **V** $\leftrightarrow$ **E**. Chế độ gõ tiếng Việt tắt/bật đồng bộ. |
 | **6. GDI Leak Check** | Dùng Task Manager (cột GDI Objects) click toggle 50 lần | Số lượng GDI Objects của tiến trình không tăng lũy tiến (đạt tiêu chuẩn 0 GDI Leak). |
