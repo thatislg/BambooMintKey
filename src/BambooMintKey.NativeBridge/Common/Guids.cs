@@ -63,4 +63,20 @@ public static class Guids
     /// <summary>IID_ITfEditSession - Thao tác văn bản trong edit cookie (002_04).</summary>
     /// <remarks>Lấy từ Windows SDK msctf.idl: uuid(aa80e803-2021-11d2-93e0-0060b067b86e).</remarks>
     public static readonly Guid IidITfEditSession = new("AA80E803-2021-11D2-93E0-0060B067B86E");
+
+    /// <summary>IID_ITfContextComposition - Quản lý composition trên ITfContext.</summary>
+    /// <remarks>Lấy từ Windows SDK msctf.idl: uuid(d40c8aae-ac92-4fc7-9a11-0ee0e23aa39b).</remarks>
+    public static readonly Guid IidITfContextComposition = new("D40C8AAE-AC92-4FC7-9A11-0EE0E23AA39B");
+
+    /// <summary>IID_ITfComposition - Phiên làm việc composition.</summary>
+    /// <remarks>Lấy từ Windows SDK msctf.idl: uuid(20168d64-5a8f-4a5a-b7bd-cfa29f4d0fd9).</remarks>
+    public static readonly Guid IidITfComposition = new("20168D64-5A8F-4A5A-B7BD-CFA29F4D0FD9");
+
+    /// <summary>IID_ITfCompositionSink - Nhận thông báo kết thúc composition.</summary>
+    /// <remarks>Lấy từ Windows SDK msctf.idl: uuid(a781718c-579a-4b15-a280-32b8577acc5e).</remarks>
+    public static readonly Guid IidITfCompositionSink = new("A781718C-579A-4B15-A280-32B8577ACC5E");
+
+    /// <summary>IID_ITfSource - Đăng ký và gỡ đăng ký event sink chung.</summary>
+    /// <remarks>Lấy từ Windows SDK msctf.idl: uuid(4ea48a35-60ae-446f-8fd6-e6a8d82459f7).</remarks>
+    public static readonly Guid IidITfSource = new("4EA48A35-60AE-446F-8FD6-E6A8D82459F7");
 }

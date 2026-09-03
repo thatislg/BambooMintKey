@@ -33,9 +33,6 @@ public unsafe struct TfSourceVTable
 /// </summary>
 public static unsafe class TsfEventSinkHelper
 {
-    /// <summary>IID_ITfSource.</summary>
-    private static readonly Guid IidITfSource = new("4EA48A35-60AE-446F-8BC6-0B0B6E49E0C0");
-
     /// <summary>
     /// Đăng ký một event sink với TSF source object.
     /// Trả về cookie nếu thành công, 0 nếu thất bại.
@@ -47,15 +44,19 @@ public static unsafe class TsfEventSinkHelper
         IntPtr pTfSource = IntPtr.Zero;
         var punk = *(TfSourceVTable**)pSource;
 
+        fixed (Guid* pRiidSource = &Guids.IidITfSource)
+        {
+            int hr = punk->QueryInterface(pSource, pRiidSource, &pTfSource);
+            if (hr != HResult.Ok || pTfSource == IntPtr.Zero) return 0;
+        }
+
         Guid riidCopy = riid;
         var pRiid = &riidCopy;
-
-        int hr = punk->QueryInterface(pSource, pRiid, &pTfSource);
-        if (hr != HResult.Ok || pTfSource == IntPtr.Zero) return 0;
 
         var sourceVTable = *(TfSourceVTable**)pTfSource;
         uint cookie = 0;
         int adviseHr = sourceVTable->AdviseSink(pTfSource, pRiid, pSink, &cookie);
+        DebugLog.Write($"AdviseSink(IID={riid}) HR=0x{adviseHr:X8}, cookie={cookie}");
         sourceVTable->Release(pTfSource);
 
         return adviseHr == HResult.Ok ? cookie : 0;
@@ -71,11 +72,11 @@ public static unsafe class TsfEventSinkHelper
         IntPtr pTfSource = IntPtr.Zero;
         var punk = *(TfSourceVTable**)pSource;
 
-        Guid iidSource = IidITfSource;
-        var pRiidSource = &iidSource;
-
-        int hr = punk->QueryInterface(pSource, pRiidSource, &pTfSource);
-        if (hr != HResult.Ok || pTfSource == IntPtr.Zero) return;
+        fixed (Guid* pRiidSource = &Guids.IidITfSource)
+        {
+            int hr = punk->QueryInterface(pSource, pRiidSource, &pTfSource);
+            if (hr != HResult.Ok || pTfSource == IntPtr.Zero) return;
+        }
 
         var sourceVTable = *(TfSourceVTable**)pTfSource;
         sourceVTable->UnadviseSink(pTfSource, cookie);

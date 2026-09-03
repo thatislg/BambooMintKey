@@ -21,7 +21,7 @@ public unsafe struct TfKeystrokeMgrVTable
     // ITfKeystrokeMgr
     public delegate* unmanaged[Stdcall]<IntPtr, uint, IntPtr, int, int> AdviseKeyEventSink;
     public delegate* unmanaged[Stdcall]<IntPtr, uint, int> UnadviseKeyEventSink;
-    public delegate* unmanaged[Stdcall]<IntPtr, uint, uint, int*, int> GetForeground;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint*, int> GetForeground;
     public delegate* unmanaged[Stdcall]<IntPtr, uint, IntPtr, int*, int> TestKeyDown;
     public delegate* unmanaged[Stdcall]<IntPtr, uint, IntPtr, int*, int> TestKeyUp;
     public delegate* unmanaged[Stdcall]<IntPtr, uint, IntPtr, int*, int> KeyDown;
@@ -38,8 +38,8 @@ public unsafe struct TfKeystrokeMgrVTable
 /// </summary>
 public static unsafe class KeyEventSinkHelper
 {
-    /// <summary>IID_ITfKeystrokeMgr.</summary>
-    private static readonly Guid IidITfKeystrokeMgr = new("AA80E806-2021-11D2-93E0-0060B067B86E");
+    /// <summary>IID_ITfKeystrokeMgr. Lấy từ Windows SDK msctf.idl: uuid(aa80e7f0-2021-11d2-93e0-0060b067b86e).</summary>
+    private static readonly Guid IidITfKeystrokeMgr = new("AA80E7F0-2021-11D2-93E0-0060B067B86E");
 
     /// <summary>
     /// Đăng ký KeyEventSink với TSF để nhận sự kiện bàn phím.
@@ -55,12 +55,14 @@ public static unsafe class KeyEventSinkHelper
         fixed (Guid* riid = &IidITfKeystrokeMgr)
         {
             int hr = punk->QueryInterface(pThreadMgr, riid, &pKeystrokeMgr);
+            DebugLog.Write($"QueryInterface(ITfKeystrokeMgr) HR=0x{hr:X8}, pKeystrokeMgr={pKeystrokeMgr}");
             if (hr != HResult.Ok || pKeystrokeMgr == IntPtr.Zero) return 0;
         }
 
         var pkmVTable = *(TfKeystrokeMgrVTable**)pKeystrokeMgr;
         // fForeground = 1 (Nhận sự kiện bàn phím ưu tiên mức Foreground)
         int adviseHr = pkmVTable->AdviseKeyEventSink(pKeystrokeMgr, clientId, pKeyEventSink, 1);
+        DebugLog.Write($"AdviseKeyEventSink HR=0x{adviseHr:X8}");
 
         pkmVTable->Release(pKeystrokeMgr);
         return adviseHr == HResult.Ok ? 1u : 0u;

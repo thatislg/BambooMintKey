@@ -9,6 +9,29 @@ using BambooMintKey.NativeBridge.Interop;
 
 namespace BambooMintKey.NativeBridge.TSF;
 
+public static class DebugLog
+{
+    private static readonly object _lock = new();
+
+    public static void Write(string msg)
+    {
+        try
+        {
+            var path = Path.Combine(Path.GetTempPath(), "BambooMintKey_Runtime.log");
+            lock (_lock)
+            {
+                using var fs = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+                using var sw = new StreamWriter(fs);
+                sw.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {msg}");
+                sw.Flush();
+            }
+        }
+        catch { }
+    }
+
+    public static void WriteAndFlush(string msg) => Write(msg);
+}
+
 public unsafe class BambooMintKeyTextService
 {
     private static TfTextInputProcessorExVTable* _processorVTable;
@@ -188,14 +211,17 @@ public unsafe class BambooMintKeyTextService
         var sinkPtr = thisPtr + sizeof(IntPtr);
         target._threadMgrEventSinkCookie = TsfEventSinkHelper.AdviseSink(
             pThreadMgr, Guids.IidITfThreadMgrEventSink, sinkPtr);
+        DebugLog.Write($"Advise ThreadMgrEventSink cookie={target._threadMgrEventSinkCookie}");
 
         // 3. Advise KeyEventSink để bắt đầu bắt phím
         var keySinkPtr = thisPtr + (sizeof(IntPtr) * 2);
         target._keyEventSinkCookie = KeyEventSinkHelper.AdviseKeyEventSink(
             pThreadMgr, tfClientId, keySinkPtr);
+        DebugLog.Write($"Advise KeyEventSink cookie={target._keyEventSinkCookie}");
 
         // 4. Khởi tạo / Đồng bộ Engine State
         BridgeStateManager.InitializeEngine();
+        DebugLog.Write("ActivateExImpl completed");
 
         return HResult.Ok;
     }
@@ -209,11 +235,18 @@ public unsafe class BambooMintKeyTextService
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int ActivateEx(IntPtr thisPtr, IntPtr pThreadMgr, uint tfClientId, uint dwFlags)
     {
+        DebugLog.Write($"ActivateEx called: pThreadMgr={pThreadMgr}, tfClientId={tfClientId}, dwFlags={dwFlags}");
         return ActivateExImpl(thisPtr, pThreadMgr, tfClientId, dwFlags);
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int Deactivate(IntPtr thisPtr)
+    {
+        DebugLog.Write("Deactivate called");
+        return DeactivateImpl(thisPtr);
+    }
+
+    private static int DeactivateImpl(IntPtr thisPtr)
     {
         var target = GetTarget(thisPtr);
         if (!target._isActivated) return HResult.Ok;
@@ -251,7 +284,7 @@ public unsafe class BambooMintKeyTextService
 
     #region ITfThreadMgrEventSink Callbacks
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static int OnInitDocumentMgr(IntPtr thisPtr, IntPtr pdimNew, IntPtr pdimPrev) => HResult.Ok;
+    private static int OnInitDocumentMgr(IntPtr thisPtr, IntPtr pdim) => HResult.Ok;
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int OnUninitDocumentMgr(IntPtr thisPtr, IntPtr pdim) => HResult.Ok;

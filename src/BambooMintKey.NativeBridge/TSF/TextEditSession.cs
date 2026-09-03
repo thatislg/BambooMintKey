@@ -112,6 +112,7 @@ public unsafe class TextEditSession
 
     private int ExecuteSession(uint ec)
     {
+        DebugLog.WriteAndFlush($"ExecuteSession ec={ec}, action={_actionType}, text={_text}");
         switch (_actionType)
         {
             case EditActionType.UpdateText:
@@ -130,10 +131,13 @@ public unsafe class TextEditSession
 
     private int PerformUpdateText(uint ec)
     {
+        DebugLog.WriteAndFlush($"PerformUpdateText ec={ec}, text={_text}");
         // 1. Kiểm tra / Mở mới ITfComposition nếu chưa có
         if (!CompositionManager.HasActiveComposition())
         {
-            if (!CompositionManager.StartComposition(_service, _pContext, ec))
+            bool started = CompositionManager.StartComposition(_service, _pContext, ec);
+            DebugLog.WriteAndFlush($"StartComposition result={started}");
+            if (!started)
             {
                 return HResult.Fail;
             }
@@ -141,13 +145,15 @@ public unsafe class TextEditSession
 
         // 2. Lấy vùng Text Range của Composition hiện tại
         var pRange = CompositionManager.GetCompositionRange();
+        DebugLog.WriteAndFlush($"GetCompositionRange pRange={pRange}");
         if (pRange == IntPtr.Zero) return HResult.Fail;
 
         // 3. Thay thế văn bản trực tiếp
         fixed (char* pChars = _text)
         {
             var rangeVTable = *(TfRangeVTable**)pRange;
-            rangeVTable->SetText(pRange, ec, 0, pChars, _text.Length);
+            int hr = rangeVTable->SetText(pRange, ec, 0, pChars, _text.Length);
+            DebugLog.WriteAndFlush($"SetText HR=0x{hr:X8}");
         }
 
         // 4. Định dạng gạch chân Composition
@@ -161,6 +167,7 @@ public unsafe class TextEditSession
 
     private int PerformCommitText(uint ec)
     {
+        DebugLog.WriteAndFlush($"PerformCommitText ec={ec}, text={_text}");
         if (CompositionManager.HasActiveComposition())
         {
             var pRange = CompositionManager.GetCompositionRange();
@@ -170,7 +177,8 @@ public unsafe class TextEditSession
                 fixed (char* pChars = _text)
                 {
                     var rangeVTable = *(TfRangeVTable**)pRange;
-                    rangeVTable->SetText(pRange, ec, 0, pChars, _text.Length);
+                    int hr = rangeVTable->SetText(pRange, ec, 0, pChars, _text.Length);
+                    DebugLog.WriteAndFlush($"Commit SetText HR=0x{hr:X8}");
                 }
 
                 // Xóa gạch chân composition
@@ -179,17 +187,16 @@ public unsafe class TextEditSession
             }
 
             // Chốt và giải phóng ITfComposition
-            CompositionManager.EndComposition();
+            CompositionManager.EndComposition(ec);
         }
         return HResult.Ok;
     }
 
     private int PerformCancelComposition(uint ec)
     {
-        _ = ec; // reserved for future rollback logic
         if (CompositionManager.HasActiveComposition())
         {
-            CompositionManager.EndComposition();
+            CompositionManager.EndComposition(ec);
         }
         return HResult.Ok;
     }

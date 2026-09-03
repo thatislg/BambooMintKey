@@ -71,17 +71,23 @@ public static unsafe class KeyEventSinkImpl
     // =========================================================================
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static int OnSetFocus(IntPtr thisPtr, IntPtr pic, int fForeground) => HResult.Ok;
+    private static int OnSetFocus(IntPtr thisPtr, int fForeground)
+    {
+        DebugLog.Write($"KeyEventSink OnSetFocus fForeground={fForeground}");
+        return HResult.Ok;
+    }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int OnTestKeyDown(IntPtr thisPtr, IntPtr pic, UIntPtr wParam, IntPtr lParam, int* pfEaten)
     {
+        DebugLog.WriteAndFlush($"OnTestKeyDown ENTER vk={(uint)wParam}");
         if (pfEaten == null) return HResult.Pointer;
         *pfEaten = 0;
 
         // 1. Không can thiệp nếu người dùng đang bấm tổ hợp phím tắt (Ctrl/Alt/Win)
         if (KeyInputTranslator.IsModifierModifierPressed())
         {
+            DebugLog.Write("OnTestKeyDown modifier pressed, skip");
             return HResult.Ok;
         }
 
@@ -99,10 +105,12 @@ public static unsafe class KeyEventSinkImpl
         if (inputChar.HasValue)
         {
             char c = inputChar.Value;
+            DebugLog.WriteAndFlush($"OnTestKeyDown char={c}");
             // Nếu là ký tự bảng chữ cái hoặc đang có composition
             if (char.IsLetter(c) || CompositionManager.HasActiveComposition())
             {
                 *pfEaten = 1;
+                DebugLog.WriteAndFlush($"OnTestKeyDown EATEN char={c}");
             }
         }
 
@@ -120,6 +128,7 @@ public static unsafe class KeyEventSinkImpl
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int OnKeyDown(IntPtr thisPtr, IntPtr pic, UIntPtr wParam, IntPtr lParam, int* pfEaten)
     {
+        DebugLog.WriteAndFlush($"OnKeyDown ENTER vk={(uint)wParam}");
         if (pfEaten == null) return HResult.Pointer;
         *pfEaten = 0;
 
@@ -140,6 +149,7 @@ public static unsafe class KeyEventSinkImpl
                 var (newState, action) = BridgeStateManager.ProcessBackspace();
                 CompositionManager.HandleEngineAction(service, pic, action, newState.TransformedText);
                 *pfEaten = 1;
+                DebugLog.Write($"OnKeyDown Backspace handled, text={newState.TransformedText}");
             }
             return HResult.Ok;
         }
@@ -157,6 +167,7 @@ public static unsafe class KeyEventSinkImpl
                 var (newState, action) = BridgeStateManager.ProcessWordBreak(c);
                 CompositionManager.HandleEngineAction(service, pic, action, newState.TransformedText);
                 *pfEaten = 1;
+                DebugLog.Write($"OnKeyDown WordBreak handled, text={newState.TransformedText}");
             }
         }
         else
@@ -164,6 +175,7 @@ public static unsafe class KeyEventSinkImpl
             var (newState, action) = BridgeStateManager.ProcessKey(c);
             CompositionManager.HandleEngineAction(service, pic, action, newState.TransformedText);
             *pfEaten = 1;
+            DebugLog.Write($"OnKeyDown ProcessKey char={c}, text={newState.TransformedText}");
         }
 
         return HResult.Ok;

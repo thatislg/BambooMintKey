@@ -40,9 +40,7 @@ public static unsafe class CompositionSinkImpl
         if (ppvObject == null || riid == null) return HResult.Pointer;
         *ppvObject = IntPtr.Zero;
 
-        Guid iidCompositionSink = new("3D61BF11-ACFF-428F-A89F-9E59C70C1E1F");
-
-        if (*riid == Guids.IidIUnknown || *riid == iidCompositionSink)
+        if (*riid == Guids.IidIUnknown || *riid == Guids.IidITfCompositionSink)
         {
             *ppvObject = thisPtr;
             // AddRef được gọi qua function pointer vì nó có [UnmanagedCallersOnly]

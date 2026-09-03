@@ -19,8 +19,8 @@ public unsafe struct TfKeyEventSinkVTable
     public delegate* unmanaged[Stdcall]<IntPtr, uint> Release;
 
     // ITfKeyEventSink
-    // OnSetFocus chỉ có 2 tham số sau this: ITfContext* pic, BOOL fForeground
-    public delegate* unmanaged[Stdcall]<IntPtr, IntPtr, int, int> OnSetFocus;
+    // OnSetFocus chỉ có 1 tham số sau this: BOOL fForeground
+    public delegate* unmanaged[Stdcall]<IntPtr, int, int> OnSetFocus;
     public delegate* unmanaged[Stdcall]<IntPtr, IntPtr, UIntPtr, IntPtr, int*, int> OnTestKeyDown;
     public delegate* unmanaged[Stdcall]<IntPtr, IntPtr, UIntPtr, IntPtr, int*, int> OnTestKeyUp;
     public delegate* unmanaged[Stdcall]<IntPtr, IntPtr, UIntPtr, IntPtr, int*, int> OnKeyDown;

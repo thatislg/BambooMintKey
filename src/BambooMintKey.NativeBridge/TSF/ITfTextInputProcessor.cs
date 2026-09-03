@@ -57,7 +57,7 @@ public unsafe struct TfThreadMgrEventSinkVTable
     public delegate* unmanaged[Stdcall]<IntPtr, uint> Release;
 
     // ITfThreadMgrEventSink
-    public delegate* unmanaged[Stdcall]<IntPtr, IntPtr, IntPtr, int> OnInitDocumentMgr;
+    public delegate* unmanaged[Stdcall]<IntPtr, IntPtr, int> OnInitDocumentMgr;
     public delegate* unmanaged[Stdcall]<IntPtr, IntPtr, int> OnUninitDocumentMgr;
     public delegate* unmanaged[Stdcall]<IntPtr, IntPtr, IntPtr, int> OnSetFocus;
     public delegate* unmanaged[Stdcall]<IntPtr, IntPtr, int> OnPushContext;
