@@ -31,11 +31,11 @@ Tài liệu này phân tích cặn kẽ 4 nguyên nhân kỹ thuật gốc rễ 
 
 ### 2.2. Nguyên nhân 1: Xung đột vòng đời đa tiến trình & Hiện tượng "Zombie COM Instance"
 `BambooMintKey.NativeBridge.dll` là in-process COM DLL được nạp trực tiếp vào **mọi tiến trình** có vùng nhập văn bản:
-1. **Tiến trình A** (ví dụ Notepad mở đầu tiên) gọi `ActivateEx` $\rightarrow$ gọi `LangBarItemButton.Register(pThreadMgr)` $\rightarrow$ `AddItem(_comInstance_A)` thành công. Windows Taskbar gọi `AdviseSink` trên `_comInstance_A` $\rightarrow$ tại Tiến trình A, `_pLangBarSink != NULL`.
-2. **Tiến trình B** (ví dụ Chrome mở sau) gọi `ActivateEx` $\rightarrow$ `AddItem(_comInstance_B)` với cùng `GUID_LBI_INPUTMODE`. Windows TSF trả về lỗi `TF_E_ALREADY_EXISTS` (hoặc bỏ qua) vì item đã tồn tại. Windows **không gọi `AdviseSink` trên Tiến trình B** $\rightarrow$ tại Tiến trình B, `_pLangBarSink` mãi mãi là `NULL`!
+1. **Tiến trình A** (ví dụ Notepad mở đầu tiên) gọi `ActivateEx` -> gọi `LangBarItemButton.Register(pThreadMgr)` -> `AddItem(_comInstance_A)` thành công. Windows Taskbar gọi `AdviseSink` trên `_comInstance_A` -> tại Tiến trình A, `_pLangBarSink != NULL`.
+2. **Tiến trình B** (ví dụ Chrome mở sau) gọi `ActivateEx` -> `AddItem(_comInstance_B)` với cùng `GUID_LBI_INPUTMODE`. Windows TSF trả về lỗi `TF_E_ALREADY_EXISTS` (hoặc bỏ qua) vì item đã tồn tại. Windows **không gọi `AdviseSink` trên Tiến trình B** -> tại Tiến trình B, `_pLangBarSink` mãi mãi là `NULL`!
 3. Trong `BambooMintKeyTextService.cs`, hàm `LangBarItemButton.Unregister()` bị comment bỏ tại `DeactivateImpl`.
 4. Khi Tiến trình A bị đóng: Vùng nhớ chứa `_comInstance_A` bị hệ điều hành thu hồi. Windows Taskbar lúc này giữ một con trỏ COM chết (**Zombie/Dangling COM Pointer**). 
-5. Mọi click chuột vào Taskbar sau đó gọi vào COM object đã chết $\rightarrow$ sinh lỗi RPC disconnect (`0x800706BA`), icon biến mất hoặc đơ không phản hồi. Đồng thời, các tiến trình còn lại (như Chrome) khi gõ phím tắt đổi mode chỉ có `_pLangBarSink == NULL` nên `NotifyStateChanged()` bị bỏ qua hoàn toàn.
+5. Mọi click chuột vào Taskbar sau đó gọi vào COM object đã chết -> sinh lỗi RPC disconnect (`0x800706BA`), icon biến mất hoặc đơ không phản hồi. Đồng thời, các tiến trình còn lại (như Chrome) khi gõ phím tắt đổi mode chỉ có `_pLangBarSink == NULL` nên `NotifyStateChanged()` bị bỏ qua hoàn toàn.
 
 ### 2.3. Nguyên nhân 2: Win32 Auto-Reset Event nuốt chửng tín hiệu giữa các tiến trình
 File `SharedMemoryManager.cs` dòng 155 khởi tạo Win32 Event:
@@ -43,7 +43,7 @@ File `SharedMemoryManager.cs` dòng 155 khởi tạo Win32 Event:
 _hEvent = CreateEventW(pSaPtr, false /* AutoReset */, false, EventName);
 ```
 - Win32 Auto-Reset Event (`bManualReset = false`) có cơ chế: **Khi `SetEvent` được gọi, chỉ duy nhất 1 thread/tiến trình đang chờ được đánh thức**, và Event tự động hạ về non-signaled ngay lập tức.
-- Khi có nhiều tiến trình chạy song song: Tiến trình B (không có sink) bấm hotkey đổi mode $\rightarrow$ gọi `SignalStateChanged()`. Tiến trình nuốt mất event lại chính là Tiến trình B (hoặc DevHarness), còn Tiến trình A (tiến trình duy nhất đang nắm Sink tới Taskbar) không hề nhận được event để gọi `NotifyStateChanged()`.
+- Khi có nhiều tiến trình chạy song song: Tiến trình B (không có sink) bấm hotkey đổi mode -> gọi `SignalStateChanged()`. Tiến trình nuốt mất event lại chính là Tiến trình B (hoặc DevHarness), còn Tiến trình A (tiến trình duy nhất đang nắm Sink tới Taskbar) không hề nhận được event để gọi `NotifyStateChanged()`.
 
 ### 2.4. Nguyên nhân 3: Thiếu cập nhật TSF Input Mode Compartment (Chuẩn Windows 10/11)
 - Trên Windows 8/10/11, Taskbar System Tray / Input Indicator quản lý trạng thái hiển thị của IME thông qua cơ chế Compartment: `GUID_COMPARTMENT_KEYBOARD_INPUTMODE_CONVERSION` (`{CCF05DD7-4A87-11D7-A6E2-00065B84435C}`).
@@ -257,6 +257,6 @@ Khi chế độ thay đổi, hàm `SetInputModeCompartment(IntPtr pThreadMgr, ui
 ## 5. Tiêu chí Đánh giá & Nghiệm thu (Acceptance Criteria)
 
 1. **Phản hồi Click chuột tức thì:** Click chuột trái vào icon Taskbar V/E lập tức chuyển đổi màu sắc/ký tự giữa V và E mà không cần độ trễ, không có hiện tượng "click lần 1 không ăn, lần 2 mới đổi".
-2. **Không phụ thuộc vào tiến trình đầu tiên:** Mở Notepad 1 $\rightarrow$ Mở Notepad 2 $\rightarrow$ Đóng Notepad 1 $\rightarrow$ Icon trên Taskbar vẫn hoạt động bình thường trên Notepad 2, không biến mất, không đơ.
+2. **Không phụ thuộc vào tiến trình đầu tiên:** Mở Notepad 1 -> Mở Notepad 2 -> Đóng Notepad 1 -> Icon trên Taskbar vẫn hoạt động bình thường trên Notepad 2, không biến mất, không đơ.
 3. **Đồng bộ Phím tắt xuyên suốt:** Nhấn phím tắt toggle (`Ctrl + Shift` hoặc `Alt + Z`) ở bất kỳ ứng dụng nào (kể cả trong game, trình duyệt, terminal) thì icon Taskbar cũng đổi trạng thái theo ngay lập tức.
 4. **Không rò rỉ tài nguyên (Zero GDI Leak):** Số lượng GDI Objects của các tiến trình không tăng khi click liên tục 500 lần vào icon Taskbar.
