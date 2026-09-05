@@ -1,77 +1,3 @@
-# Tài liệu Thiết kế Kỹ thuật: 004_02_Design_CICD_CodeSigning.md
-
-## 1. Tổng quan & Mục tiêu
-
-Tài liệu này đặc tả quy trình tự động hóa tích hợp và phân phối liên tục (CI/CD) thông qua **GitHub Actions**, kết hợp cơ chế ký số bảo mật (**Code Signing**) cho dự án BambooMintKey.
-
-Do đặc thù `BambooMintKey.NativeBridge.dll` là một In-process Text Service Framework (TSF) DLL được nạp trực tiếp vào không gian bộ nhớ của hầu hết các tiến trình hệ điều hành (kể cả các tiến trình nhạy cảm như `explorer.exe` hay `notepad.exe`), các tệp thực thi nếu không có chữ ký số hợp lệ sẽ bị cơ chế bảo vệ của Windows cảnh báo màu xanh (*Windows SmartScreen*) hoặc bị Windows Defender nhận diện nhầm là mối đe dọa (False-Positive).
-
----
-
-## 2. Chiến lược Ký số (Code Signing Strategy)
-
-* **Thuật toán chữ ký:** SHA-256 (`/fd sha256`).
-* **Timestamp server:** `http://timestamp.digicert.com` hoặc `http://timestamp.sectigo.com` (`/tr ... /td sha256`).
-* **Thứ tự ký số:**
-  1. Ký số `publish\win-x64\BambooMintKey.dll` (NativeAOT TSF bridge).
-  2. Ký số `publish\ui\BambooMintKey.UI.exe` (Avalonia configuration GUI).
-  3. Đóng gói bộ cài đặt bằng Inno Setup.
-  4. Ký số `bin\dist\BambooMintKey-Setup.exe`.
-
----
-
-## 3. Kiến trúc Luồng CI/CD (GitHub Actions Pipeline)
-
-Pipeline được kích hoạt tự động mỗi khi có một Git Tag mới bắt đầu bằng tiền tố phiên bản (`v*`), chạy trực tiếp trên môi trường ảo hóa `windows-latest`:
-
-```text
-[Tag Push: v1.0.0]
-       │
-       ▼
-┌────────────────────────────────────────┐
-│ 1. Checkout & Setup .NET SDK (10.0.x)   │
-└────────────────────────────────────────┘
-       │
-       ▼
-┌────────────────────────────────────────┐
-│ 2. Generate icon & Test Execution       │
-│    - Generate bamboomintkey.ico          │
-│    - Chạy toàn bộ Unit Test F# Core     │
-└────────────────────────────────────────┘
-       │
-       ▼
-┌────────────────────────────────────────┐
-│ 3. Build & Publish Binaries            │
-│    - NativeAOT: publish\win-x64        │
-│    - Self-contained UI: publish\ui     │
-└────────────────────────────────────────┘
-       │
-       ▼
-┌────────────────────────────────────────┐
-│ 4. Code Signing (SignTool.exe)         │
-│    - Ký DLL và EXE qua Secrets          │
-└────────────────────────────────────────┘
-       │
-       ▼
-┌────────────────────────────────────────┐
-│ 5. Installer Compilation (Inno Setup)    │
-│    - Đóng gói thành BambooMintKey-Setup  │
-│    - Ký số lại tệp Setup.exe            │
-└────────────────────────────────────────┘
-       │
-       ▼
-┌────────────────────────────────────────┐
-│ 6. Hash & Release Asset Generation     │
-│    - Trích xuất mã băm SHA-256          │
-│    - Đẩy tệp lên GitHub Release         │
-└────────────────────────────────────────┘
-```
-
-## 4. Kịch bản Tự động hóa Pipeline (`.github/workflows/release.yml`)
-
-Dưới đây là nội dung chi tiết kịch bản GitHub Actions phục vụ phát hành:
-
-```yaml
 name: Release & Code Signing Pipeline
 
 on:
@@ -81,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   build-and-sign:
@@ -212,7 +139,24 @@ jobs:
           $hash = (Get-FileHash $target -Algorithm SHA256).Hash
           Set-Content -Path "bin\dist\BambooMintKey-Setup.exe.sha256" -Value "$hash  BambooMintKey-Setup.exe"
           echo "INSTALLER_SHA256=$hash" >> $env:GITHUB_OUTPUT
+          echo "RELEASE_URL=https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/BambooMintKey-Setup.exe" >> $env:GITHUB_OUTPUT
           Write-Host "Generated SHA256: $hash"
+
+      - name: Update Local WinGet Manifest
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          $url = "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/BambooMintKey-Setup.exe"
+          .\scripts\update-winget-manifest.ps1 `
+            -Version $version `
+            -InstallerUrl $url `
+            -InstallerSha256 "${{ steps.compute_hash.outputs.INSTALLER_SHA256 }}"
+
+      - name: Commit Updated WinGet Manifest
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update winget manifest for ${{ github.ref_name }}"
+          file_pattern: "manifests/**/*.yaml"
 
       - name: Upload GitHub Release Assets
         uses: softprops/action-gh-release@v2
@@ -233,15 +177,22 @@ jobs:
             Remove-Item "cert.pfx" -Force
             Write-Host "Removed cert.pfx"
           }
-```
 
-## 5. Danh mục Secrets Cần Thiết trên Repository
+  winget-submission:
+    name: Submit Manifest to WinGet
+    needs: build-and-sign
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Komac
+        run: |
+          python -m pip install --upgrade pip
+          pip install komac
 
-Để quy trình trên hoạt động tự động và bảo mật, các thông số sau cần được cấu hình trong mục **Settings > Secrets and variables > Actions**:
-
-| **Tên biến Secret**     | **Mô tả dữ liệu**                                            |
-| ----------------------- | ------------------------------------------------------------ |
-| `CODE_SIGN_CERT_BASE64` | Chuỗi Base64 của tệp chứng chỉ ký số cá nhân/tổ chức (`.pfx`). |
-| `CODE_SIGN_CERT_PASS`   | Mật khẩu bảo vệ tệp chứng chỉ `.pfx`.                        |
-| `GITHUB_TOKEN`          | Token mặc định do GitHub Actions cấp phát để tải asset lên trang Releases. |
-
+      - name: Update and Submit WinGet Manifest
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_PAT_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          url="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/BambooMintKey-Setup.exe"
+          echo "Updating WinGet manifest for version $version from $url"
+          komac update BambooMintKey.BambooMintKey --version "$version" --urls "$url" --token "$WINGET_TOKEN" --submit
