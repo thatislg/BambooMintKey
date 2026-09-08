@@ -52,19 +52,21 @@ public unsafe struct TfCategoryMgrVTable
     public delegate* unmanaged[Stdcall]<IntPtr, uint> AddRef;
     public delegate* unmanaged[Stdcall]<IntPtr, uint> Release;
 
-    // ITfCategoryMgr
+    // ITfCategoryMgr (3 - 16) theo chuẩn Windows SDK msctf.h
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, Guid*, Guid*, int> RegisterCategory;
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, Guid*, Guid*, int> UnregisterCategory;
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> EnumCategoriesInItem;
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> EnumItemsInCategory;
-    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, Guid*, IntPtr*, int> FindClosestCategory;
-    public delegate* unmanaged[Stdcall]<IntPtr, char*, uint*, int> RegisterGUIDDescription;
-    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, int> UnregisterGUIDDescription;
-    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, char**, int> GetGUIDDescription;
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, Guid*, Guid**, uint, int> FindClosestCategory;
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, Guid*, char*, uint, int> RegisterGUIDDescription;
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, Guid*, int> UnregisterGUIDDescription;
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> GetGUIDDescription;
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, Guid*, uint, int> RegisterGUIDDWORD;
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, Guid*, int> UnregisterGUIDDWORD;
+    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, uint*, int> GetGUIDDWORD;
     public delegate* unmanaged[Stdcall]<IntPtr, Guid*, uint*, int> RegisterGUID;
     public delegate* unmanaged[Stdcall]<IntPtr, uint, Guid*, int> GetGUID;
-    public delegate* unmanaged[Stdcall]<IntPtr, uint, uint, int> RegisterGUIDDWORD;
-    public delegate* unmanaged[Stdcall]<IntPtr, uint, uint*, int> GetGUIDDWORD;
+    public delegate* unmanaged[Stdcall]<IntPtr, uint, Guid*, int*, int> IsEqualTfGuidAtom;
 }
 
 // =========================================================================
@@ -262,6 +264,19 @@ public static unsafe class TsfRegistration
                 Log($"RegisterCategory({cat}) HR=0x{hr:X8}");
                 if (!HResult.Succeeded(hr)) return hr;
             }
+
+            // Đăng ký Display Attribute GUID vào GUID_TFCAT_DISPLAYATTRIBUTE
+            Guid guidDisplayAttrStealth = Guids.GuidDisplayAttributeInput;
+            Guid guidDisplayAttrPreedit = Guids.GuidDisplayAttributeInputPreedit;
+            Guid catDisplayAttr = Guids.GuidTfCategoryDisplayAttribute;
+            hr = vtable->RegisterCategory(pCatMgr, &clsid, &catDisplayAttr, &guidDisplayAttrStealth);
+            Log($"RegisterCategory(DisplayAttribute/Stealth) HR=0x{hr:X8}");
+            if (!HResult.Succeeded(hr)) return hr;
+
+            hr = vtable->RegisterCategory(pCatMgr, &clsid, &catDisplayAttr, &guidDisplayAttrPreedit);
+            Log($"RegisterCategory(DisplayAttribute/Preedit) HR=0x{hr:X8}");
+            if (!HResult.Succeeded(hr)) return hr;
+
             return HResult.Ok;
         }
         finally
@@ -298,6 +313,17 @@ public static unsafe class TsfRegistration
                 var catCopy = cat;
                 vtable->UnregisterCategory(pCatMgr, &clsid, &catCopy, &clsid);
             }
+
+            Guid guidDisplayAttrStealth = Guids.GuidDisplayAttributeInput;
+            Guid guidDisplayAttrPreedit = Guids.GuidDisplayAttributeInputPreedit;
+            Guid catDisplayAttr = Guids.GuidTfCategoryDisplayAttribute;
+            vtable->UnregisterCategory(pCatMgr, &clsid, &catDisplayAttr, &guidDisplayAttrStealth);
+            vtable->UnregisterCategory(pCatMgr, &clsid, &catDisplayAttr, &guidDisplayAttrPreedit);
+
+            // Dọn dẹp cả GUID DisplayAttribute cũ nếu từng đăng ký ở các bản trước
+            Guid oldLegacyCat = new("35E7A704-438C-4235-96BC-4A6361C31595");
+            vtable->UnregisterCategory(pCatMgr, &clsid, &oldLegacyCat, &clsid);
+
             return HResult.Ok;
         }
         finally
@@ -367,6 +393,20 @@ public static unsafe class TsfRegistration
                     k.SetValue(null, "");
                 }
             }
+
+            // Đăng ký Display Attribute vào Registry
+            Guid guidDisplayAttrStealth = Guids.GuidDisplayAttributeInput;
+            Guid guidDisplayAttrPreedit = Guids.GuidDisplayAttributeInputPreedit;
+            Guid catDisplayAttr = Guids.GuidTfCategoryDisplayAttribute;
+            string displayAttrStealthCatKey = $@"{CtfTipRoot}\{{{clsid}}}\Category\Category\{{{catDisplayAttr}}}\{{{guidDisplayAttrStealth}}}";
+            using (var k = Registry.LocalMachine.CreateSubKey(displayAttrStealthCatKey)) { k.SetValue(null, ""); }
+            string displayAttrStealthItemKey = $@"{CtfTipRoot}\{{{clsid}}}\Category\Item\{{{guidDisplayAttrStealth}}}\{{{catDisplayAttr}}}";
+            using (var k = Registry.LocalMachine.CreateSubKey(displayAttrStealthItemKey)) { k.SetValue(null, ""); }
+
+            string displayAttrPreeditCatKey = $@"{CtfTipRoot}\{{{clsid}}}\Category\Category\{{{catDisplayAttr}}}\{{{guidDisplayAttrPreedit}}}";
+            using (var k = Registry.LocalMachine.CreateSubKey(displayAttrPreeditCatKey)) { k.SetValue(null, ""); }
+            string displayAttrPreeditItemKey = $@"{CtfTipRoot}\{{{clsid}}}\Category\Item\{{{guidDisplayAttrPreedit}}}\{{{catDisplayAttr}}}";
+            using (var k = Registry.LocalMachine.CreateSubKey(displayAttrPreeditItemKey)) { k.SetValue(null, ""); }
 
             Log("RegisterCategories via Registry succeeded");
             return HResult.Ok;

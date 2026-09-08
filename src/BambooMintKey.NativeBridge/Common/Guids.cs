@@ -28,7 +28,19 @@ public static class Guids
     public static readonly Guid GuidTfCategoryTipKeyboard = new("34745C63-B2F0-4784-8B67-5E12C8701A31");
 
     /// <summary>GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER - Cung cấp hiển thị gạch chân composition.</summary>
-    public static readonly Guid GuidTfCategoryDisplayAttributeProvider = new("35E7A704-438C-4235-96BC-4A6361C31595");
+    public static readonly Guid GuidTfCategoryDisplayAttributeProvider = new("04862A28-7F03-4D6B-89EB-B738D56D1F9C");
+
+    /// <summary>GUID_TFCAT_DISPLAYATTRIBUTE - Danh mục Display Attribute cụ thể.</summary>
+    public static readonly Guid GuidTfCategoryDisplayAttribute = new("0046D38B-49FD-4A23-8B39-44F48A6F00F4");
+
+    /// <summary>GUID định danh Display Attribute riêng của BambooMintKey (không gạch chân - stealth).</summary>
+    public static readonly Guid GuidDisplayAttributeInput = new("5C02B94A-32EA-4B4B-A77A-92F2E4A9811C");
+
+    /// <summary>GUID định danh Display Attribute hiển thị gạch chân nét đứt khi bật Preedit.</summary>
+    public static readonly Guid GuidDisplayAttributeInputPreedit = new("7A2F9E1B-5D43-4C88-A3B6-1E8D5F2C9A04");
+
+    /// <summary>GUID_PROP_ATTRIBUTE - Property chuẩn của Windows TSF (msctf.h) chứa atom thuộc tính hiển thị (34B45670-7526-11D2-A147-00105A2799B5).</summary>
+    public static readonly Guid GuidPropAttribute = new("34B45670-7526-11D2-A147-00105A2799B5");
 
     /// <summary>GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT - Khai báo tương thích Windows 8/10/11 shell & UWP/XAML Input Indicator.</summary>
     public static readonly Guid GuidTfCatTipCapImmersiveSupport = new("13A016DF-560B-46CD-947A-4C3AF1E0E35D");
@@ -91,6 +103,18 @@ public static class Guids
     /// <summary>IID_ITfSource - Đăng ký và gỡ đăng ký event sink chung.</summary>
     /// <remarks>Lấy từ Windows SDK msctf.idl: uuid(4ea48a35-60ae-446f-8fd6-e6a8d82459f7).</remarks>
     public static readonly Guid IidITfSource = new("4EA48A35-60AE-446F-8FD6-E6A8D82459F7");
+
+    /// <summary>IID_ITfDisplayAttributeProvider - Cung cấp danh sách và chi tiết thuộc tính hiển thị.</summary>
+    /// <remarks>Lấy từ Windows SDK msctf.idl: uuid(feea5376-7086-455a-b054-0098ae450a55).</remarks>
+    public static readonly Guid IidITfDisplayAttributeProvider = new("FEEA5376-7086-455A-B054-0098AE450A55");
+
+    /// <summary>IID_ITfDisplayAttributeInfo - Chi tiết một thuộc tính hiển thị cụ thể.</summary>
+    /// <remarks>Lấy từ Windows SDK msctf.idl: uuid(70528852-f6d2-43de-8e5b-8f763ce537f1).</remarks>
+    public static readonly Guid IidITfDisplayAttributeInfo = new("70528852-F6D2-43DE-8E5B-8F763CE537F1");
+
+    /// <summary>IID_IEnumTfDisplayAttributeInfo - Liệt kê các thuộc tính hiển thị.</summary>
+    /// <remarks>Lấy từ Windows SDK msctf.idl: uuid(7ce316aa-4934-453b-b538-0fb79966b150).</remarks>
+    public static readonly Guid IidIEnumTfDisplayAttributeInfo = new("7CE316AA-4934-453B-B538-0FB79966B150");
 
     // =========================================================================
     // TSF Language Bar GUIDs (Windows SDK ctfutb.h & ctffunc.h - 100% chuẩn xác)

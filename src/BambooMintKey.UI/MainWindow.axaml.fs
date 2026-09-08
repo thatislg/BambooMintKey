@@ -35,6 +35,7 @@ type MainWindow (args: string[]) as this =
     let mutable chkRepeatUndo: CheckBox = null
     let mutable chkLeadingW: CheckBox = null
     let mutable chkFreeTone: CheckBox = null
+    let mutable chkPreedit: CheckBox = null
     let mutable txtSandbox: TextBox = null
     let mutable btnClearSandbox: Button = null
     let mutable btnGithub: Button = null
@@ -101,6 +102,7 @@ type MainWindow (args: string[]) as this =
         chkRepeatUndo <- this.FindControl<CheckBox>("ChkRepeatUndo")
         chkLeadingW <- this.FindControl<CheckBox>("ChkLeadingW")
         chkFreeTone <- this.FindControl<CheckBox>("ChkFreeTone")
+        chkPreedit <- this.FindControl<CheckBox>("ChkPreedit")
         txtSandbox <- this.FindControl<TextBox>("TxtSandbox")
         btnClearSandbox <- this.FindControl<Button>("BtnClearSandbox")
         btnGithub <- this.FindControl<Button>("BtnGithub")
@@ -251,6 +253,7 @@ type MainWindow (args: string[]) as this =
             this.AutoSyncToShared()
 
         if chkFreeTone <> null then chkFreeTone.IsCheckedChanged.Add(onSettingChanged)
+        if chkPreedit <> null then chkPreedit.IsCheckedChanged.Add(onSettingChanged)
         if chkAutoRestore <> null then chkAutoRestore.IsCheckedChanged.Add(onSettingChanged)
         if chkRepeatUndo <> null then chkRepeatUndo.IsCheckedChanged.Add(onSettingChanged)
         if chkLeadingW <> null then chkLeadingW.IsCheckedChanged.Add(onSettingChanged)
@@ -292,6 +295,7 @@ type MainWindow (args: string[]) as this =
             if chkRepeatUndo <> null then cfg.AllowRepeatKeyUndo <- chkRepeatUndo.IsChecked.GetValueOrDefault(true)
             if chkLeadingW <> null then cfg.AllowLeadingWAsU <- chkLeadingW.IsChecked.GetValueOrDefault(false)
             if chkFreeTone <> null then cfg.AllowFreeTonePlacement <- chkFreeTone.IsChecked.GetValueOrDefault(true)
+            if chkPreedit <> null then cfg.EnablePreedit <- chkPreedit.IsChecked.GetValueOrDefault(false)
 
             cfg.HotkeyVKey <- currentVKey
             cfg.HotkeyModifiers <- currentModifiers
@@ -348,6 +352,9 @@ type MainWindow (args: string[]) as this =
             if chkFreeTone <> null then
                 chkFreeTone.IsChecked <- Nullable cfg.AllowFreeTonePlacement
 
+            if chkPreedit <> null then
+                chkPreedit.IsChecked <- Nullable cfg.EnablePreedit
+
             lastKnownSeq <- ConfigStore.getStateSequence()
         finally
             isUpdatingFromSync <- false
@@ -363,6 +370,7 @@ type MainWindow (args: string[]) as this =
         if chkRepeatUndo <> null then chkRepeatUndo.IsChecked <- Nullable def.AllowRepeatKeyUndo
         if chkLeadingW <> null then chkLeadingW.IsChecked <- Nullable def.AllowLeadingWAsU
         if chkFreeTone <> null then chkFreeTone.IsChecked <- Nullable def.AllowFreeTonePlacement
+        if chkPreedit <> null then chkPreedit.IsChecked <- Nullable def.EnablePreedit
         if txtStatus <> null then txtStatus.Text <- "Đã khôi phục thiết lập mặc định."
 
     member private this.HandleCommandLineArgs() =
@@ -420,6 +428,9 @@ type MainWindow (args: string[]) as this =
 
         if chkFreeTone <> null then
             cfg.AllowFreeTonePlacement <- chkFreeTone.IsChecked.GetValueOrDefault(true)
+
+        if chkPreedit <> null then
+            cfg.EnablePreedit <- chkPreedit.IsChecked.GetValueOrDefault(false)
 
         ConfigStore.saveConfig(cfg)
         this.Close()

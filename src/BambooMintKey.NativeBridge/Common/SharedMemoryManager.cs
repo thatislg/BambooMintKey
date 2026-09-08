@@ -204,6 +204,7 @@ public static unsafe class SharedMemoryManager
                   "allowRepeatKeyUndo": true,
                   "allowLeadingWAsU": false,
                   "allowFreeTonePlacement": true,
+                  "enablePreedit": false,
                   "startWithWindows": true,
                   "macroEnabled": false,
                   "macros": {
@@ -251,8 +252,9 @@ public static unsafe class SharedMemoryManager
             *(uint*)(pShared + 12) = ParseUint("hotkeyVKey", 0x10);
             *(uint*)(pShared + 16) = ParseUint("hotkeyModifiers", 0x0202);
             pShared[20] = (byte)(ParseBool("allowFreeTonePlacement", true) ? 1 : 0);
+            pShared[21] = (byte)(ParseBool("enablePreedit", false) ? 1 : 0);
 
-            DebugLog.Write($"Loaded config from disk: vKey={*(uint*)(pShared + 12)}, mods={*(uint*)(pShared + 16)}");
+            DebugLog.Write($"Loaded config from disk: vKey={*(uint*)(pShared + 12)}, mods={*(uint*)(pShared + 16)}, preedit={pShared[21]}");
         }
         catch (Exception ex)
         {
@@ -562,6 +564,28 @@ public static unsafe class SharedMemoryManager
             if (_pShared != null)
             {
                 *(uint*)(_pShared + 16) = value;
+                SignalStateChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Bật/tắt gạch chân composition preedit (True = có gạch chân, False = ẩn gạch chân stealth như Notepad++).
+    /// Mặc định: false (ẩn gạch chân).
+    /// </summary>
+    public static bool EnablePreedit
+    {
+        get
+        {
+            EnsureInitialized();
+            return _pShared != null ? (_pShared[21] != 0) : false;
+        }
+        set
+        {
+            EnsureInitialized();
+            if (_pShared != null)
+            {
+                _pShared[21] = (byte)(value ? 1 : 0);
                 SignalStateChanged();
             }
         }

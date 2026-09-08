@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 using System.Runtime.InteropServices;
 using BambooMintKey.NativeBridge.Common;
+using BambooMintKey.NativeBridge.Interop;
 
 namespace BambooMintKey.NativeBridge.TSF;
 
@@ -29,14 +30,91 @@ public unsafe struct TfPropertyVTable
 
 public static unsafe class DisplayAttributeHelper
 {
-    private static readonly Guid GuidPropDisplayAttribute = new("57D4C09F-3462-4253-833B-8189D8B542F6");
+    private static uint _displayAttrAtomStealth = 0;
+    private static uint _displayAttrAtomPreedit = 0;
+
+    private static uint GetOrRegisterAtom(Guid guid)
+    {
+        int hr = NativeMethods.TF_CreateCategoryMgr(out IntPtr pCatMgr);
+        if (HResult.Succeeded(hr) && pCatMgr != IntPtr.Zero)
+        {
+            var vtable = *(TfCategoryMgrVTable**)pCatMgr;
+            try
+            {
+                Guid* pguid = stackalloc Guid[1];
+                *pguid = guid;
+                uint atom = 0;
+                int regHr = vtable->RegisterGUID(pCatMgr, pguid, &atom);
+                if (regHr == HResult.Ok)
+                {
+                    DebugLog.Write($"DisplayAttribute registered guid={guid} atom={atom}");
+                }
+                else
+                {
+                    DebugLog.Write($"DisplayAttribute RegisterGUID failed guid={guid} HR=0x{regHr:X8}");
+                }
+                return atom;
+            }
+            finally
+            {
+                vtable->Release(pCatMgr);
+            }
+        }
+        return 0;
+    }
+
+    private static uint GetStealthAtom()
+    {
+        if (_displayAttrAtomStealth == 0)
+            _displayAttrAtomStealth = GetOrRegisterAtom(Guids.GuidDisplayAttributeInput);
+        return _displayAttrAtomStealth;
+    }
+
+    private static uint GetPreeditAtom()
+    {
+        if (_displayAttrAtomPreedit == 0)
+            _displayAttrAtomPreedit = GetOrRegisterAtom(Guids.GuidDisplayAttributeInputPreedit);
+        return _displayAttrAtomPreedit;
+    }
+
+    private static uint GetCurrentAtom()
+    {
+        bool enablePreedit = SharedMemoryManager.EnablePreedit;
+        uint atom = enablePreedit ? GetPreeditAtom() : GetStealthAtom();
+        DebugLog.Write($"DisplayAttribute current atom: enablePreedit={enablePreedit}, atom={atom}");
+        return atom;
+    }
 
     public static void ApplyCompositionAttribute(IntPtr pContext, uint ec, IntPtr pRange)
     {
-        // Tạm thời chưa gán display attribute cho đến khi DisplayAttributeProvider được đăng ký hoàn chỉnh trong Phase 3.
-        _ = pContext;
-        _ = ec;
-        _ = pRange;
+        if (pContext == IntPtr.Zero || pRange == IntPtr.Zero) return;
+
+        uint atom = GetCurrentAtom();
+        if (atom == 0) return;
+
+        IntPtr pProp = IntPtr.Zero;
+        var contextVTable = *(TfContextVTable**)pContext;
+
+        fixed (Guid* rguidProp = &Guids.GuidPropAttribute)
+        {
+            if (contextVTable->GetProperty(pContext, rguidProp, &pProp) != HResult.Ok || pProp == IntPtr.Zero) return;
+        }
+
+        var propVTable = *(TfPropertyVTable**)pProp;
+        try
+        {
+            // Windows TSF quy định GUID_PROP_ATTRIBUTE nhận VARIANT kiểu VT_I4 (3) chứa TfGuidAtom
+            Variant varValue = default;
+            varValue.vt = 3; // VT_I4
+            varValue.lVal = (int)atom;
+
+            int hr = propVTable->SetValue(pProp, ec, pRange, (IntPtr)(&varValue));
+            DebugLog.Write($"ApplyCompositionAttribute SetValue HR=0x{hr:X8}, atom={atom}");
+        }
+        finally
+        {
+            propVTable->Release(pProp);
+        }
     }
 
     public static void ClearCompositionAttribute(IntPtr pContext, uint ec, IntPtr pRange)
@@ -46,13 +124,19 @@ public static unsafe class DisplayAttributeHelper
         IntPtr pProp = IntPtr.Zero;
         var contextVTable = *(TfContextVTable**)pContext;
 
-        fixed (Guid* rguidProp = &GuidPropDisplayAttribute)
+        fixed (Guid* rguidProp = &Guids.GuidPropAttribute)
         {
             if (contextVTable->GetProperty(pContext, rguidProp, &pProp) != HResult.Ok || pProp == IntPtr.Zero) return;
         }
 
         var propVTable = *(TfPropertyVTable**)pProp;
-        propVTable->Clear(pProp, ec, pRange);
-        propVTable->Release(pProp);
+        try
+        {
+            propVTable->Clear(pProp, ec, pRange);
+        }
+        finally
+        {
+            propVTable->Release(pProp);
+        }
     }
 }

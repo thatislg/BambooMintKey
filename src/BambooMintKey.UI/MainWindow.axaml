@@ -191,6 +191,7 @@
                                 <CheckBox Name="ChkAutoRestore" Content="Tự động khôi phục từ tiếng Anh khi gõ sai ngữ pháp (start, word, ...)"/>
                                 <CheckBox Name="ChkRepeatUndo" Content="Gõ lặp dấu để khôi phục ký tự thô (ss -> s, aa -> a, rr -> r)"/>
                                 <CheckBox Name="ChkLeadingW" Content="Phím 'w' đứng đầu từ biến thành 'ư' (w -> ư, wn -> ưn)"/>
+                                <CheckBox Name="ChkPreedit" Content="Bật tính năng hiển thị gạch chân khi soạn thảo (Preedit)"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

@@ -26,6 +26,10 @@ SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64compatible
 ArchitecturesAllowed=x64compatible
+; Tự động phát hiện và đóng các ứng dụng đang nạp DLL để cập nhật tức thì
+CloseApplications=yes
+RestartApplications=yes
+CloseApplicationsFilter=*.exe
 ; Không bắt buộc restart Windows; chúng ta tự quản lý CTF Loader
 RestartIfNeededByRun=no
 
@@ -39,6 +43,10 @@ Source: "..\..\src\media\bamboomintkey.ico"; DestDir: "{app}"; Flags: ignorevers
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\bamboomintkey.ico"
+
+[Registry]
+; Dọn sạch khóa Run cũ khi gỡ cài đặt để tránh UI vẫn tự khởi động cùng Windows sau khi xóa phần mềm
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "{#MyAppName}"; Flags: uninsdeletevalue
 
 [Run]
 ; Kích hoạt DllRegisterServer để đưa TIP vào hệ thống TSF

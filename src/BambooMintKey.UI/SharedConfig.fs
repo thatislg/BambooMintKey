@@ -24,6 +24,7 @@ type AppConfig = {
     mutable HotkeyModifiers: uint32    // TSF Modifiers (0x0202 = Ctrl+OnKeyUp, 0x0001 = Alt, etc.)
     mutable HotkeyDisplay: string      // Chuỗi hiển thị ("Ctrl + Shift", "Alt + Z", ...)
     mutable StartWithWindows: bool
+    mutable EnablePreedit: bool
     mutable MacroEnabled: bool
     mutable Macros: Map<string, string>
 } with
@@ -42,6 +43,7 @@ type AppConfig = {
         HotkeyModifiers = 0x0202u
         HotkeyDisplay = "Ctrl + Shift"
         StartWithWindows = false
+        EnablePreedit = false
         MacroEnabled = false
         Macros = Map.ofList [ ("vn", "Việt Nam"); ("bmk", "BambooMintKey"); ("f#", "F-Sharp") ]
     }
@@ -149,6 +151,7 @@ module ConfigStore =
                     cfg.AllowRepeatKeyUndo <- span[3] <> 0uy
                     cfg.AllowLeadingWAsU <- span[4] <> 0uy
                     cfg.AllowFreeTonePlacement <- if span.Length > 20 then span[20] <> 0uy else true
+                    cfg.EnablePreedit <- if span.Length > 21 then span[21] <> 0uy else false
                     cfg.InputMethod <- span[5]
                     cfg.Charset <- span[6]
                     cfg.ToggleHotkey <- span[7]
@@ -207,6 +210,8 @@ module ConfigStore =
                     if has "allowRepeatKeyUndo" "false" then cfg.AllowRepeatKeyUndo <- false
                     if has "allowLeadingWAsU" "true" then cfg.AllowLeadingWAsU <- true
                     if has "allowFreeTonePlacement" "false" then cfg.AllowFreeTonePlacement <- false
+                    if has "enablePreedit" "true" then cfg.EnablePreedit <- true
+                    elif has "enablePreedit" "false" then cfg.EnablePreedit <- false
                     if has "inputMethod" "1" then cfg.InputMethod <- 1uy
                     elif has "inputMethod" "2" then cfg.InputMethod <- 2uy
                     if has "charset" "1" then cfg.Charset <- 1uy
@@ -259,7 +264,7 @@ module ConfigStore =
                 if String.IsNullOrWhiteSpace(macroEntries) then "  \"macros\": {}"
                 else sprintf "  \"macros\": {\n%s\n  }" macroEntries
 
-            let json = sprintf "{\n  \"version\": %d,\n  \"inputMethod\": %d,\n  \"charset\": %d,\n  \"toggleHotkey\": %d,\n  \"hotkeyVKey\": %u,\n  \"hotkeyModifiers\": %u,\n  \"toneStyle\": %d,\n  \"autoRestoreEnglishWords\": %b,\n  \"allowRepeatKeyUndo\": %b,\n  \"allowLeadingWAsU\": %b,\n  \"allowFreeTonePlacement\": %b,\n  \"startWithWindows\": %b,\n  \"macroEnabled\": %b,\n%s\n}"
+            let json = sprintf "{\n  \"version\": %d,\n  \"inputMethod\": %d,\n  \"charset\": %d,\n  \"toggleHotkey\": %d,\n  \"hotkeyVKey\": %u,\n  \"hotkeyModifiers\": %u,\n  \"toneStyle\": %d,\n  \"autoRestoreEnglishWords\": %b,\n  \"allowRepeatKeyUndo\": %b,\n  \"allowLeadingWAsU\": %b,\n  \"allowFreeTonePlacement\": %b,\n  \"enablePreedit\": %b,\n  \"startWithWindows\": %b,\n  \"macroEnabled\": %b,\n%s\n}"
                         cfg.Version
                         (int cfg.InputMethod)
                         (int cfg.Charset)
@@ -271,6 +276,7 @@ module ConfigStore =
                         cfg.AllowRepeatKeyUndo
                         cfg.AllowLeadingWAsU
                         cfg.AllowFreeTonePlacement
+                        cfg.EnablePreedit
                         cfg.StartWithWindows
                         cfg.MacroEnabled
                         macrosBlock
@@ -295,6 +301,7 @@ module ConfigStore =
                     span[3] <- if cfg.AllowRepeatKeyUndo then 1uy else 0uy
                     span[4] <- if cfg.AllowLeadingWAsU then 1uy else 0uy
                     if span.Length > 20 then span[20] <- if cfg.AllowFreeTonePlacement then 1uy else 0uy
+                    if span.Length > 21 then span[21] <- if cfg.EnablePreedit then 1uy else 0uy
                     span[5] <- cfg.InputMethod
                     span[6] <- cfg.Charset
                     span[7] <- cfg.ToggleHotkey

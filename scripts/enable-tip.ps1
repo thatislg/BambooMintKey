@@ -41,19 +41,29 @@ try {
     Write-Host "[CANH BAO] Khong the cap nhat LanguageList qua Set-WinUserLanguageList, da ghi Registry SortOrder." -ForegroundColor Yellow
 }
 
-# 3.1 Ghi Category tuong thich Windows 10/11 Input Indicator (khong can Desktop Language Bar)
+# 3.1 Ghi Category tuong thich Windows 10/11 Input Indicator & DisplayAttribute
 $categories = @(
     "{34745C63-B2F0-4784-8B67-5E12C8701A31}", # GUID_TFCAT_TIP_KEYBOARD
-    "{35E7A704-438C-4235-96BC-4A6361C31595}", # GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER
+    "{04862A28-7F03-4D6B-89EB-B738D56D1F9C}", # GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER
     "{13A016DF-560B-46CD-947A-4C3AF1E0E35D}", # GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT
     "{25504FB4-7BAB-4BC1-9C69-CF81890F0EF5}", # GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT
     "{CCF05DD7-4A87-11D7-A6E2-00065B84435C}", # GUID_TFCAT_TIPCAP_INPUTMODECOMPARTMENT
     "{49D2F9CF-1F5E-11D7-A6D3-00065B84435C}"  # GUID_TFCAT_TIPCAP_UIELEMENTENABLED
 )
+# Xoa category cu neu co
+reg delete "HKCU\SOFTWARE\Microsoft\CTF\TIP\$Clsid\Category\Category\{35E7A704-438C-4235-96BC-4A6361C31595}" /f 2>$null | Out-Null
+reg delete "HKCU\SOFTWARE\Microsoft\CTF\TIP\$Clsid\Category\Item\$Clsid\{35E7A704-438C-4235-96BC-4A6361C31595}" /f 2>$null | Out-Null
+
 foreach ($cat in $categories) {
     reg add "HKCU\SOFTWARE\Microsoft\CTF\TIP\$Clsid\Category\Category\$cat\$Clsid" /ve /f | Out-Null
     reg add "HKCU\SOFTWARE\Microsoft\CTF\TIP\$Clsid\Category\Item\$Clsid\$cat" /ve /f | Out-Null
 }
+
+# Dang ky Display Attribute Category
+$guidDisplayAttr = "{5C02B94A-32EA-4B4B-A77A-92F2E4A9811C}"
+$catDisplayAttr = "{0046D38B-49FD-4A23-8B39-44F48A6F00F4}"
+reg add "HKCU\SOFTWARE\Microsoft\CTF\TIP\$Clsid\Category\Category\$catDisplayAttr\$guidDisplayAttr" /ve /f | Out-Null
+reg add "HKCU\SOFTWARE\Microsoft\CTF\TIP\$Clsid\Category\Item\$guidDisplayAttr\$catDisplayAttr" /ve /f | Out-Null
 
 # 4. Restart ctfmon va explorer de nhan profile moi va nap DLL moi
 Write-Host "[OK] Da ghi Registry HKCU Profile & SortOrder thanh cong." -ForegroundColor Green

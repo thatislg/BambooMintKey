@@ -39,15 +39,17 @@ public unsafe class BambooMintKeyTextService
 {
     private static TfTextInputProcessorExVTable* _processorVTable;
     private static TfThreadMgrEventSinkVTable* _threadMgrSinkVTable;
+    private static TfDisplayAttributeProviderVTable* _displayAttributeProviderVTable;
 
     // Instance native structure holding interfaces
     [StructLayout(LayoutKind.Sequential)]
     private struct NativeLayout
     {
-        public IntPtr VTableProcessor;       // Con trỏ vtable ITfTextInputProcessorEx
-        public IntPtr VTableThreadMgrSink;   // Con trỏ vtable ITfThreadMgrEventSink
-        public IntPtr VTableKeyEventSink;    // Con trỏ vtable ITfKeyEventSink (Chi tiết ở 002_03)
-        public IntPtr GCHandle;              // GCHandle trỏ ngược lại instance C#
+        public IntPtr VTableProcessor;                  // Con trỏ vtable ITfTextInputProcessorEx (offset 0)
+        public IntPtr VTableThreadMgrSink;              // Con trỏ vtable ITfThreadMgrEventSink (offset 1)
+        public IntPtr VTableKeyEventSink;               // Con trỏ vtable ITfKeyEventSink (offset 2)
+        public IntPtr VTableDisplayAttributeProvider;   // Con trỏ vtable ITfDisplayAttributeProvider (offset 3)
+        public IntPtr GCHandle;                         // GCHandle trỏ ngược lại instance C# (offset 4)
     }
 
     private int _refCount = 1;
@@ -122,6 +124,7 @@ public unsafe class BambooMintKeyTextService
         layout->VTableProcessor = (IntPtr)_processorVTable;
         layout->VTableThreadMgrSink = (IntPtr)_threadMgrSinkVTable;
         layout->VTableKeyEventSink = KeyEventSinkImpl.GetVTablePointer();
+        layout->VTableDisplayAttributeProvider = (IntPtr)_displayAttributeProviderVTable;
         layout->GCHandle = GCHandle.ToIntPtr(gcHandle);
 
         ComServerState.ObjectCreated();
@@ -151,6 +154,14 @@ public unsafe class BambooMintKeyTextService
         _threadMgrSinkVTable->OnSetFocus = &OnSetFocus;
         _threadMgrSinkVTable->OnPushContext = &OnPushContext;
         _threadMgrSinkVTable->OnPopContext = &OnPopContext;
+
+        _displayAttributeProviderVTable = (TfDisplayAttributeProviderVTable*)RuntimeHelpers.AllocateTypeAssociatedMemory(
+            typeof(BambooMintKeyTextService), sizeof(TfDisplayAttributeProviderVTable));
+        _displayAttributeProviderVTable->QueryInterface = &QueryInterface_DisplayAttributeProvider;
+        _displayAttributeProviderVTable->AddRef = &AddRef_DisplayAttributeProvider;
+        _displayAttributeProviderVTable->Release = &Release_DisplayAttributeProvider;
+        _displayAttributeProviderVTable->EnumDisplayAttributeInfo = &EnumDisplayAttributeInfo;
+        _displayAttributeProviderVTable->GetDisplayAttributeInfo = &GetDisplayAttributeInfo;
     }
 
     internal static BambooMintKeyTextService GetTarget(IntPtr thisPtr)
@@ -190,6 +201,14 @@ public unsafe class BambooMintKeyTextService
         if (*riid == Guids.IidITfKeyEventSink)
         {
             *ppvObject = rootPtr + (sizeof(IntPtr) * 2);
+            var processorVTable = *(TfTextInputProcessorExVTable**)rootPtr;
+            processorVTable->AddRef(rootPtr);
+            return HResult.Ok;
+        }
+
+        if (*riid == Guids.IidITfDisplayAttributeProvider)
+        {
+            *ppvObject = rootPtr + (sizeof(IntPtr) * 3);
             var processorVTable = *(TfTextInputProcessorExVTable**)rootPtr;
             processorVTable->AddRef(rootPtr);
             return HResult.Ok;
@@ -243,6 +262,56 @@ public unsafe class BambooMintKeyTextService
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static uint Release_ThreadMgrSink(IntPtr thisPtr)
         => ReleaseImpl(thisPtr - sizeof(IntPtr));
+
+    // Proxy Unknown & Callbacks cho Interface con thứ 4 (DisplayAttributeProvider)
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+    private static int QueryInterface_DisplayAttributeProvider(IntPtr thisPtr, Guid* riid, IntPtr* ppvObject)
+        => QueryInterfaceImpl(thisPtr - (sizeof(IntPtr) * 3), riid, ppvObject);
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+    private static uint AddRef_DisplayAttributeProvider(IntPtr thisPtr)
+        => AddRefImpl(thisPtr - (sizeof(IntPtr) * 3));
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+    private static uint Release_DisplayAttributeProvider(IntPtr thisPtr)
+        => ReleaseImpl(thisPtr - (sizeof(IntPtr) * 3));
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+    private static int EnumDisplayAttributeInfo(IntPtr thisPtr, IntPtr* ppEnum)
+    {
+        DebugLog.Write("ITfDisplayAttributeProvider.EnumDisplayAttributeInfo called");
+        if (ppEnum == null) return HResult.Pointer;
+        *ppEnum = EnumDisplayAttributeInfoImpl.CreateInstance();
+        return HResult.Ok;
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+    private static int GetDisplayAttributeInfo(IntPtr thisPtr, Guid* pguid, IntPtr* ppInfo)
+    {
+        DebugLog.Write($"ITfDisplayAttributeProvider.GetDisplayAttributeInfo called: {(pguid != null ? (*pguid).ToString() : "null")}");
+        if (pguid == null || ppInfo == null) return HResult.Pointer;
+        *ppInfo = IntPtr.Zero;
+
+        IntPtr info = IntPtr.Zero;
+        if (*pguid == Guids.GuidDisplayAttributeInput)
+        {
+            info = DisplayAttributeInfoImpl.GetStealthInstance();
+        }
+        else if (*pguid == Guids.GuidDisplayAttributeInputPreedit)
+        {
+            info = DisplayAttributeInfoImpl.GetPreeditInstance();
+        }
+
+        if (info != IntPtr.Zero)
+        {
+            var infoVTable = *(TfDisplayAttributeInfoVTable**)info;
+            infoVTable->AddRef(info);
+            *ppInfo = info;
+            return HResult.Ok;
+        }
+
+        return HResult.Fail;
+    }
     #endregion
 
     #region ITfTextInputProcessorEx Callbacks
