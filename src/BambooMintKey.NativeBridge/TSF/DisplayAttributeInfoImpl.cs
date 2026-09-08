@@ -135,6 +135,7 @@ public static unsafe class DisplayAttributeInfoImpl
             pda->FBoldLine = 0;
             pda->CrLine.Type = TfDaColorType.TfCtNone;
             pda->CrLine.IndexOrColorRef = 0;
+            pda->BAttr = TfDaAttrInfo.TfAttrInput;
         }
         else
         {
@@ -143,10 +144,12 @@ public static unsafe class DisplayAttributeInfoImpl
             pda->FBoldLine = 0;
             pda->CrLine.Type = TfDaColorType.TfCtNone;
             pda->CrLine.IndexOrColorRef = 0;
+            // Dùng TfAttrOther (-1) hoặc TfAttrConverted (2) thay vì TfAttrInput (0)
+            // để đánh lừa các ứng dụng dùng chuẩn cũ (IMM32) hoặc Chrome Omnibox không vẽ gạch chân Input.
+            pda->BAttr = (TfDaAttrInfo)255; // Giá trị ảo hoặc TfAttrOther
         }
 
-        pda->BAttr = TfDaAttrInfo.TfAttrInput;
-        DebugLog.Write($"GetAttributeInfo: IsPreedit={isPreedit}, LsStyle={pda->LsStyle}");
+        DebugLog.Write($"GetAttributeInfo: IsPreedit={isPreedit}, LsStyle={pda->LsStyle}, BAttr={pda->BAttr}");
 
         return HResult.Ok;
     }
