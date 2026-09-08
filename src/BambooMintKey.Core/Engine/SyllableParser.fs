@@ -50,19 +50,32 @@ module SyllableParser =
 
                     if not allVowelsValid then None
                     else
-                        // Trích xuất Tone hiện tại nếu có trong nguyên âm
-                        let detectedTone =
+                        // Chuẩn hóa nguyên âm bỏ dấu thanh để kiểm tra cấu trúc cụm nguyên âm có hợp lệ theo ngữ âm học không
+                        let baseVowelsRaw =
                             vowelsRaw.ToCharArray()
-                            |> Array.tryPick (fun c ->
-                                let _, _, t = decomposeChar c
-                                if t <> Tone.None then Some t else None
+                            |> Array.map (fun c ->
+                                let b, m, _ = decomposeChar c
+                                match composeChar (b, m, Tone.None) with
+                                | Some cleanC -> cleanC
+                                | None -> b
                             )
-                            |> Option.defaultValue Tone.None
+                            |> String
 
-                        Some {
-                            InitialConsonant = if initial.Length > 0 then resolved[0..initial.Length - 1] else ""
-                            VowelNucleus = vowelsRaw
-                            FinalConsonant = if final.Length > 0 then resolved[resolved.Length - final.Length..] else ""
-                            Tone = detectedTone
-                            Modifiers = []
-                        }
+                        if not (ModifierRules.isValidVowelCluster baseVowelsRaw) then None
+                        else
+                            // Trích xuất Tone hiện tại nếu có trong nguyên âm
+                            let detectedTone =
+                                vowelsRaw.ToCharArray()
+                                |> Array.tryPick (fun c ->
+                                    let _, _, t = decomposeChar c
+                                    if t <> Tone.None then Some t else None
+                                )
+                                |> Option.defaultValue Tone.None
+
+                            Some {
+                                InitialConsonant = if initial.Length > 0 then resolved[0..initial.Length - 1] else ""
+                                VowelNucleus = vowelsRaw
+                                FinalConsonant = if final.Length > 0 then resolved[resolved.Length - final.Length..] else ""
+                                Tone = detectedTone
+                                Modifiers = []
+                            }

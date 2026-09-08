@@ -18,6 +18,7 @@
     <Compile Include="Engine\SyllableParser.fs" />
     <Compile Include="Engine\ToneRules.fs" />
     <Compile Include="Engine\WordBuffer.fs" />
+    <Compile Include="Engine\EnglishProtection.fs" />
     <Compile Include="Engine\FreeTonePlacement.fs" />
     <Compile Include="Engine\TelexEngine.fs" />
     <Compile Include="Interop\NativeApi.fs" />

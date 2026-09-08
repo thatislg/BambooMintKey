@@ -107,25 +107,12 @@ module FreeTonePlacement =
     /// Thẩm định quy tắc ngữ âm chính tả tiếng Việt để ngăn chặn việc biến đổi sai các từ tiếng Anh.
     /// Ví dụ: Trong tiếng Việt, phụ âm 'c' không bao giờ đi trực tiếp với 'e', 'ê', 'i' hoặc cụm 'oe'
     /// (phải viết là 'k' hoặc 'qu' như 'ke', 'kê', 'que'). Do đó 'core' -> chuỗi nền 'coe' là không hợp lệ.
+    /// <summary>
+    /// Kiểm tra ràng buộc chính tả tiếng Việt dựa trên bảng ma trận ngữ âm học EnglishProtection (Tuyến 1):
+    /// - Ngăn chặn các từ tiếng Anh (như 'core', 'more', 'first', 'start'...) bị biến đổi thành âm tiết dị dạng.
     /// </summary>
     let private isValidVietnamesePhonotactics (syllable: Syllable) : bool =
-        let initLower = syllable.InitialConsonant.ToLowerInvariant()
-        let vowelLower = syllable.VowelNucleus.ToLowerInvariant()
-
-        if initLower = "c" then
-            // 'c' không đi với 'e', 'ê', 'i', 'oe'
-            not (vowelLower.StartsWith "e" || vowelLower.StartsWith "ê" || vowelLower.StartsWith "i" || vowelLower = "oe")
-        elif initLower = "k" then
-            // 'k' trong tiếng Việt chỉ đi với 'e', 'ê', 'i', 'y' (hoặc mượn)
-            vowelLower.StartsWith "e" || vowelLower.StartsWith "ê" || vowelLower.StartsWith "i" || vowelLower.StartsWith "y"
-        elif initLower = "g" then
-            // 'g' đơn không đi trực tiếp với 'e', 'ê', 'i' (phải dùng 'gh' hoặc 'gi')
-            not (vowelLower.StartsWith "e" || vowelLower.StartsWith "ê" || vowelLower.StartsWith "i")
-        elif initLower = "ng" then
-            // 'ng' đơn không đi trực tiếp với 'e', 'ê', 'i' (phải dùng 'ngh')
-            not (vowelLower.StartsWith "e" || vowelLower.StartsWith "ê" || vowelLower.StartsWith "i")
-        else
-            true
+        EnglishProtection.isValidVietnameseSyllableStructure syllable
 
     /// <summary>
     /// Chuẩn hóa và áp dụng bỏ dấu tự do lên chuỗi phím thô:

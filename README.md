@@ -87,6 +87,16 @@ dotnet publish src/BambooMintKey.NativeBridge/BambooMintKey.NativeBridge.csproj 
   -p:NativeLib=Shared -p:PublishAot=true
 ```
 
+> **Lưu ý khi publish bị lỗi "file is being used by another process":**
+> Nếu `BambooMintKey.dll` trong `publish/win-x64` bị khóa bởi Windows Explorer hoặc IDE (Rider, VS), hãy restart Windows Explorer:
+>
+> ```powershell
+> Stop-Process -Name explorer -Force
+> Start-Process explorer
+> ```
+>
+> Sau đó chạy lại lệnh `dotnet publish`.
+
 ### 2. Đăng Ký Bộ Gõ (Administrator)
 
 ```powershell

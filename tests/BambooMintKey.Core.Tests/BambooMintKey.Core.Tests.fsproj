@@ -33,6 +33,8 @@
     <Compile Include="EngineLifecycleTests.fs" />
     <Compile Include="UnicodeAndBufferTests.fs" />
     <Compile Include="FreeTonePlacementTests.fs" />
+    <Compile Include="UppercaseModifierTests.fs" />
+    <Compile Include="EnglishProtectionTests.fs" />
   </ItemGroup>
 
 </Project>
