@@ -105,16 +105,16 @@ public static class Guids
     public static readonly Guid IidITfSource = new("4EA48A35-60AE-446F-8FD6-E6A8D82459F7");
 
     /// <summary>IID_ITfDisplayAttributeProvider - Cung cấp danh sách và chi tiết thuộc tính hiển thị.</summary>
-    /// <remarks>Lấy từ Windows SDK msctf.idl: uuid(feea5376-7086-455a-b054-0098ae450a55).</remarks>
-    public static readonly Guid IidITfDisplayAttributeProvider = new("FEEA5376-7086-455A-B054-0098AE450A55");
+    /// <remarks>Lấy từ Windows SDK msctf.idl: uuid(fee47777-163c-4769-996a-6e9c50ad8f54).</remarks>
+    public static readonly Guid IidITfDisplayAttributeProvider = new("fee47777-163c-4769-996a-6e9c50ad8f54");
 
     /// <summary>IID_ITfDisplayAttributeInfo - Chi tiết một thuộc tính hiển thị cụ thể.</summary>
-    /// <remarks>Lấy từ Windows SDK msctf.idl: uuid(70528852-f6d2-43de-8e5b-8f763ce537f1).</remarks>
-    public static readonly Guid IidITfDisplayAttributeInfo = new("70528852-F6D2-43DE-8E5B-8F763CE537F1");
+    /// <remarks>Lấy từ Windows SDK msctf.idl: uuid(70528852-2f26-4aea-8c96-215150578932).</remarks>
+    public static readonly Guid IidITfDisplayAttributeInfo = new("70528852-2f26-4aea-8c96-215150578932");
 
     /// <summary>IID_IEnumTfDisplayAttributeInfo - Liệt kê các thuộc tính hiển thị.</summary>
-    /// <remarks>Lấy từ Windows SDK msctf.idl: uuid(7ce316aa-4934-453b-b538-0fb79966b150).</remarks>
-    public static readonly Guid IidIEnumTfDisplayAttributeInfo = new("7CE316AA-4934-453B-B538-0FB79966B150");
+    /// <remarks>Lấy từ Windows SDK msctf.idl: uuid(7cef04d7-cb75-4e80-a7ab-5f5bc7d332de).</remarks>
+    public static readonly Guid IidIEnumTfDisplayAttributeInfo = new("7cef04d7-cb75-4e80-a7ab-5f5bc7d332de");
 
     // =========================================================================
     // TSF Language Bar GUIDs (Windows SDK ctfutb.h & ctffunc.h - 100% chuẩn xác)

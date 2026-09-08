@@ -9,5 +9,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/BambooMintKey.Core.Tests/BambooMintKey.Core.Tests.fsproj" />
+    <Project Path="tests/BambooMintKey.NativeBridge.Tests/BambooMintKey.NativeBridge.Tests.csproj" />
   </Folder>
 </Solution>
