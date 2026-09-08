@@ -70,24 +70,66 @@ git checkout -b BambooMintKey-1.0.0
 
 ---
 
-## 4. Tạo cấu trúc thư mục manifest
+## 4. Tạo manifest bằng `wingetcreate` (khuyên dùng)
 
-WinGet tổ chức manifest theo quy tắc phân cấp dựa trên `PackageIdentifier`:
+`wingetcreate` là công cụ CLI chính thức của Microsoft. Nó tự động tải file installer, tính SHA-256, và sinh đúng 3 file manifest theo schema WinGet, giảm thiểu lỗi thủ công.
 
-```text
-manifests/
-└── b/                              # Chữ cái đầu của Publisher
-    └── BambooMintKey/              # Tên Publisher
-        └── BambooMintKey/          # Tên sản phẩm
-            └── 1.0.0/              # Phiên bản
-                ├── BambooMintKey.BambooMintKey.yaml
-                ├── BambooMintKey.BambooMintKey.installer.yaml
-                └── BambooMintKey.BambooMintKey.locale.en-US.yaml
+> **Tại sao dùng `wingetcreate`?** Thay vì tự viết YAML và lo lắng về schema, công cụ này tự động phát hiện `InstallerType` (Inno Setup), kiến trúc (`x64`), và điền sẵn các giá trị cần thiết. Bạn chỉ cần kiểm tra lại và bổ sung metadata.
+
+### Cài đặt wingetcreate
+
+```powershell
+winget install Microsoft.WingetCreate
 ```
 
-> **Tại sao phải đúng cấu trúc này?** Bot của Microsoft tự động quét thư mục theo đúng quy tắc trên. Nếu sai vị trí, PR sẽ bị đóng ngay lập tức vì lỗi `Manifest-Metadata-Consistency`.
+Sau khi cài, **khởi động lại PowerShell** để `wingetcreate` có trong PATH.
 
-### Thao tác
+### Sinh manifest từ URL Release
+
+```powershell
+wingetcreate new `
+  https://github.com/thatislg/BambooMintKey/releases/download/v1.0.0/BambooMintKey-Setup.exe
+```
+
+Quá trình này sẽ:
+1. Tải file installer từ URL.
+2. Tính SHA-256.
+3. Hỏi bạn một số thông tin (PackageIdentifier, PackageVersion, Publisher, PackageName, ...).
+4. Tạo thư mục manifest đúng cấu trúc.
+
+Bạn trả lời theo mẫu:
+
+| Prompt | Giá trị |
+|---|---|
+| PackageIdentifier | `BambooMintKey.BambooMintKey` |
+| PackageVersion | `1.0.0` |
+| Publisher | `BambooMintKey Team` |
+| PackageName | `BambooMintKey` |
+| License | `MIT` |
+| ShortDescription | `Modern Vietnamese Input Method Engine powered by F# NativeAOT and Text Services Framework.` |
+
+Sau khi xong, `wingetcreate` tạo thư mục ví dụ:
+```text
+manifests\b\BambooMintKey\BambooMintKey\1.0.0\
+```
+
+### Kiểm tra và sửa metadata nếu cần
+
+Mở 3 file YAML vừa sinh và kiểm tra các giá trị sau:
+
+- `InstallerType` phải là `inno`.
+- `Scope` phải là `machine`.
+- `InstallerSwitches.Silent` phải là `/VERYSILENT /NORESTART`.
+- `ProductCode` phải là `{D8A27E4B-4E3F-4A92-805F-294FCE314D01}_is1`.
+- `ElevationRequirement` nên là `elevationRequired`.
+
+Nếu `wingetcreate` không tự điền `ProductCode` hoặc `ElevationRequirement`, bạn mở file `BambooMintKey.BambooMintKey.installer.yaml` và thêm tay.
+
+---
+
+## 5. Cách thay thế: Copy manifest sẵn có từ repo BambooMintKey
+
+Nếu không muốn dùng `wingetcreate`, bạn có thể dùng bộ manifest đã chuẩn bị sẵn trong repo:
 
 ```powershell
 # Tạo thư mục theo quy tắc của WinGet
@@ -99,9 +141,11 @@ Copy-Item -Path "D:\Kojin\BambooMintKey\delivery\winget\1.0.0\*" `
           -Force
 ```
 
+> **Tại sao phải đúng cấu trúc này?** Bot của Microsoft tự động quét thư mục theo đúng quy tắc trên. Nếu sai vị trí, PR sẽ bị đóng ngay lập tức vì lỗi `Manifest-Metadata-Consistency`.
+
 ---
 
-## 5. Kiểm tra manifest trước khi submit
+## 6. Kiểm tra manifest trước khi submit
 
 Đây là bước **quan trọng nhất**. Nếu manifest có lỗi, bot của Microsoft sẽ báo và bạn phải sửa, push lại, chờ lại.
 
@@ -138,7 +182,7 @@ try {
 
 ---
 
-## 6. Commit và push lên fork
+## 7. Commit và push lên fork
 
 Sau khi validate OK, bạn commit các file manifest.
 
@@ -152,7 +196,7 @@ git push origin BambooMintKey-1.0.0
 
 ---
 
-## 7. Tạo Pull Request trên GitHub
+## 8. Tạo Pull Request trên GitHub
 
 1. Truy cập fork: `https://github.com/thatislg/winget-pkgs`
 2. GitHub sẽ hiển thị banner "Compare & pull request" cho nhánh `BambooMintKey-1.0.0`. Nhấn vào đó.
@@ -173,7 +217,7 @@ git push origin BambooMintKey-1.0.0
 
 ---
 
-## 8. Chờ bot kiểm tra và xử lý lỗi
+## 9. Chờ bot kiểm tra và xử lý lỗi
 
 Sau khi tạo PR, các bot sau sẽ chạy:
 
@@ -195,7 +239,7 @@ Quy trình kiểm tra tự động gồm:
 
 ---
 
-## 9. Xử lý SmartScreen warning (trường hợp installer chưa ký số)
+## 10. Xử lý SmartScreen warning (trường hợp installer chưa ký số)
 
 Nếu BambooMintKey-Setup.exe **chưa được ký số** bằng chứng chỉ hợp lệ, bot sẽ báo cảnh báo SmartScreen.
 
@@ -216,7 +260,7 @@ Cách xử lý:
 
 ---
 
-## 10. Sau khi PR được merge
+## 11. Sau khi PR được merge
 
 Khi PR merge, gói sẽ xuất hiện trong WinGet sau vài giờ. Bạn có thể kiểm tra:
 
@@ -238,22 +282,28 @@ winget install BambooMintKey.BambooMintKey
 
 ---
 
-## 11. Cập nhật phiên bản sau này
+## 12. Cập nhật phiên bản sau này
 
-Khi có phiên bản mới (ví dụ `v1.1.0`):
+Khi có phiên bản mới (ví dụ `v1.1.0`), bạn có thể dùng `wingetcreate update`:
 
-1. Build installer mới.
-2. Tạo GitHub Release `v1.1.0` với asset `BambooMintKey-Setup.exe`.
-3. Lấy SHA-256 mới.
-4. Chạy script trong repo BambooMintKey:
-   ```powershell
-   .\scripts\update-winget-manifest.ps1 `
-     -Version "1.1.0" `
-     -InstallerUrl "https://github.com/thatislg/BambooMintKey/releases/download/v1.1.0/BambooMintKey-Setup.exe" `
-     -InstallerSha256 "<sha256-mới>"
-   ```
-5. Copy các file manifest mới từ `delivery/winget/1.1.0/` (hoặc `manifests/...`) sang fork `winget-pkgs`.
-6. Tạo PR mới với tiêu đề: `New version: BambooMintKey.BambooMintKey version 1.1.0`.
+```powershell
+wingetcreate update BambooMintKey.BambooMintKey `
+  --version 1.1.0 `
+  --urls https://github.com/thatislg/BambooMintKey/releases/download/v1.1.0/BambooMintKey-Setup.exe
+```
+
+Hoặc dùng script trong repo BambooMintKey:
+```powershell
+.\scripts\update-winget-manifest.ps1 `
+  -Version "1.1.0" `
+  -InstallerUrl "https://github.com/thatislg/BambooMintKey/releases/download/v1.1.0/BambooMintKey-Setup.exe" `
+  -InstallerSha256 "<sha256-mới>"
+```
+
+Sau đó copy manifest mới sang fork `winget-pkgs` và tạo PR:
+```text
+New version: BambooMintKey.BambooMintKey version 1.1.0
+```
 
 ---
 
@@ -261,4 +311,5 @@ Khi có phiên bản mới (ví dụ `v1.1.0`):
 
 - [WinGet Package Manifest Schema](https://aka.ms/winget-manifest.schema)
 - [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs)
+- [Microsoft.WingetCreate](https://github.com/microsoft/winget-create)
 - [Komac – WinGet manifest updater](https://github.com/russellbanks/Komac)
