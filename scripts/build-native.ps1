@@ -34,12 +34,25 @@ Write-Host "[2/3] Bắt đầu xuất bản NativeAOT..." -ForegroundColor Yello
 dotnet publish $ProjectPath `
     -c $Configuration `
     -r $Runtime `
-    --self-contained true `
-    -o $OutputDir `
-    /p:NativeLib=Shared `
-    /p:PublishAot=true
+    -p:NativeLib=Shared `
+    -p:PublishAot=true `
+    -p:DebugType=none `
+    -p:DebugSymbols=false `
+    -p:GenerateDocumentationFile=false `
+    -o $OutputDir
 
-# 3. Kiểm tra file đầu ra
+# 3. Dọn dẹp file không cần thiết
+Write-Host "[3/3] Dọn dẹp artifacts thừa..." -ForegroundColor Yellow
+Remove-Item -Path (Join-Path $OutputDir "*.pdb") -Force -ErrorAction SilentlyContinue
+Remove-Item -Path (Join-Path $OutputDir "*.xml") -Force -ErrorAction SilentlyContinue
+Remove-Item -Path (Join-Path $OutputDir "*.deps.json") -Force -ErrorAction SilentlyContinue
+Remove-Item -Path (Join-Path $OutputDir "*.exp") -Force -ErrorAction SilentlyContinue
+Remove-Item -Path (Join-Path $OutputDir "*.lib") -Force -ErrorAction SilentlyContinue
+Remove-Item -Path (Join-Path $OutputDir "*.ilk") -Force -ErrorAction SilentlyContinue
+Remove-Item -Path (Join-Path $OutputDir "*.map") -Force -ErrorAction SilentlyContinue
+Remove-Item -Path (Join-Path $OutputDir "createdump.exe") -Force -ErrorAction SilentlyContinue
+
+# 4. Kiểm tra file đầu ra
 $TargetDll = Join-Path $OutputDir "BambooMintKey.dll"
 if (Test-Path $TargetDll) {
     $fileSize = (Get-Item $TargetDll).Length / 1MB

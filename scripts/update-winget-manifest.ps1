@@ -41,12 +41,12 @@ PackageIdentifier: BambooMintKey.BambooMintKey
 PackageVersion: {{VERSION}}
 PackageLocale: {{DEFAULT_LOCALE}}
 Publisher: BambooMintKey Team
-PublisherUrl: https://github.com/Kojin/BambooMintKey
-PublisherSupportUrl: https://github.com/Kojin/BambooMintKey/issues
+PublisherUrl: https://github.com/thatislg/BambooMintKey
+PublisherSupportUrl: https://github.com/thatislg/BambooMintKey/issues
 PackageName: BambooMintKey
-PackageUrl: https://github.com/Kojin/BambooMintKey
+PackageUrl: https://github.com/thatislg/BambooMintKey
 License: MIT
-LicenseUrl: https://github.com/Kojin/BambooMintKey/blob/main/LICENSE
+LicenseUrl: https://github.com/thatislg/BambooMintKey/blob/main/LICENSE
 Copyright: Copyright (c) 2026 BambooMintKey Team
 ShortDescription: Modern Vietnamese Input Method Engine powered by F# NativeAOT and Text Services Framework.
 Description: |

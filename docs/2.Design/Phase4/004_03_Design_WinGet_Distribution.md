@@ -52,12 +52,12 @@ PackageIdentifier: BambooMintKey.BambooMintKey
 PackageVersion: 1.0.0
 PackageLocale: en-US
 Publisher: BambooMintKey Team
-PublisherUrl: https://github.com/Kojin/BambooMintKey
-PublisherSupportUrl: https://github.com/Kojin/BambooMintKey/issues
+PublisherUrl: https://github.com/thatislg/BambooMintKey
+PublisherSupportUrl: https://github.com/thatislg/BambooMintKey/issues
 PackageName: BambooMintKey
-PackageUrl: https://github.com/Kojin/BambooMintKey
+PackageUrl: https://github.com/thatislg/BambooMintKey
 License: MIT
-LicenseUrl: https://github.com/Kojin/BambooMintKey/blob/main/LICENSE
+LicenseUrl: https://github.com/thatislg/BambooMintKey/blob/main/LICENSE
 Copyright: Copyright (c) 2026 BambooMintKey Team
 ShortDescription: Modern Vietnamese Input Method Engine powered by F# NativeAOT and Text Services Framework.
 Description: |
@@ -100,8 +100,8 @@ AppsAndFeaturesEntries:
     ProductCode: '{D8A27E4B-4E3F-4A92-805F-294FCE314D01}_is1'
 Installers:
   - Architecture: x64
-    InstallerUrl: https://github.com/Kojin/BambooMintKey/releases/download/v1.0.0/BambooMintKey-Setup.exe
-    InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000
+    InstallerUrl: https://github.com/thatislg/BambooMintKey/releases/download/v1.0.0/BambooMintKey-Setup.exe
+    InstallerSha256: 2335003B1142F45CFD91722BBD22E62CC1195BC6331723884A396081451605B4
 ManifestType: installer
 ManifestVersion: 1.9.0
 ```
@@ -116,9 +116,9 @@ Trước khi đưa vào luồng CI/CD, bộ manifest có thể được sinh và
 # 1. Cài đặt công cụ wingetcreate
 winget install Microsoft.WingetCreate
 
-# 2. Tạo nhanh cấu trúc manifest từ URL Release (thay v1.0.0 và SHA256 bằng giá trị thực tế)
+# 2. Tạo nhanh cấu trúc manifest từ URL Release
 wingetcreate new `
-  https://github.com/Kojin/BambooMintKey/releases/download/v1.0.0/BambooMintKey-Setup.exe
+  https://github.com/thatislg/BambooMintKey/releases/download/v1.0.0/BambooMintKey-Setup.exe
 
 # 3. Kiểm thử cài đặt từ file manifest cục bộ
 winget install --manifest .\manifests\b\BambooMintKey\BambooMintKey\1.0.0\
@@ -127,7 +127,7 @@ winget install --manifest .\manifests\b\BambooMintKey\BambooMintKey\1.0.0\
 winget validate .\manifests\b\BambooMintKey\BambooMintKey\1.0.0\
 ```
 
-Tệp manifest mẫu cũng được lưu trong repo tại `manifests/b/BambooMintKey/BambooMintKey/1.0.0/` để dễ chỉnh sửa và kiểm thử.
+Tệp manifest mẫu cũng được lưu trong repo tại `manifests/b/BambooMintKey/BambooMintKey/1.0.0/` và `delivery/winget/1.0.0/` để dễ chỉnh sửa, kiểm thử và submit thủ công.
 
 ### 4.2. Tự động hóa qua GitHub Actions (`komac`)
 
@@ -184,7 +184,7 @@ Write-Host $hash
 # 3. Giả lập update manifest (thay URL bằng URL release thật khi có)
 .\scripts\update-winget-manifest.ps1 `
   -Version "1.0.0" `
-  -InstallerUrl "https://github.com/Kojin/BambooMintKey/releases/download/v1.0.0/BambooMintKey-Setup.exe" `
+  -InstallerUrl "https://github.com/thatislg/BambooMintKey/releases/download/v1.0.0/BambooMintKey-Setup.exe" `
   -InstallerSha256 $hash
 
 # 4. Validate manifest
@@ -196,4 +196,15 @@ winget install --manifest manifests\b\BambooMintKey\BambooMintKey\1.0.0\
 
 Nếu validate và install đều OK, T có thể push tag để workflow tự động chạy.
 
-  
+## 7. Hướng dẫn Submit Thủ công lên WinGet (không dùng GitHub Actions)
+
+Nếu T muốn submit bản 1.0.0 thủ công ngay bây giờ:
+
+1. Đảm bảo release `v1.0.0` đã public trên GitHub với asset `BambooMintKey-Setup.exe`.
+2. Kiểm tra SHA256 của asset trên Release khớp với giá trị trong `manifests/b/BambooMintKey/BambooMintKey/1.0.0/BambooMintKey.BambooMintKey.installer.yaml`.
+3. Fork repo `microsoft/winget-pkgs` về tài khoản GitHub của T.
+4. Tạo nhánh mới, ví dụ `BambooMintKey-1.0.0`.
+5. Copy bộ ba file từ `delivery/winget/1.0.0/` vào `manifests/b/BambooMintKey/BambooMintKey/1.0.0/` trên fork.
+6. Chạy `winget validate manifests/b/BambooMintKey/BambooMintKey/1.0.0/` để kiểm tra.
+7. Commit, push nhánh và tạo Pull Request về `microsoft/winget-pkgs:master`.
+8. Chờ bot kiểm tra và merge.

@@ -30,7 +30,35 @@ dotnet publish $UiProject `
     -c $Configuration `
     -r $Runtime `
     --self-contained true `
+    -p:PublishSingleFile=true `
+    -p:EnableCompressionInSingleFile=true `
+    -p:PublishTrimmed=true `
+    -p:TrimMode=partial `
+    -p:InvariantGlobalization=true `
+    -p:DebugType=none `
+    -p:DebugSymbols=false `
+    -p:GenerateDocumentationFile=false `
     -o $UiOutputDir
+
+# 2.1. Dọn dẹp file không cần thiết trong UI publish
+Write-Host "[2.1] Dọn dẹp UI artifacts thừa..." -ForegroundColor Yellow
+$excludedUiFiles = @(
+    "*.pdb"
+    "*.xml"
+    "*.deps.json"
+    "createdump.exe"
+    "Avalonia.FreeDesktop.dll"
+    "Avalonia.FreeDesktop.AtSpi.dll"
+    "Avalonia.Vulkan.dll"
+    "Avalonia.X11.dll"
+    "Tmds.DBus.Protocol.dll"
+)
+foreach ($pattern in $excludedUiFiles) {
+    Get-ChildItem -Path $UiOutputDir -Filter $pattern -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
+}
+
+# Xóa các thư mục resource locale không cần thiết (giữ lại tiếng Anh)
+Get-ChildItem -Path $UiOutputDir -Directory | Where-Object { $_.Name -match '^(cs|de|es|fr|it|ja|ko|pl|pt-BR|ru|tr|zh-Hans|zh-Hant)$' } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 
 # 3. Compile Inno Setup installer
 Write-Host "[3/3] Compiling installer with Inno Setup..." -ForegroundColor Yellow
