@@ -161,6 +161,7 @@ Chi tiết kiến trúc hệ thống toàn diện có sơ đồ xem tại [Tài 
 | `tests/BambooMintKey.Core.Tests` | Unit tests cho Telex engine. |
 | `scripts/` | PowerShell scripts đăng ký, gỡ đăng ký, enable TIP. |
 | `docs/` | Tài liệu thiết kế và hướng dẫn. |
+| `docs/3.Issue/` | Template báo lỗi gõ tiếng Việt (issue templates). |
 
 ---
 

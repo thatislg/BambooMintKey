@@ -339,6 +339,9 @@ public static unsafe class LangBarItemButton
         uint leadingWFlag = SharedMemoryManager.AllowLeadingWAsU ? TsfMenuFlags.TfLbMenuFlagChecked : 0;
         AddMenuItemText(menuVTable, pMenu, MenuCommands.ToggleLeadingWAsU, leadingWFlag, "Phím 'w' đầu từ thành 'ư' (w -> ư)");
 
+        uint freeToneFlag = SharedMemoryManager.AllowFreeTonePlacement ? TsfMenuFlags.TfLbMenuFlagChecked : 0;
+        AddMenuItemText(menuVTable, pMenu, MenuCommands.ToggleFreeTonePlacement, freeToneFlag, "Cho phép bỏ dấu tự do");
+
         AddMenuSeparator(menuVTable, pMenu);
 
         // 4. Submenu: Kiểu gõ
@@ -454,6 +457,9 @@ public static unsafe class LangBarItemButton
             uint leadingW = SharedMemoryManager.AllowLeadingWAsU ? mfChecked : 0;
             AppendMenuW(hMenu, mfString | leadingW, MenuCommands.ToggleLeadingWAsU, "Phím 'w' đầu từ thành 'ư' (w -> ư)");
 
+            uint freeTone = SharedMemoryManager.AllowFreeTonePlacement ? mfChecked : 0;
+            AppendMenuW(hMenu, mfString | freeTone, MenuCommands.ToggleFreeTonePlacement, "Cho phép bỏ dấu tự do");
+
             AppendMenuW(hMenu, mfSeparator, 0, string.Empty);
 
             // 4. Submenu Kiểu gõ
@@ -528,6 +534,10 @@ public static unsafe class LangBarItemButton
 
             case MenuCommands.ToggleLeadingWAsU:
                 SharedMemoryManager.AllowLeadingWAsU = !SharedMemoryManager.AllowLeadingWAsU;
+                break;
+
+            case MenuCommands.ToggleFreeTonePlacement:
+                SharedMemoryManager.AllowFreeTonePlacement = !SharedMemoryManager.AllowFreeTonePlacement;
                 break;
 
             case MenuCommands.MethodTelex:

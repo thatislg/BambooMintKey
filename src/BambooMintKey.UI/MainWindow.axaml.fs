@@ -8,6 +8,7 @@ open Avalonia.Controls
 open Avalonia.Markup.Xaml
 open Avalonia.Interactivity
 open Avalonia.Input
+open Avalonia.Threading
 
 type MainWindow (args: string[]) as this = 
     inherit Window ()
@@ -32,6 +33,8 @@ type MainWindow (args: string[]) as this =
     let mutable chkAutoRestore: CheckBox = null
     let mutable chkRepeatUndo: CheckBox = null
     let mutable chkLeadingW: CheckBox = null
+    let mutable chkFreeTone: CheckBox = null
+    let mutable chkFreeToneTab1: CheckBox = null
     let mutable txtSandbox: TextBox = null
     let mutable btnClearSandbox: Button = null
     let mutable btnGithub: Button = null
@@ -39,6 +42,10 @@ type MainWindow (args: string[]) as this =
     let mutable btnDefault: Button = null
     let mutable btnSave: Button = null
     let mutable txtStatus: TextBlock = null
+
+    let mutable syncTimer: DispatcherTimer = null
+    let mutable lastKnownSeq = 0u
+    let mutable isUpdatingFromSync = false
 
     let mutable isRecordingHotkey = false
     let mutable currentVKey = 0x10u
@@ -89,6 +96,8 @@ type MainWindow (args: string[]) as this =
         chkAutoRestore <- this.FindControl<CheckBox>("ChkAutoRestore")
         chkRepeatUndo <- this.FindControl<CheckBox>("ChkRepeatUndo")
         chkLeadingW <- this.FindControl<CheckBox>("ChkLeadingW")
+        chkFreeTone <- this.FindControl<CheckBox>("ChkFreeTone")
+        chkFreeToneTab1 <- this.FindControl<CheckBox>("ChkFreeToneTab1")
         txtSandbox <- this.FindControl<TextBox>("TxtSandbox")
         btnClearSandbox <- this.FindControl<Button>("BtnClearSandbox")
         btnGithub <- this.FindControl<Button>("BtnGithub")
@@ -228,37 +237,115 @@ type MainWindow (args: string[]) as this =
         if btnSave <> null then
             btnSave.Click.Add(fun _ -> this.SaveAndClose())
 
+        // Tự động đồng bộ 2 chiều ngay lập tức với Shared Memory khi người dùng thay đổi bất kỳ tùy chọn nào
+        let onSettingChanged (_: obj) =
+            this.AutoSyncToShared()
+
+        if chkFreeTone <> null then
+            chkFreeTone.IsCheckedChanged.Add(fun _ ->
+                if not isUpdatingFromSync then
+                    if chkFreeToneTab1 <> null then
+                        chkFreeToneTab1.IsChecked <- chkFreeTone.IsChecked
+                    this.AutoSyncToShared()
+            )
+
+        if chkFreeToneTab1 <> null then
+            chkFreeToneTab1.IsCheckedChanged.Add(fun _ ->
+                if not isUpdatingFromSync then
+                    if chkFreeTone <> null then
+                        chkFreeTone.IsChecked <- chkFreeToneTab1.IsChecked
+                    this.AutoSyncToShared()
+            )
+
+        if chkAutoRestore <> null then chkAutoRestore.IsCheckedChanged.Add(onSettingChanged)
+        if chkRepeatUndo <> null then chkRepeatUndo.IsCheckedChanged.Add(onSettingChanged)
+        if chkLeadingW <> null then chkLeadingW.IsCheckedChanged.Add(onSettingChanged)
+        if rbToneModern <> null then rbToneModern.IsCheckedChanged.Add(onSettingChanged)
+        if rbToneClassic <> null then rbToneClassic.IsCheckedChanged.Add(onSettingChanged)
+        if rbTelex <> null then rbTelex.IsCheckedChanged.Add(onSettingChanged)
+        if rbVni <> null then rbVni.IsCheckedChanged.Add(onSettingChanged)
+        if rbSimpleTelex <> null then rbSimpleTelex.IsCheckedChanged.Add(onSettingChanged)
+        if cbCharset <> null then cbCharset.SelectionChanged.Add(onSettingChanged)
+
+        // Khởi tạo timer đồng bộ thời gian thực từ Language Bar (Taskbar Menu) sang Bảng điều khiển
+        syncTimer <- new DispatcherTimer()
+        syncTimer.Interval <- TimeSpan.FromMilliseconds(150.0)
+        syncTimer.Tick.Add(fun _ ->
+            let currentSeq = ConfigStore.getStateSequence()
+            if currentSeq <> 0u && currentSeq <> lastKnownSeq then
+                lastKnownSeq <- currentSeq
+                this.LoadSettings()
+        )
+        syncTimer.Start()
+
+        this.Closed.Add(fun _ ->
+            if syncTimer <> null then syncTimer.Stop()
+        )
+
+    member private this.AutoSyncToShared() =
+        if not isUpdatingFromSync then
+            let cfg = ConfigStore.loadConfig()
+            if rbVni <> null && rbVni.IsChecked = Nullable true then cfg.InputMethod <- 1uy
+            elif rbSimpleTelex <> null && rbSimpleTelex.IsChecked = Nullable true then cfg.InputMethod <- 2uy
+            else cfg.InputMethod <- 0uy
+
+            if cbCharset <> null then cfg.Charset <- byte (Math.Max(0, cbCharset.SelectedIndex))
+
+            if rbToneClassic <> null && rbToneClassic.IsChecked = Nullable true then cfg.ToneStyle <- 1uy
+            else cfg.ToneStyle <- 0uy
+
+            if chkAutoRestore <> null then cfg.AutoRestoreEnglishWords <- chkAutoRestore.IsChecked.GetValueOrDefault(true)
+            if chkRepeatUndo <> null then cfg.AllowRepeatKeyUndo <- chkRepeatUndo.IsChecked.GetValueOrDefault(true)
+            if chkLeadingW <> null then cfg.AllowLeadingWAsU <- chkLeadingW.IsChecked.GetValueOrDefault(false)
+            if chkFreeTone <> null then cfg.AllowFreeTonePlacement <- chkFreeTone.IsChecked.GetValueOrDefault(true)
+            elif chkFreeToneTab1 <> null then cfg.AllowFreeTonePlacement <- chkFreeToneTab1.IsChecked.GetValueOrDefault(true)
+
+            ConfigStore.saveConfig(cfg)
+            lastKnownSeq <- ConfigStore.getStateSequence()
+
     member private this.LoadSettings() =
-        let cfg = ConfigStore.loadConfig()
-        
-        if rbTelex <> null && rbVni <> null && rbSimpleTelex <> null then
-            match cfg.InputMethod with
-            | 1uy -> rbVni.IsChecked <- Nullable true
-            | 2uy -> rbSimpleTelex.IsChecked <- Nullable true
-            | _ -> rbTelex.IsChecked <- Nullable true
+        isUpdatingFromSync <- true
+        try
+            let cfg = ConfigStore.loadConfig()
+            
+            if rbTelex <> null && rbVni <> null && rbSimpleTelex <> null then
+                match cfg.InputMethod with
+                | 1uy -> rbVni.IsChecked <- Nullable true
+                | 2uy -> rbSimpleTelex.IsChecked <- Nullable true
+                | _ -> rbTelex.IsChecked <- Nullable true
 
-        if cbCharset <> null then
-            cbCharset.SelectedIndex <- int cfg.Charset
+            if cbCharset <> null then
+                cbCharset.SelectedIndex <- int cfg.Charset
 
-        this.SetHotkey(cfg.HotkeyVKey, cfg.HotkeyModifiers, cfg.HotkeyDisplay)
+            this.SetHotkey(cfg.HotkeyVKey, cfg.HotkeyModifiers, cfg.HotkeyDisplay)
 
-        if chkStartup <> null then
-            chkStartup.IsChecked <- Nullable cfg.StartWithWindows
+            if chkStartup <> null then
+                chkStartup.IsChecked <- Nullable cfg.StartWithWindows
 
-        if rbToneModern <> null && rbToneClassic <> null then
-            if cfg.ToneStyle = 1uy then
-                rbToneClassic.IsChecked <- Nullable true
-            else
-                rbToneModern.IsChecked <- Nullable true
+            if rbToneModern <> null && rbToneClassic <> null then
+                if cfg.ToneStyle = 1uy then
+                    rbToneClassic.IsChecked <- Nullable true
+                else
+                    rbToneModern.IsChecked <- Nullable true
 
-        if chkAutoRestore <> null then
-            chkAutoRestore.IsChecked <- Nullable cfg.AutoRestoreEnglishWords
+            if chkAutoRestore <> null then
+                chkAutoRestore.IsChecked <- Nullable cfg.AutoRestoreEnglishWords
 
-        if chkRepeatUndo <> null then
-            chkRepeatUndo.IsChecked <- Nullable cfg.AllowRepeatKeyUndo
+            if chkRepeatUndo <> null then
+                chkRepeatUndo.IsChecked <- Nullable cfg.AllowRepeatKeyUndo
 
-        if chkLeadingW <> null then
-            chkLeadingW.IsChecked <- Nullable cfg.AllowLeadingWAsU
+            if chkLeadingW <> null then
+                chkLeadingW.IsChecked <- Nullable cfg.AllowLeadingWAsU
+
+            if chkFreeTone <> null then
+                chkFreeTone.IsChecked <- Nullable cfg.AllowFreeTonePlacement
+
+            if chkFreeToneTab1 <> null then
+                chkFreeToneTab1.IsChecked <- Nullable cfg.AllowFreeTonePlacement
+
+            lastKnownSeq <- ConfigStore.getStateSequence()
+        finally
+            isUpdatingFromSync <- false
 
     member private this.ApplyDefaults() =
         let def = AppConfig.Default
@@ -270,6 +357,8 @@ type MainWindow (args: string[]) as this =
         if chkAutoRestore <> null then chkAutoRestore.IsChecked <- Nullable def.AutoRestoreEnglishWords
         if chkRepeatUndo <> null then chkRepeatUndo.IsChecked <- Nullable def.AllowRepeatKeyUndo
         if chkLeadingW <> null then chkLeadingW.IsChecked <- Nullable def.AllowLeadingWAsU
+        if chkFreeTone <> null then chkFreeTone.IsChecked <- Nullable def.AllowFreeTonePlacement
+        if chkFreeToneTab1 <> null then chkFreeToneTab1.IsChecked <- Nullable def.AllowFreeTonePlacement
         if txtStatus <> null then txtStatus.Text <- "Đã khôi phục thiết lập mặc định."
 
     member private this.HandleCommandLineArgs() =
@@ -324,6 +413,9 @@ type MainWindow (args: string[]) as this =
 
         if chkLeadingW <> null then
             cfg.AllowLeadingWAsU <- chkLeadingW.IsChecked.GetValueOrDefault(false)
+
+        if chkFreeTone <> null then
+            cfg.AllowFreeTonePlacement <- chkFreeTone.IsChecked.GetValueOrDefault(true)
 
         ConfigStore.saveConfig(cfg)
         this.Close()

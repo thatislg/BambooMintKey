@@ -34,20 +34,23 @@ public static class BridgeStateManager
             bool repeatUndo = SharedMemoryManager.AllowRepeatKeyUndo;
             bool leadingW = SharedMemoryManager.AllowLeadingWAsU;
             byte toneStyleByte = SharedMemoryManager.ToneStyle;
+            bool freeTone = SharedMemoryManager.AllowFreeTonePlacement;
             var toneStyle = (toneStyleByte == 1) ? Types.TonePlacementStyle.Traditional : Types.TonePlacementStyle.Modern;
 
             if (_currentConfig.IsEnabled != isVn ||
                 _currentConfig.AutoRestoreEnglishWords != autoRestore ||
                 _currentConfig.AllowRepeatKeyUndo != repeatUndo ||
                 _currentConfig.AllowLeadingWAsU != leadingW ||
-                _currentConfig.ToneStyle != toneStyle)
+                _currentConfig.ToneStyle != toneStyle ||
+                _currentConfig.AllowFreeTonePlacement != freeTone)
             {
                 _currentConfig = new EngineConfig.EngineConfig(
                     isVn,
                     autoRestore,
                     repeatUndo,
                     leadingW,
-                    toneStyle
+                    toneStyle,
+                    freeTone
                 );
             }
             return _currentConfig;
@@ -70,7 +73,8 @@ public static class BridgeStateManager
             _currentConfig.AutoRestoreEnglishWords,
             _currentConfig.AllowRepeatKeyUndo,
             _currentConfig.AllowLeadingWAsU,
-            _currentConfig.ToneStyle
+            _currentConfig.ToneStyle,
+            _currentConfig.AllowFreeTonePlacement
         );
         return newMode;
     }

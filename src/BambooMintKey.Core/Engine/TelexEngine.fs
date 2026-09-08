@@ -65,79 +65,103 @@ module TelexEngine =
             (newState, EngineAction.UpdateComposition formatted)
 
         else
-            // 3. Thử áp dụng biến đổi lên State Syllable hiện có
-            let modifiedSyllableOpt =
-                match state.Syllable with
-                | Some currentSyl ->
-                    match ToneRules.keyToTone c with
-                    | Some tone -> Some (ToneRules.applyTone tone config.ToneStyle currentSyl)
-                    | None ->
-                        match ModifierRules.applyModifier c currentSyl with
-                        | Some s -> Some s
-                        | None ->
-                            // Thử ghép phụ âm cuối vào Syllable hiện có
-                            let f = currentSyl.FinalConsonant.ToLowerInvariant()
-                            let candFinalOpt =
-                                if String.IsNullOrEmpty f && "cmnpt".Contains(string lowerChar) then
-                                    Some (string c)
-                                elif f = "n" && lowerChar = 'g' then Some "ng"
-                                elif f = "c" && lowerChar = 'h' then Some "ch"
-                                elif f = "n" && lowerChar = 'h' then Some "nh"
-                                else None
-                            match candFinalOpt with
-                            | Some newF ->
-                                let newSyl = { currentSyl with FinalConsonant = newF }
-                                Some (ToneRules.applyTone currentSyl.Tone config.ToneStyle newSyl)
-                            | None -> None
-                | None ->
-                    if rawString.ToLowerInvariant() = "dd" then
-                        Some {
-                            InitialConsonant = if Char.IsUpper(newRaw[0]) then "Đ" else "đ"
-                            VowelNucleus = ""
-                            FinalConsonant = ""
-                            Tone = Tone.None
-                            Modifiers = [ ('d', Modifier.DBar) ]
-                        }
-                    else None
+            // 3. Cơ chế Bỏ dấu tự do (Free Tone Placement)
+            // Khi bật cấu hình AllowFreeTonePlacement, kiểm tra xem có phím dấu thanh nằm ở vị trí tự do hay không
+            // (ví dụ: gõ dấu ở cuối từ 'phari', 'hoacs', hoặc gõ dấu trước nguyên âm sau 'phar' + 'i').
+            let freeToneOpt =
+                if config.AllowFreeTonePlacement then
+                    FreeTonePlacement.tryNormalizeFreeTone newRaw config.ToneStyle config.AllowRepeatKeyUndo
+                else
+                    None
 
-            match modifiedSyllableOpt with
-            | Some updatedSyllable ->
-                let reconstructed = reconstructSyllableText updatedSyllable
-                let formatted = WordBuffer.applyCase detectedCase reconstructed
+            match freeToneOpt with
+            | Some (normalizedSyllable, wordCase) ->
+                // Bỏ dấu tự do thành công: tái tạo chuỗi âm tiết và áp dụng định dạng hoa/thường chính xác
+                let reconstructed = reconstructSyllableText normalizedSyllable
+                let formatted = WordBuffer.applyCase wordCase reconstructed
                 let newState = {
                     RawKeys = newRaw
                     TransformedText = formatted
-                    Syllable = Some updatedSyllable
-                    Case = detectedCase
+                    Syllable = Some normalizedSyllable
+                    Case = wordCase
                     IsInvalidVietnamese = false
                 }
                 (newState, EngineAction.UpdateComposition formatted)
 
             | None ->
-                // 4. Parse chuỗi thô để xây dựng âm tiết mới
-                match SyllableParser.parse rawString with
-                | Some parsedSyllable ->
-                    let reconstructed = reconstructSyllableText parsedSyllable
+                // 4. Thử áp dụng biến đổi lên State Syllable hiện có (Luồng gia tăng Telex chuẩn)
+                let modifiedSyllableOpt =
+                    match state.Syllable with
+                    | Some currentSyl ->
+                        match ToneRules.keyToTone c with
+                        | Some tone -> Some (ToneRules.applyTone tone config.ToneStyle currentSyl)
+                        | None ->
+                            match ModifierRules.applyModifier c currentSyl with
+                            | Some s -> Some s
+                            | None ->
+                                // Thử ghép phụ âm cuối vào Syllable hiện có
+                                let f = currentSyl.FinalConsonant.ToLowerInvariant()
+                                let candFinalOpt =
+                                    if String.IsNullOrEmpty f && "cmnpt".Contains(string lowerChar) then
+                                        Some (string c)
+                                    elif f = "n" && lowerChar = 'g' then Some "ng"
+                                    elif f = "c" && lowerChar = 'h' then Some "ch"
+                                    elif f = "n" && lowerChar = 'h' then Some "nh"
+                                    else None
+                                match candFinalOpt with
+                                | Some newF ->
+                                    let newSyl = { currentSyl with FinalConsonant = newF }
+                                    Some (ToneRules.applyTone currentSyl.Tone config.ToneStyle newSyl)
+                                | None -> None
+                    | None ->
+                        if rawString.ToLowerInvariant() = "dd" then
+                            Some {
+                                InitialConsonant = if Char.IsUpper(newRaw[0]) then "Đ" else "đ"
+                                VowelNucleus = ""
+                                FinalConsonant = ""
+                                Tone = Tone.None
+                                Modifiers = [ ('d', Modifier.DBar) ]
+                            }
+                        else None
+
+                match modifiedSyllableOpt with
+                | Some updatedSyllable ->
+                    let reconstructed = reconstructSyllableText updatedSyllable
                     let formatted = WordBuffer.applyCase detectedCase reconstructed
                     let newState = {
                         RawKeys = newRaw
                         TransformedText = formatted
-                        Syllable = Some parsedSyllable
+                        Syllable = Some updatedSyllable
                         Case = detectedCase
                         IsInvalidVietnamese = false
                     }
                     (newState, EngineAction.UpdateComposition formatted)
+
                 | None ->
-                    // 5. Fallback tiếng Anh
-                    let fallbackText = WordBuffer.applyCase detectedCase rawString
-                    let newState = {
-                        RawKeys = newRaw
-                        TransformedText = fallbackText
-                        Syllable = None
-                        Case = detectedCase
-                        IsInvalidVietnamese = true
-                    }
-                    (newState, EngineAction.UpdateComposition fallbackText)
+                    // 5. Parse chuỗi thô để xây dựng âm tiết mới (Luồng toàn chuỗi)
+                    match SyllableParser.parse rawString with
+                    | Some parsedSyllable ->
+                        let reconstructed = reconstructSyllableText parsedSyllable
+                        let formatted = WordBuffer.applyCase detectedCase reconstructed
+                        let newState = {
+                            RawKeys = newRaw
+                            TransformedText = formatted
+                            Syllable = Some parsedSyllable
+                            Case = detectedCase
+                            IsInvalidVietnamese = false
+                        }
+                        (newState, EngineAction.UpdateComposition formatted)
+                    | None ->
+                        // 6. Fallback tiếng Anh (Không nhận diện được âm tiết tiếng Việt -> giữ nguyên chuỗi phím thô)
+                        let fallbackText = WordBuffer.applyCase detectedCase rawString
+                        let newState = {
+                            RawKeys = newRaw
+                            TransformedText = fallbackText
+                            Syllable = None
+                            Case = detectedCase
+                            IsInvalidVietnamese = true
+                        }
+                        (newState, EngineAction.UpdateComposition fallbackText)
 
     let processKey (state: WordState) (input: KeyInput) (config: EngineConfig) : WordState * EngineAction =
         if not config.IsEnabled then

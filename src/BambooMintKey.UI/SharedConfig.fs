@@ -15,6 +15,7 @@ type AppConfig = {
     mutable AutoRestoreEnglishWords: bool
     mutable AllowRepeatKeyUndo: bool
     mutable AllowLeadingWAsU: bool
+    mutable AllowFreeTonePlacement: bool
     mutable InputMethod: byte          // 0 = Telex, 1 = VNI, 2 = Simple Telex
     mutable Charset: byte              // 0 = Unicode dựng sẵn, 1 = Unicode tổ hợp, 2 = TCVN3
     mutable ToggleHotkey: byte         // 0 = Ctrl+Shift, 1 = Alt+Z, 2 = Ctrl+Space, 3 = None, 4 = Custom
@@ -32,6 +33,7 @@ type AppConfig = {
         AutoRestoreEnglishWords = true
         AllowRepeatKeyUndo = true
         AllowLeadingWAsU = false
+        AllowFreeTonePlacement = true
         InputMethod = 0uy
         Charset = 0uy
         ToggleHotkey = 0uy
@@ -80,6 +82,24 @@ module ConfigStore =
     let private EventName = @"Local\BambooMintKey_StateChangedEvent_v1"
     let private RunRegistryKey = @"Software\Microsoft\Windows\CurrentVersion\Run"
     let private AppName = "BambooMintKey"
+
+    /// Đọc số đếm vòng lặp StateSequence (offset 8) từ Shared Memory để kiểm tra thay đổi từ Language Bar
+    let getStateSequence () : uint32 =
+        try
+            let hMap = OpenFileMappingW(FILE_MAP_READ, false, MapName)
+            if hMap <> IntPtr.Zero then
+                let pView = MapViewOfFile(hMap, FILE_MAP_READ, 0u, 0u, 64n)
+                if pView <> IntPtr.Zero then
+                    let seqPtr : nativeptr<uint32> = NativePtr.ofNativeInt (pView + 8n)
+                    let seq = NativePtr.read seqPtr
+                    UnmapViewOfFile(pView) |> ignore
+                    CloseHandle(hMap) |> ignore
+                    seq
+                else
+                    CloseHandle(hMap) |> ignore
+                    0u
+            else 0u
+        with _ -> 0u
 
     let getHotkeyDisplayString (vKey: uint32) (modifiers: uint32) =
         if vKey = 0u && modifiers = 0u then "Không sử dụng phím tắt"
@@ -167,6 +187,7 @@ module ConfigStore =
                     cfg.AutoRestoreEnglishWords <- span[2] <> 0uy
                     cfg.AllowRepeatKeyUndo <- span[3] <> 0uy
                     cfg.AllowLeadingWAsU <- span[4] <> 0uy
+                    cfg.AllowFreeTonePlacement <- if span.Length > 20 then span[20] <> 0uy else true
                     cfg.InputMethod <- span[5]
                     cfg.Charset <- span[6]
                     cfg.ToggleHotkey <- span[7]
@@ -224,6 +245,7 @@ module ConfigStore =
                     if has "autoRestoreEnglishWords" "false" then cfg.AutoRestoreEnglishWords <- false
                     if has "allowRepeatKeyUndo" "false" then cfg.AllowRepeatKeyUndo <- false
                     if has "allowLeadingWAsU" "true" then cfg.AllowLeadingWAsU <- true
+                    if has "allowFreeTonePlacement" "false" then cfg.AllowFreeTonePlacement <- false
                     if has "inputMethod" "1" then cfg.InputMethod <- 1uy
                     elif has "inputMethod" "2" then cfg.InputMethod <- 2uy
                     if has "charset" "1" then cfg.Charset <- 1uy
@@ -310,6 +332,7 @@ module ConfigStore =
                     span[2] <- if cfg.AutoRestoreEnglishWords then 1uy else 0uy
                     span[3] <- if cfg.AllowRepeatKeyUndo then 1uy else 0uy
                     span[4] <- if cfg.AllowLeadingWAsU then 1uy else 0uy
+                    if span.Length > 20 then span[20] <- if cfg.AllowFreeTonePlacement then 1uy else 0uy
                     span[5] <- cfg.InputMethod
                     span[6] <- cfg.Charset
                     span[7] <- cfg.ToggleHotkey
@@ -341,6 +364,6 @@ module ConfigStore =
         // 2. Ghi file JSON để lưu bền vững
         try
             let path = getConfigPath ()
-            let json = $"{{\n  \"toneStyle\": %d{cfg.ToneStyle},\n  \"autoRestoreEnglishWords\": %b{cfg.AutoRestoreEnglishWords},\n  \"allowRepeatKeyUndo\": %b{cfg.AllowRepeatKeyUndo},\n  \"allowLeadingWAsU\": %b{cfg.AllowLeadingWAsU},\n  \"inputMethod\": %d{cfg.InputMethod},\n  \"charset\": %d{cfg.Charset},\n  \"toggleHotkey\": %d{cfg.ToggleHotkey},\n  \"hotkeyVKey\": %u{cfg.HotkeyVKey},\n  \"hotkeyModifiers\": %u{cfg.HotkeyModifiers},\n  \"startWithWindows\": %b{cfg.StartWithWindows}\n}}"
+            let json = $"{{\n  \"toneStyle\": %d{cfg.ToneStyle},\n  \"autoRestoreEnglishWords\": %b{cfg.AutoRestoreEnglishWords},\n  \"allowRepeatKeyUndo\": %b{cfg.AllowRepeatKeyUndo},\n  \"allowLeadingWAsU\": %b{cfg.AllowLeadingWAsU},\n  \"allowFreeTonePlacement\": %b{cfg.AllowFreeTonePlacement},\n  \"inputMethod\": %d{cfg.InputMethod},\n  \"charset\": %d{cfg.Charset},\n  \"toggleHotkey\": %d{cfg.ToggleHotkey},\n  \"hotkeyVKey\": %u{cfg.HotkeyVKey},\n  \"hotkeyModifiers\": %u{cfg.HotkeyModifiers},\n  \"startWithWindows\": %b{cfg.StartWithWindows}\n}}"
             File.WriteAllText(path, json)
         with _ -> ()

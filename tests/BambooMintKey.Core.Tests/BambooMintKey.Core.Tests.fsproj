@@ -32,6 +32,7 @@
     <Compile Include="SyllableParserTests.fs" />
     <Compile Include="EngineLifecycleTests.fs" />
     <Compile Include="UnicodeAndBufferTests.fs" />
+    <Compile Include="FreeTonePlacementTests.fs" />
   </ItemGroup>
 
 </Project>

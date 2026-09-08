@@ -61,7 +61,20 @@ public static class SettingsLauncher
             if (!File.Exists(uiPath))
             {
                 // Fallback nếu chạy trong dev
-                uiPath = @"D:\Kojin\BambooMintKey\publish\win-x64\BambooMintKey.UI.exe";
+                string[] candidates = [
+                    @"D:\Kojin\BambooMintKey\publish\ui\BambooMintKey.UI.exe",
+                    @"D:\Kojin\BambooMintKey\publish\win-x64\BambooMintKey.UI.exe",
+                    @"D:\Kojin\BambooMintKey\src\BambooMintKey.UI\bin\Release\net10.0\BambooMintKey.UI.exe",
+                    @"D:\Kojin\BambooMintKey\src\BambooMintKey.UI\bin\Debug\net10.0\BambooMintKey.UI.exe"
+                ];
+                foreach (var cand in candidates)
+                {
+                    if (File.Exists(cand))
+                    {
+                        uiPath = cand;
+                        break;
+                    }
+                }
             }
 
             if (File.Exists(uiPath))

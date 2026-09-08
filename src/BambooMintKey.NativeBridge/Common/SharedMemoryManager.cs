@@ -158,6 +158,7 @@ public static unsafe class SharedMemoryManager
                             *(uint*)(_pShared + 8) = 1; // StateSequence ban đầu
                             *(uint*)(_pShared + 12) = 0x10; // HotkeyVKey: VK_SHIFT (0x10) mặc định
                             *(uint*)(_pShared + 16) = 0x0202; // HotkeyModifiers: Control | OnKeyUp (0x0202) mặc định
+                            _pShared[20] = 1; // AllowFreeTonePlacement (Mặc định: Bật)
 
                             // Đọc cấu hình người dùng đã lưu trong file config.json nếu có
                             LoadInitialConfigFromDisk(_pShared);
@@ -202,6 +203,7 @@ public static unsafe class SharedMemoryManager
                   "autoRestoreEnglishWords": true,
                   "allowRepeatKeyUndo": true,
                   "allowLeadingWAsU": false,
+                  "allowFreeTonePlacement": true,
                   "startWithWindows": true,
                   "macroEnabled": false,
                   "macros": {
@@ -248,6 +250,7 @@ public static unsafe class SharedMemoryManager
             pShared[7] = (byte)ParseUint("toggleHotkey", 0);
             *(uint*)(pShared + 12) = ParseUint("hotkeyVKey", 0x10);
             *(uint*)(pShared + 16) = ParseUint("hotkeyModifiers", 0x0202);
+            pShared[20] = (byte)(ParseBool("allowFreeTonePlacement", true) ? 1 : 0);
 
             DebugLog.Write($"Loaded config from disk: vKey={*(uint*)(pShared + 12)}, mods={*(uint*)(pShared + 16)}");
         }
@@ -433,6 +436,27 @@ public static unsafe class SharedMemoryManager
             if (_pShared != null)
             {
                 _pShared[4] = (byte)(value ? 1 : 0);
+                SignalStateChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Cho phép bỏ dấu tự do ở bất kỳ vị trí nào trong từ (Mặc định: true).
+    /// </summary>
+    public static bool AllowFreeTonePlacement
+    {
+        get
+        {
+            EnsureInitialized();
+            return _pShared != null ? (_pShared[20] != 0) : true;
+        }
+        set
+        {
+            EnsureInitialized();
+            if (_pShared != null)
+            {
+                _pShared[20] = (byte)(value ? 1 : 0);
                 SignalStateChanged();
             }
         }

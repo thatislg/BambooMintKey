@@ -17,6 +17,8 @@ type EngineConfig = {
     AllowLeadingWAsU: bool
     // Quy chuẩn đặt vị trí dấu thanh (Mới: hòa, xòe / Cũ: hoá, xoè)
     ToneStyle: TonePlacementStyle
+    // Cho phép bỏ dấu tự do ở bất kỳ vị trí nào trong từ (Ví dụ: phari -> phải, hoacs -> hoác)
+    AllowFreeTonePlacement: bool
 }
 with
     // Cấu hình mặc định của BambooMintKey
@@ -26,4 +28,5 @@ with
         AllowRepeatKeyUndo = true
         AllowLeadingWAsU = true
         ToneStyle = TonePlacementStyle.Modern
+        AllowFreeTonePlacement = true
     }

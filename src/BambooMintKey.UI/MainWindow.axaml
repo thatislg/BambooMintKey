@@ -115,6 +115,8 @@
                                     <RadioButton Name="RbVni" Content="VNI" GroupName="InputMethod"/>
                                     <RadioButton Name="RbSimpleTelex" Content="Simple Telex" GroupName="InputMethod"/>
                                 </StackPanel>
+                                <Separator Background="#f1f5f9" Margin="0,2"/>
+                                <CheckBox Name="ChkFreeToneTab1" Content="Cho phép bỏ dấu tự do ở bất kỳ vị trí nào trong từ (phari -> phải, hoacs -> hoác)"/>
                             </StackPanel>
                         </Border>
 
@@ -186,6 +188,7 @@
                         <Border Classes="card">
                             <StackPanel Spacing="10">
                                 <TextBlock Text="Tính năng thông minh:" FontWeight="Bold" FontSize="13" Foreground="#16a34a"/>
+                                <CheckBox Name="ChkFreeTone" Content="Cho phép bỏ dấu tự do ở bất kỳ vị trí nào trong từ (phari -> phải, hoacs -> hoác)"/>
                                 <CheckBox Name="ChkAutoRestore" Content="Tự động khôi phục từ tiếng Anh khi gõ sai ngữ pháp (start, word, ...)"/>
                                 <CheckBox Name="ChkRepeatUndo" Content="Gõ lặp dấu để khôi phục ký tự thô (ss -> s, aa -> a, rr -> r)"/>
                                 <CheckBox Name="ChkLeadingW" Content="Phím 'w' đứng đầu từ biến thành 'ư' (w -> ư, wn -> ưn)"/>
