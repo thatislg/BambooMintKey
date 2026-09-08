@@ -36,6 +36,10 @@ dotnet publish $ProjectPath `
     -r $Runtime `
     -p:NativeLib=Shared `
     -p:PublishAot=true `
+    -p:IlcOptimizationPreference=Size `
+    -p:OptimizationPreference=Size `
+    -p:StackTraceSupport=false `
+    -p:InvariantGlobalization=true `
     -p:DebugType=none `
     -p:DebugSymbols=false `
     -p:GenerateDocumentationFile=false `

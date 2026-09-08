@@ -33,7 +33,7 @@ RestartIfNeededByRun=no
 ; 1. Lõi NativeAOT Engine & TSF COM Server
 Source: "..\..\publish\win-x64\BambooMintKey.dll"; DestDir: "{app}"; Flags: ignoreversion restartreplace uninsrestartdelete
 ; 2. Ứng dụng cấu hình GUI + toàn bộ dependencies publish (bỏ các thư viện cross-platform không dùng trên Windows)
-Source: "..\..\publish\ui\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs; Excludes: "Avalonia.FreeDesktop.dll,Avalonia.FreeDesktop.AtSpi.dll,Avalonia.Vulkan.dll,Avalonia.X11.dll,Tmds.DBus.Protocol.dll"
+Source: "..\..\publish\ui\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs; Excludes: "Avalonia.FreeDesktop.dll,Avalonia.FreeDesktop.AtSpi.dll,Avalonia.Vulkan.dll,Avalonia.X11.dll,Tmds.DBus.Protocol.dll,*.pdb,*.xml,*.dbg,*.exp,*.lib"
 ; 3. Biểu tượng ứng dụng
 Source: "..\..\src\media\bamboomintkey.ico"; DestDir: "{app}"; Flags: ignoreversion
 

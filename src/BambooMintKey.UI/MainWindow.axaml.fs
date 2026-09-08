@@ -24,6 +24,7 @@ type MainWindow (args: string[]) as this =
     let mutable btnClearHotkey: Button = null
     let mutable txtHotkeyHelp: TextBlock = null
     let mutable chipCtrlShift: Button = null
+    let mutable chipCtrlShiftQ: Button = null
     let mutable chipAltZ: Button = null
     let mutable chipCtrlSpace: Button = null
     let mutable chipCtrlTilde: Button = null
@@ -34,7 +35,6 @@ type MainWindow (args: string[]) as this =
     let mutable chkRepeatUndo: CheckBox = null
     let mutable chkLeadingW: CheckBox = null
     let mutable chkFreeTone: CheckBox = null
-    let mutable chkFreeToneTab1: CheckBox = null
     let mutable txtSandbox: TextBox = null
     let mutable btnClearSandbox: Button = null
     let mutable btnGithub: Button = null
@@ -48,6 +48,7 @@ type MainWindow (args: string[]) as this =
     let mutable isUpdatingFromSync = false
 
     let mutable isRecordingHotkey = false
+    let mutable modifiersHeld = 0u
     let mutable currentVKey = 0x10u
     let mutable currentModifiers = 0x0202u
     let mutable currentDisplay = "Ctrl + Shift"
@@ -71,9 +72,11 @@ type MainWindow (args: string[]) as this =
             txtHotkeyDisplay.Text <- currentDisplay
         if isRecordingHotkey then
             isRecordingHotkey <- false
+            modifiersHeld <- 0u
             if btnRecordHotkey <> null then btnRecordHotkey.Content <- "⌨ Bấm để gán phím"
         if txtHotkeyHelp <> null then
             txtHotkeyHelp.Text <- sprintf "Phím tắt hiện tại: %s" currentDisplay
+        this.AutoSyncToShared()
 
     member private this.BindControls() =
         mainTabs <- this.FindControl<TabControl>("MainTabs")
@@ -87,6 +90,7 @@ type MainWindow (args: string[]) as this =
         btnClearHotkey <- this.FindControl<Button>("BtnClearHotkey")
         txtHotkeyHelp <- this.FindControl<TextBlock>("TxtHotkeyHelp")
         chipCtrlShift <- this.FindControl<Button>("ChipCtrlShift")
+        chipCtrlShiftQ <- this.FindControl<Button>("ChipCtrlShiftQ")
         chipAltZ <- this.FindControl<Button>("ChipAltZ")
         chipCtrlSpace <- this.FindControl<Button>("ChipCtrlSpace")
         chipCtrlTilde <- this.FindControl<Button>("ChipCtrlTilde")
@@ -97,7 +101,6 @@ type MainWindow (args: string[]) as this =
         chkRepeatUndo <- this.FindControl<CheckBox>("ChkRepeatUndo")
         chkLeadingW <- this.FindControl<CheckBox>("ChkLeadingW")
         chkFreeTone <- this.FindControl<CheckBox>("ChkFreeTone")
-        chkFreeToneTab1 <- this.FindControl<CheckBox>("ChkFreeToneTab1")
         txtSandbox <- this.FindControl<TextBox>("TxtSandbox")
         btnClearSandbox <- this.FindControl<Button>("BtnClearSandbox")
         btnGithub <- this.FindControl<Button>("BtnGithub")
@@ -111,11 +114,13 @@ type MainWindow (args: string[]) as this =
             btnRecordHotkey.Click.Add(fun _ ->
                 if not isRecordingHotkey then
                     isRecordingHotkey <- true
+                    modifiersHeld <- 0u
                     btnRecordHotkey.Content <- "Hủy gán"
                     if txtHotkeyDisplay <> null then txtHotkeyDisplay.Text <- "Nhấn tổ hợp phím..."
-                    if txtHotkeyHelp <> null then txtHotkeyHelp.Text <- "Đang lắng nghe: Hãy nhấn tổ hợp phím bất kỳ trên bàn phím (ví dụ: Alt+Z, Ctrl+Space, F9, ...)"
+                    if txtHotkeyHelp <> null then txtHotkeyHelp.Text <- "Đang lắng nghe: Hãy nhấn tổ hợp phím bất kỳ trên bàn phím (ví dụ: Ctrl+Shift+Q, Alt+Z, Ctrl+Space, F9, ...)"
                 else
                     isRecordingHotkey <- false
+                    modifiersHeld <- 0u
                     btnRecordHotkey.Content <- "⌨ Bấm để gán phím"
                     if txtHotkeyDisplay <> null then txtHotkeyDisplay.Text <- currentDisplay
                     if txtHotkeyHelp <> null then txtHotkeyHelp.Text <- "Bấm nút 'Gán phím' rồi nhấn tổ hợp phím bất kỳ trên bàn phím của bạn."
@@ -128,6 +133,7 @@ type MainWindow (args: string[]) as this =
 
         // Quick presets
         if chipCtrlShift <> null then chipCtrlShift.Click.Add(fun _ -> this.SetHotkey(0x10u, 0x0202u, "Ctrl + Shift"))
+        if chipCtrlShiftQ <> null then chipCtrlShiftQ.Click.Add(fun _ -> this.SetHotkey(0x51u, 0x0006u, "Ctrl + Shift + Q"))
         if chipAltZ <> null then chipAltZ.Click.Add(fun _ -> this.SetHotkey(0x5Au, 0x0001u, "Alt + Z"))
         if chipCtrlSpace <> null then chipCtrlSpace.Click.Add(fun _ -> this.SetHotkey(0x20u, 0x0002u, "Ctrl + Space"))
         if chipCtrlTilde <> null then chipCtrlTilde.Click.Add(fun _ -> this.SetHotkey(0xC0u, 0x0002u, "Ctrl + ~"))
@@ -137,6 +143,7 @@ type MainWindow (args: string[]) as this =
             if isRecordingHotkey then
                 if e.Key = Key.Escape then
                     isRecordingHotkey <- false
+                    modifiersHeld <- 0u
                     if btnRecordHotkey <> null then btnRecordHotkey.Content <- "⌨ Bấm để gán phím"
                     if txtHotkeyDisplay <> null then txtHotkeyDisplay.Text <- currentDisplay
                     if txtHotkeyHelp <> null then txtHotkeyHelp.Text <- "Đã hủy gán phím."
@@ -151,6 +158,7 @@ type MainWindow (args: string[]) as this =
                     if hasCtrl then mods <- mods ||| 0x0002u
                     if hasAlt then mods <- mods ||| 0x0001u
                     if hasShift then mods <- mods ||| 0x0004u
+                    modifiersHeld <- modifiersHeld ||| mods
 
                     match e.Key with
                     | Key.LeftCtrl | Key.RightCtrl | Key.LeftAlt | Key.RightAlt | Key.LeftShift | Key.RightShift ->
@@ -194,6 +202,7 @@ type MainWindow (args: string[]) as this =
                         | _ -> ()
 
                         if vKey <> 0u then
+                            modifiersHeld <- 0u
                             this.SetHotkey(vKey, mods)
                             if txtStatus <> null then txtStatus.Text <- sprintf "Đã gán phím tắt mới: %s" currentDisplay
                             e.Handled <- true
@@ -202,15 +211,15 @@ type MainWindow (args: string[]) as this =
         // Key Up Interception (dành riêng khi người dùng chỉ muốn dùng tổ hợp thuần phím bổ trợ như Ctrl + Shift)
         this.KeyUp.Add(fun e ->
             if isRecordingHotkey then
-                if (e.Key = Key.LeftShift || e.Key = Key.RightShift) && e.KeyModifiers.HasFlag(KeyModifiers.Control) then
-                    this.SetHotkey(0x10u, 0x0202u, "Ctrl + Shift")
-                    if txtStatus <> null then txtStatus.Text <- "Đã gán phím tắt mới: Ctrl + Shift"
-                elif (e.Key = Key.LeftCtrl || e.Key = Key.RightCtrl) && e.KeyModifiers.HasFlag(KeyModifiers.Shift) then
-                    this.SetHotkey(0x10u, 0x0202u, "Ctrl + Shift")
-                    if txtStatus <> null then txtStatus.Text <- "Đã gán phím tắt mới: Ctrl + Shift"
-                elif (e.Key = Key.LeftShift || e.Key = Key.RightShift) && e.KeyModifiers.HasFlag(KeyModifiers.Alt) then
-                    this.SetHotkey(0x10u, 0x0201u, "Alt + Shift")
-                    if txtStatus <> null then txtStatus.Text <- "Đã gán phím tắt mới: Alt + Shift"
+                let hasRemainingMods = e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.KeyModifiers.HasFlag(KeyModifiers.Alt) || e.KeyModifiers.HasFlag(KeyModifiers.Shift)
+                if not hasRemainingMods && modifiersHeld <> 0u then
+                    if (modifiersHeld &&& 0x0002u <> 0u) && (modifiersHeld &&& 0x0004u <> 0u) then
+                        this.SetHotkey(0x10u, 0x0202u, "Ctrl + Shift")
+                        if txtStatus <> null then txtStatus.Text <- "Đã gán phím tắt mới: Ctrl + Shift"
+                    elif (modifiersHeld &&& 0x0001u <> 0u) && (modifiersHeld &&& 0x0004u <> 0u) then
+                        this.SetHotkey(0x10u, 0x0201u, "Alt + Shift")
+                        if txtStatus <> null then txtStatus.Text <- "Đã gán phím tắt mới: Alt + Shift"
+                    modifiersHeld <- 0u
         )
 
         if btnClearSandbox <> null then
@@ -241,22 +250,7 @@ type MainWindow (args: string[]) as this =
         let onSettingChanged (_: obj) =
             this.AutoSyncToShared()
 
-        if chkFreeTone <> null then
-            chkFreeTone.IsCheckedChanged.Add(fun _ ->
-                if not isUpdatingFromSync then
-                    if chkFreeToneTab1 <> null then
-                        chkFreeToneTab1.IsChecked <- chkFreeTone.IsChecked
-                    this.AutoSyncToShared()
-            )
-
-        if chkFreeToneTab1 <> null then
-            chkFreeToneTab1.IsCheckedChanged.Add(fun _ ->
-                if not isUpdatingFromSync then
-                    if chkFreeTone <> null then
-                        chkFreeTone.IsChecked <- chkFreeToneTab1.IsChecked
-                    this.AutoSyncToShared()
-            )
-
+        if chkFreeTone <> null then chkFreeTone.IsCheckedChanged.Add(onSettingChanged)
         if chkAutoRestore <> null then chkAutoRestore.IsCheckedChanged.Add(onSettingChanged)
         if chkRepeatUndo <> null then chkRepeatUndo.IsCheckedChanged.Add(onSettingChanged)
         if chkLeadingW <> null then chkLeadingW.IsCheckedChanged.Add(onSettingChanged)
@@ -298,7 +292,21 @@ type MainWindow (args: string[]) as this =
             if chkRepeatUndo <> null then cfg.AllowRepeatKeyUndo <- chkRepeatUndo.IsChecked.GetValueOrDefault(true)
             if chkLeadingW <> null then cfg.AllowLeadingWAsU <- chkLeadingW.IsChecked.GetValueOrDefault(false)
             if chkFreeTone <> null then cfg.AllowFreeTonePlacement <- chkFreeTone.IsChecked.GetValueOrDefault(true)
-            elif chkFreeToneTab1 <> null then cfg.AllowFreeTonePlacement <- chkFreeToneTab1.IsChecked.GetValueOrDefault(true)
+
+            cfg.HotkeyVKey <- currentVKey
+            cfg.HotkeyModifiers <- currentModifiers
+            cfg.HotkeyDisplay <- currentDisplay
+
+            if currentVKey = 0x10u && (currentModifiers &&& 0x0002u <> 0u) then
+                cfg.ToggleHotkey <- 0uy
+            elif currentVKey = 0x5Au && currentModifiers = 0x0001u then
+                cfg.ToggleHotkey <- 1uy
+            elif currentVKey = 0x20u && currentModifiers = 0x0002u then
+                cfg.ToggleHotkey <- 2uy
+            elif currentVKey = 0u && currentModifiers = 0u then
+                cfg.ToggleHotkey <- 3uy
+            else
+                cfg.ToggleHotkey <- 4uy
 
             ConfigStore.saveConfig(cfg)
             lastKnownSeq <- ConfigStore.getStateSequence()
@@ -340,9 +348,6 @@ type MainWindow (args: string[]) as this =
             if chkFreeTone <> null then
                 chkFreeTone.IsChecked <- Nullable cfg.AllowFreeTonePlacement
 
-            if chkFreeToneTab1 <> null then
-                chkFreeToneTab1.IsChecked <- Nullable cfg.AllowFreeTonePlacement
-
             lastKnownSeq <- ConfigStore.getStateSequence()
         finally
             isUpdatingFromSync <- false
@@ -358,7 +363,6 @@ type MainWindow (args: string[]) as this =
         if chkRepeatUndo <> null then chkRepeatUndo.IsChecked <- Nullable def.AllowRepeatKeyUndo
         if chkLeadingW <> null then chkLeadingW.IsChecked <- Nullable def.AllowLeadingWAsU
         if chkFreeTone <> null then chkFreeTone.IsChecked <- Nullable def.AllowFreeTonePlacement
-        if chkFreeToneTab1 <> null then chkFreeToneTab1.IsChecked <- Nullable def.AllowFreeTonePlacement
         if txtStatus <> null then txtStatus.Text <- "Đã khôi phục thiết lập mặc định."
 
     member private this.HandleCommandLineArgs() =

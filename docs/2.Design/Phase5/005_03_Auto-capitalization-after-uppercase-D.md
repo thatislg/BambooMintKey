@@ -28,6 +28,15 @@ Ví dụ:
 
 - Gõ `Ddi` + space → mong muốn ra `Đi`, nhưng thực tế ra `ĐI`.
 - Tương tự có thể xảy ra với các từ bắt đầu bằng `Ê` như `Êm` → `ÊM`.
+- ÊM -> bug 
+- Ơm -> Ok
+- ĂN -> bug 
+- ÂN -> bug 
+- Ương -> Ok
+- Ung -> Ok
+- ÔN -> bug 
+- Om -> Ok
+- Ơn -> Ok
 
 ## Nguyên nhân dự kiến
 

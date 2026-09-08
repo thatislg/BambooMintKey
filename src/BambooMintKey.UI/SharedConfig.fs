@@ -7,6 +7,7 @@ open System.IO
 open System.Runtime.InteropServices
 open Microsoft.Win32
 open FSharp.NativeInterop
+open BambooMintKey.Core.Domain
 
 type AppConfig = {
     mutable Version: int
@@ -102,47 +103,7 @@ module ConfigStore =
         with _ -> 0u
 
     let getHotkeyDisplayString (vKey: uint32) (modifiers: uint32) =
-        if vKey = 0u && modifiers = 0u then "Không sử dụng phím tắt"
-        elif vKey = 0x10u && (modifiers = 0x0202u || modifiers = 0x0002u) then "Ctrl + Shift"
-        elif vKey = 0x10u && (modifiers = 0x0201u || modifiers = 0x0001u) then "Alt + Shift"
-        elif vKey = 0x5Au && modifiers = 0x0001u then "Alt + Z"
-        elif vKey = 0x20u && modifiers = 0x0002u then "Ctrl + Space"
-        else
-            let parts = System.Collections.Generic.List<string>()
-            if modifiers &&& 0x0002u <> 0u then parts.Add("Ctrl")
-            if modifiers &&& 0x0001u <> 0u then parts.Add("Alt")
-            if modifiers &&& 0x0004u <> 0u then parts.Add("Shift")
-            
-            let keyName =
-                match vKey with
-                | 0x20u -> "Space"
-                | 0x10u -> "Shift"
-                | 0x11u -> "Ctrl"
-                | 0x12u -> "Alt"
-                | 0xC0u -> "~"
-                | 0xDCu -> "\\"
-                | 0xBFu -> "/"
-                | 0xDBu -> "["
-                | 0xDDu -> "]"
-                | 0xBAu -> ";"
-                | 0xDEu -> "'"
-                | 0xBCu -> ","
-                | 0xBEu -> "."
-                | 0xBDu -> "-"
-                | 0xBBu -> "="
-                | 0x08u -> "Backspace"
-                | 0x09u -> "Tab"
-                | 0x0Du -> "Enter"
-                | 0x14u -> "CapsLock"
-                | 0x1Bu -> "Esc"
-                | k when k >= 0x41u && k <= 0x5Au -> string (char (int k))
-                | k when k >= 0x30u && k <= 0x39u -> string (char (int k))
-                | k when k >= 0x60u && k <= 0x69u -> $"Num%d{int k - 0x60}"
-                | k when k >= 0x70u && k <= 0x7Bu -> $"F%d{int k - 0x70 + 1}"
-                | k -> $"0x%X{k}"
-
-            if not (parts.Contains(keyName)) then parts.Add(keyName)
-            String.Join(" + ", parts)
+        HotkeyFormatter.getHotkeyDisplayString vKey modifiers
 
     let private getConfigPath () =
         let appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)
@@ -298,7 +259,7 @@ module ConfigStore =
                 if String.IsNullOrWhiteSpace(macroEntries) then "  \"macros\": {}"
                 else sprintf "  \"macros\": {\n%s\n  }" macroEntries
 
-            let json = sprintf "{\n  \"version\": %d,\n  \"inputMethod\": %d,\n  \"charset\": %d,\n  \"toggleHotkey\": %d,\n  \"hotkeyVKey\": %u,\n  \"hotkeyModifiers\": %u,\n  \"toneStyle\": %d,\n  \"autoRestoreEnglishWords\": %b,\n  \"allowRepeatKeyUndo\": %b,\n  \"allowLeadingWAsU\": %b,\n  \"startWithWindows\": %b,\n  \"macroEnabled\": %b,\n%s\n}"
+            let json = sprintf "{\n  \"version\": %d,\n  \"inputMethod\": %d,\n  \"charset\": %d,\n  \"toggleHotkey\": %d,\n  \"hotkeyVKey\": %u,\n  \"hotkeyModifiers\": %u,\n  \"toneStyle\": %d,\n  \"autoRestoreEnglishWords\": %b,\n  \"allowRepeatKeyUndo\": %b,\n  \"allowLeadingWAsU\": %b,\n  \"allowFreeTonePlacement\": %b,\n  \"startWithWindows\": %b,\n  \"macroEnabled\": %b,\n%s\n}"
                         cfg.Version
                         (int cfg.InputMethod)
                         (int cfg.Charset)
@@ -309,6 +270,7 @@ module ConfigStore =
                         cfg.AutoRestoreEnglishWords
                         cfg.AllowRepeatKeyUndo
                         cfg.AllowLeadingWAsU
+                        cfg.AllowFreeTonePlacement
                         cfg.StartWithWindows
                         cfg.MacroEnabled
                         macrosBlock
@@ -359,11 +321,4 @@ module ConfigStore =
                         CloseHandle(hEvent) |> ignore
 
                 CloseHandle(hMap) |> ignore
-        with _ -> ()
-
-        // 2. Ghi file JSON để lưu bền vững
-        try
-            let path = getConfigPath ()
-            let json = $"{{\n  \"toneStyle\": %d{cfg.ToneStyle},\n  \"autoRestoreEnglishWords\": %b{cfg.AutoRestoreEnglishWords},\n  \"allowRepeatKeyUndo\": %b{cfg.AllowRepeatKeyUndo},\n  \"allowLeadingWAsU\": %b{cfg.AllowLeadingWAsU},\n  \"allowFreeTonePlacement\": %b{cfg.AllowFreeTonePlacement},\n  \"inputMethod\": %d{cfg.InputMethod},\n  \"charset\": %d{cfg.Charset},\n  \"toggleHotkey\": %d{cfg.ToggleHotkey},\n  \"hotkeyVKey\": %u{cfg.HotkeyVKey},\n  \"hotkeyModifiers\": %u{cfg.HotkeyModifiers},\n  \"startWithWindows\": %b{cfg.StartWithWindows}\n}}"
-            File.WriteAllText(path, json)
         with _ -> ()

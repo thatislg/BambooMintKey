@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using BambooMintKey.NativeBridge.Common;
 using BambooMintKey.NativeBridge.Interop;
+using BambooMintKey.Core.Domain;
 
 namespace BambooMintKey.NativeBridge.TSF;
 
@@ -243,55 +244,13 @@ public static unsafe class LangBarItemButton
 
     /// <summary>
     /// Lấy chuỗi nhãn hiển thị cho mục menu chuyển đổi chế độ gõ, kèm phím tắt động (VD: "Gõ tiếng Việt (Ctrl + Shift)").
+    /// Tích hợp và đồng bộ 100% với logic HotkeyFormatter của Core.
     /// </summary>
-    private static string GetToggleHotkeyDisplayText()
+    public static string GetToggleHotkeyDisplayText()
     {
         uint vKey = SharedMemoryManager.HotkeyVKey;
         uint mods = SharedMemoryManager.HotkeyModifiers;
-
-        if (vKey == 0 && mods == 0) return "Gõ tiếng Việt";
-
-        if (vKey == 0x10 && (mods == 0x0202 || mods == 0x0002)) return "Gõ tiếng Việt (Ctrl + Shift)";
-        if (vKey == 0x10 && (mods == 0x0201 || mods == 0x0001)) return "Gõ tiếng Việt (Alt + Shift)";
-        if (vKey == 0x5A && mods == 0x0001) return "Gõ tiếng Việt (Alt + Z)";
-        if (vKey == 0x20 && mods == 0x0002) return "Gõ tiếng Việt (Ctrl + Space)";
-
-        var parts = new List<string>();
-        if ((mods & 0x0002) != 0) parts.Add("Ctrl");
-        if ((mods & 0x0001) != 0) parts.Add("Alt");
-        if ((mods & 0x0004) != 0) parts.Add("Shift");
-
-        string keyName = vKey switch
-        {
-            0x20 => "Space",
-            0x10 => "Shift",
-            0x11 => "Ctrl",
-            0x12 => "Alt",
-            0xC0 => "~",
-            0xDC => "\\",
-            0xBF => "/",
-            0xDB => "[",
-            0xDD => "]",
-            0xBA => ";",
-            0xDE => "'",
-            0xBC => ",",
-            0xBE => ".",
-            0xBD => "-",
-            0xBB => "=",
-            0x08 => "Backspace",
-            0x09 => "Tab",
-            0x0D => "Enter",
-            0x14 => "CapsLock",
-            0x1B => "Esc",
-            >= 0x41 and <= 0x5A => ((char)vKey).ToString(),
-            >= 0x30 and <= 0x39 => ((char)vKey).ToString(),
-            >= 0x60 and <= 0x69 => $"Num{vKey - 0x60}",
-            >= 0x70 and <= 0x7B => $"F{vKey - 0x70 + 1}",
-            _ => $"0x{vKey:X}"
-        };
-
-        if (!parts.Contains(keyName)) parts.Add(keyName);
-        return $"Gõ tiếng Việt ({string.Join(" + ", parts)})";
+        return HotkeyFormatter.getToggleMenuLabel(vKey, mods);
     }
 
     /// <summary>[WinSDK: ITfLangBarItemButton::InitMenu] - Khởi tạo menu ngữ cảnh qua ITfMenu.</summary>

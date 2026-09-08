@@ -92,6 +92,20 @@ public static class KeyInputTranslator
         byte[] keyState = new byte[256];
         if (!GetKeyboardState(keyState)) return null;
 
+        // Đồng bộ trạng thái phím Shift theo phần cứng thực tế (GetAsyncKeyState)
+        // để tránh tình trạng GetKeyboardState bị trễ / kẹt bit 0x80 sau khi nhả Shift trong môi trường TSF.
+        bool isShiftPhysicallyDown = (GetAsyncKeyState((int)VkShift) & 0x8000) != 0;
+        if (!isShiftPhysicallyDown)
+        {
+            keyState[VkShift] = 0;
+            keyState[0xA0] = 0; // VK_LSHIFT
+            keyState[0xA1] = 0; // VK_RSHIFT
+        }
+        else
+        {
+            keyState[VkShift] = 0x80;
+        }
+
         var sb = new System.Text.StringBuilder(4);
         int result = ToUnicode(vkCode, scanCode, keyState, sb, sb.Capacity, 0);
 

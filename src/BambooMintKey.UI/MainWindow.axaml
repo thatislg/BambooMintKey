@@ -115,8 +115,6 @@
                                     <RadioButton Name="RbVni" Content="VNI" GroupName="InputMethod"/>
                                     <RadioButton Name="RbSimpleTelex" Content="Simple Telex" GroupName="InputMethod"/>
                                 </StackPanel>
-                                <Separator Background="#f1f5f9" Margin="0,2"/>
-                                <CheckBox Name="ChkFreeToneTab1" Content="Cho phép bỏ dấu tự do ở bất kỳ vị trí nào trong từ (phari -> phải, hoacs -> hoác)"/>
                             </StackPanel>
                         </Border>
 
@@ -145,9 +143,9 @@
                                              CornerRadius="6,0,0,6" Padding="10,8" VerticalContentAlignment="Center"
                                              Text="Ctrl + Shift"/>
                                     <Button Grid.Column="1" Name="BtnRecordHotkey" Classes="primary"
-                                            Content="⌨ Bấm để gán phím" CornerRadius="0" Padding="14,8"/>
+                                             Content="⌨ Bấm để gán phím" CornerRadius="0" Padding="14,8"/>
                                     <Button Grid.Column="2" Name="BtnClearHotkey" Classes="secondary"
-                                            Content="✕ Gỡ phím" CornerRadius="0,6,6,0" Padding="12,8"/>
+                                             Content="✕ Gỡ phím" CornerRadius="0,6,6,0" Padding="12,8"/>
                                 </Grid>
 
                                 <TextBlock Name="TxtHotkeyHelp" Text="Bấm nút 'Gán phím' rồi nhấn tổ hợp phím bất kỳ trên bàn phím của bạn." FontSize="11" Foreground="#64748b"/>
@@ -156,6 +154,7 @@
                                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                     <TextBlock Text="Chọn nhanh:" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
                                     <Button Name="ChipCtrlShift" Classes="chip" Content="Ctrl + Shift"/>
+                                    <Button Name="ChipCtrlShiftQ" Classes="chip" Content="Ctrl + Shift + Q"/>
                                     <Button Name="ChipAltZ" Classes="chip" Content="Alt + Z"/>
                                     <Button Name="ChipCtrlSpace" Classes="chip" Content="Ctrl + Space"/>
                                     <Button Name="ChipCtrlTilde" Classes="chip" Content="Ctrl + ~"/>

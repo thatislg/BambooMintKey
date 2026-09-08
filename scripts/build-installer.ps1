@@ -29,11 +29,10 @@ if (Test-Path $UiOutputDir) {
 dotnet publish $UiProject `
     -c $Configuration `
     -r $Runtime `
-    --self-contained true `
-    -p:PublishSingleFile=true `
-    -p:EnableCompressionInSingleFile=true `
-    -p:PublishTrimmed=true `
-    -p:TrimMode=partial `
+    -p:PublishAot=true `
+    -p:IlcOptimizationPreference=Size `
+    -p:OptimizationPreference=Size `
+    -p:StackTraceSupport=false `
     -p:InvariantGlobalization=true `
     -p:DebugType=none `
     -p:DebugSymbols=false `
