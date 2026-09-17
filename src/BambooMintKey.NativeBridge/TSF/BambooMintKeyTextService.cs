@@ -433,9 +433,23 @@ public unsafe class BambooMintKeyTextService
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int OnSetFocus(IntPtr thisPtr, IntPtr pdimFocus, IntPtr pdimPrevFocus)
     {
+        // thisPtr đến từ vtable ITfThreadMgrEventSink (offset +1 trong NativeLayout)
+        var rootPtr = thisPtr - sizeof(IntPtr);
+        var target = GetTarget(rootPtr);
+
+        DebugLog.Write($"OnSetFocus called, focus={pdimFocus}, prev={pdimPrevFocus}, threadMgr={target._pThreadMgr}");
+
         // Khi chuyển sang ô nhập liệu khác -> Chốt từ đang gõ dở và làm sạch State
         CompositionManager.EndComposition();
         BridgeStateManager.ResetState();
+
+        // Ép buộc đồng bộ global V/E state vào process/thread hiện tại.
+        // Điều này ngăn Windows TSF hoặc ứng dụng tự lưu mode per-thread/per-document.
+        if (target._pThreadMgr != IntPtr.Zero)
+        {
+            GlobalVEState.ResyncFromSharedMemory(target._pThreadMgr, target._clientId);
+        }
+
         return HResult.Ok;
     }
 

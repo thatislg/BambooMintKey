@@ -55,10 +55,33 @@ Cụ thể:
 - Có cần restart ứng dụng sau khi toggle không?
 - Log `%TEMP%\BambooMintKey_Runtime.log` có gì khi `BAMBOOMINTKEY_DEBUG=1`?
 
-## 6. Action Items
+## 7. Phát hiện từ log `BambooMintKey_Runtime.log` (2026-09-17)
+
+File log được cung cấp không chứa các dòng sau:
+- `DisplayAttribute registered ...`
+- `DisplayAttribute current atom ...`
+- `ApplyCompositionAttribute SetValue ...`
+- `ClearCompositionAttribute ...`
+
+Điều này có nghĩa là **bộ gõ đang chạy trong log đó chưa thực sự gọi `DisplayAttributeHelper.ApplyCompositionAttribute`**, hoặc log lấy từ một build cũ trước khi code hiện tại được cài đặt.
+
+**Các khả năng:**
+1. Người dùng chưa cài lại bản build mới nhất sau khi xóa phần mềm cũ — DLL cũ vẫn được Windows load.
+2. `EnablePreedit` trong shared memory chưa được bật hoặc UI chưa đồng bộ xuống `config.json`.
+3. `RegisterGUID` thất bại (atom = 0), khiến `ApplyCompositionAttribute` return sớm.
+
+**Bước tiếp theo:**
+- Build installer mới từ code hiện tại.
+- Gỡ cài đặt hoàn toàn, xóa `%APPDATA%\BambooMintKey` nếu cần reset config.
+- Cài lại, bật `BAMBOOMINTKEY_DEBUG=1`, toggle Preedit = ON, gõ trong VS Code/Word.
+- Thu thập log mới và tìm các dòng `DisplayAttribute registered`, `ApplyCompositionAttribute SetValue`.
+
+---
+
+## 8. Action Items
 
 - [ ] Xác nhận người dùng đã cài lại build mới nhất.
-- [ ] Bật log và thu thập `BambooMintKey_Runtime.log`.
+- [ ] Bật log và thu thập `BambooMintKey_Runtime.log` mới.
 - [ ] Kiểm tra `EnablePreedit` trong shared memory (offset 21).
 - [ ] Kiểm tra atom của 2 GUID Stealth/Preedit.
 - [ ] Xác nhận behavior trên VS Code, Chrome, Edge, Word, Notepad++.

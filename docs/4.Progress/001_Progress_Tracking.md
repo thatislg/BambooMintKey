@@ -6,7 +6,7 @@
 
 # BambooMintKey Progress Tracking
 
-**Cập nhật:** 2026-09-15  
+**Cập nhật:** 2026-09-17  
 **Phiên bản hiện tại:** 1.0.0  
 **Branch chính:** `main`
 
@@ -44,14 +44,16 @@
 | Task | Mô tả | Issue | Trạng thái | Owner |
 |---|---|---|---|---|
 | 005_05_VERIFY | Verify Preedit toggle hoạt động đúng trên VS Code, Chrome, Edge, Word | `docs/3.Issue/006_PreeditToggleNotWorking.md` | 🔍 Đang điều tra | Dev |
+| 005_05_GLOBALVE | Ép global V/E mode khi chuyển focus giữa các ứng dụng | `docs/3.Issue/008_PerApplicationVEMode.md` | 🛠️ Code đã sửa, chờ build/test | Dev |
 | 005_05_CACHE | Đảm bảo 2-GUID fix tránh cache của Chromium | — | ✅ Code đã sửa, chờ test | Dev |
 | 005_05_UNINSTALL | UI vẫn tự khởi động sau khi gỡ cài đặt | `docs/3.Issue/007_UIAutostartAfterUninstall.md` | ✅ Code đã sửa, chờ build | Dev |
 | 005_05_INSTALLER | Build installer mới và test end-to-end | — | ⏳ Chờ | Dev |
 
 ### 2.3. Công việc còn lại trong Phase 5
 
-- [ ] Build bộ cài Inno Setup mới từ code hiện tại.
+- [ ] Build bộ cài Inno Setup mới từ code hiện tại (bao gồm fix global V/E mode).
 - [ ] Cài đặt trên máy sạch hoặc VM.
+- [ ] Test chuyển focus giữa các app: mode V/E phải giữ nguyên toàn hệ thống.
 - [ ] Test toggle Preedit trên VS Code, Chrome, Edge, Word, Notepad++.
 - [ ] Thu thập log `BambooMintKey_Runtime.log` với `BAMBOOMINTKEY_DEBUG=1`.
 - [ ] Nếu vẫn lỗi: chạy checklist điều tra trong `005_05_DisplayAttributeProvider.md` mục 6.
@@ -103,13 +105,15 @@ Tạo bộ cài MSIX và đưa BambooMintKey lên Microsoft Store, song song v�
 | 005 | Shortcut Key Auto Reset | Phím tắt chuyển V/E tự động reset về Ctrl+Shift | 🔍 Đang điều tra | `docs/3.Issue/005_ShortcutKeyAutoResetError.md` |
 | 006 | Preedit Toggle Not Working | Toggle Preedit trên UI không có tác dụng trên ứng dụng | 🔍 Đang điều tra | `docs/3.Issue/006_PreeditToggleNotWorking.md` |
 | 007 | UI Autostart After Uninstall | UI vẫn chạy cùng Windows sau khi gỡ cài đặt | ✅ Code đã sửa, chờ build | `docs/3.Issue/007_UIAutostartAfterUninstall.md` |
+| 008 | Per-Application V/E Mode | Trạng thái V/E không đồng nhất giữa các ứng dụng | 🛠️ Code đã sửa, chờ build/test | `docs/3.Issue/008_PerApplicationVEMode.md` |
 
 ### 4.1. Thứ tự ưu tiên sửa bug
 
-1. **Issue 007** — đã sửa, chỉ cần build + test installer.
-2. **Issue 006** — liên quan Phase 5 đang kiểm thử, cần verify sau khi cài lại build mới.
-3. **Issue 004** — cần điều tra thêm, có thể liên quan đến shared memory sync.
-4. **Issue 005** — cần thu thập thêm thông tin tái hiện.
+1. **Issue 008** — đã implement `OnSetFocus` resync global V/E mode; cần build + test chuyển focus giữa các app.
+2. **Issue 007** — đã sửa, chỉ cần build + test installer.
+3. **Issue 006** — liên quan Phase 5 đang kiểm thử, cần verify sau khi cài lại build mới.
+4. **Issue 004** — cần điều tra thêm, có thể liên quan đến shared memory sync.
+5. **Issue 005** — cần thu thập thêm thông tin tái hiện.
 
 ---
 
@@ -118,10 +122,10 @@ Tạo bộ cài MSIX và đưa BambooMintKey lên Microsoft Store, song song v�
 | Ngày | Công việc | Kết quả mong đợi |
 |---|---|---|
 | Day 1 | Build installer mới từ code hiện tại | Có `BambooMintKey-Setup.exe` mới |
-| Day 2 | Test uninstall + kiểm tra key Run | Issue 007 closed |
+| Day 2 | Test uninstall + kiểm tra key Run + test chuyển focus V/E global | Issue 007 & 008 closed |
 | Day 3-4 | Test Preedit toggle trên các app | Log + kết luận Issue 006 |
-| Day 5 | Nếu 006 còn lỗi: debug TSF cache/atom | Fix code nếu cần |
-| Day 6 | Cập nhật tài liệu 005_05 và progress | Docs sync với code |
+| Day 5 | Nếu 006/008 còn lỗi: debug TSF cache/atom/resync | Fix code nếu cần |
+| Day 6 | Cập nhật tài liệu 005_05, 008, và progress | Docs sync với code |
 | Day 7 | Bắt đầu Phase 6: chọn kiến trúc MSIX | Decision record cho Sparse Package / Packaged COM |
 
 ---
