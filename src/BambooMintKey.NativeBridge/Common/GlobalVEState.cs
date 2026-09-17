@@ -68,8 +68,16 @@ public static unsafe class GlobalVEState
     {
         if ((target & SyncTarget.Compartment) != 0 && pThreadMgr != IntPtr.Zero)
         {
-            TsfCompartmentHelper.SetOpenClose(pThreadMgr, clientId, IsVietnameseMode);
-            TsfCompartmentHelper.SetConversionMode(pThreadMgr, clientId, IsVietnameseMode);
+            try
+            {
+                BambooMintKeyTextService.IsInternalCompartmentSync = true;
+                TsfCompartmentHelper.SetOpenClose(pThreadMgr, clientId, IsVietnameseMode);
+                TsfCompartmentHelper.SetConversionMode(pThreadMgr, clientId, IsVietnameseMode);
+            }
+            finally
+            {
+                BambooMintKeyTextService.IsInternalCompartmentSync = false;
+            }
         }
 
         if ((target & SyncTarget.Icon) != 0)

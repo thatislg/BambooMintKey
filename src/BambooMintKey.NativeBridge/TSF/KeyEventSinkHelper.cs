@@ -122,57 +122,40 @@ public static unsafe class KeyEventSinkHelper
         pkmVTable->Release(pKeystrokeMgr);
     }
 
-    // Danh sách tất cả phím tắt có thể dùng để unregister sạch sẽ
+    // Danh sách tất cả phím tắt được bảo lưu cố định (chuẩn Google IME / Mozc TSF)
     private static readonly (uint vKey, uint modifiers)[] AllPossibleKeys =
     [
-        (0x10 /* Shift */, TsfModFlags.Control | TsfModFlags.OnKeyUp),
-        (0x11 /* Control */, TsfModFlags.Shift | TsfModFlags.OnKeyUp),
+        (0x19 /* VK_KANJI */, TsfModFlags.IgnoreAllModifier),
+        (0xF3 /* VK_OEM_AUTO */, TsfModFlags.IgnoreAllModifier),
+        (0xF4 /* VK_OEM_ENLW */, TsfModFlags.IgnoreAllModifier),
+        (0xC0 /* VK_OEM_3 - Key dưới Esc */, TsfModFlags.Alt),
+        (0xC0 /* VK_OEM_3 - Key dưới Esc */, TsfModFlags.Control),
+        (0xC0 /* VK_OEM_3 - Key dưới Esc */, 0),
+        (0x10 /* VK_SHIFT */, TsfModFlags.Control | TsfModFlags.OnKeyUp),
+        (0x11 /* VK_CONTROL */, TsfModFlags.Shift | TsfModFlags.OnKeyUp),
         (0x5A /* 'Z' */, TsfModFlags.Alt),
-        (0x20 /* Space */, TsfModFlags.Control),
-        (0x51 /* 'Q' */, TsfModFlags.Control | TsfModFlags.Shift)
+        (0x20 /* Space */, TsfModFlags.Control)
     ];
 
     private static TfPreservedkey _lastCustomKey = new() { uVKey = 0, uModifiers = 0 };
 
     /// <summary>
-    /// Lấy tổ hợp phím tắt đang được kích hoạt từ SharedMemoryManager (hỗ trợ tùy biến phím tắt tự do).
+    /// Lấy danh sách phím tắt chuyển đổi V/E mặc định cố định theo vị trí phím vật lý dưới Esc:
+    /// - Phím `/~ (0xC0) trên bàn phím tiếng Anh (bấm trực tiếp hoặc Alt+~ / Ctrl+~)
+    /// - Phím 半角/全角 / 漢字 (0x19, 0xF3, 0xF4) trên bàn phím tiếng Nhật
+    /// Không cho phép thay đổi hay reset.
     /// </summary>
     private static (uint vKey, uint modifiers, string desc)[] GetActiveToggleKeys()
     {
-        byte toggleHotkey = SharedMemoryManager.ToggleHotkey;
-        if (toggleHotkey == 3) // None
-        {
-            return [];
-        }
-
-        if (toggleHotkey == 0) // Ctrl + Shift
-        {
-            return
-            [
-                (0x10 /* VK_SHIFT */, TsfModFlags.Control | TsfModFlags.OnKeyUp, "BambooMintKey Toggle (Shift on Ctrl)"),
-                (0x11 /* VK_CONTROL */, TsfModFlags.Shift | TsfModFlags.OnKeyUp, "BambooMintKey Toggle (Ctrl on Shift)")
-            ];
-        }
-
-        if (toggleHotkey == 1) // Alt + Z
-        {
-            return [(0x5A /* 'Z' */, TsfModFlags.Alt, "BambooMintKey Toggle (Alt+Z)")];
-        }
-
-        if (toggleHotkey == 2) // Ctrl + Space
-        {
-            return [(0x20 /* Space */, TsfModFlags.Control, "BambooMintKey Toggle (Ctrl+Space)")];
-        }
-
-        uint vKey = SharedMemoryManager.HotkeyVKey;
-        uint modifiers = SharedMemoryManager.HotkeyModifiers;
-
-        if (vKey == 0 && modifiers == 0)
-        {
-            return []; // Không dùng phím tắt
-        }
-
-        return [(vKey, modifiers, $"BambooMintKey Toggle (0x{vKey:X2}+0x{modifiers:X4})")];
+        return
+        [
+            (0x19 /* VK_KANJI */, TsfModFlags.IgnoreAllModifier, "BambooMintKey Toggle (JP Hankaku/Zenkaku)"),
+            (0xF3 /* VK_OEM_AUTO */, TsfModFlags.IgnoreAllModifier, "BambooMintKey Toggle (JP OEM Auto)"),
+            (0xF4 /* VK_OEM_ENLW */, TsfModFlags.IgnoreAllModifier, "BambooMintKey Toggle (JP OEM Enlw)"),
+            (0xC0 /* VK_OEM_3 */, TsfModFlags.Alt, "BambooMintKey Toggle (Alt+~ below Esc)"),
+            (0xC0 /* VK_OEM_3 */, TsfModFlags.Control, "BambooMintKey Toggle (Ctrl+~ below Esc)"),
+            (0xC0 /* VK_OEM_3 */, 0, "BambooMintKey Toggle (`/~ below Esc)")
+        ];
     }
 
     /// <summary>

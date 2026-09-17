@@ -203,8 +203,8 @@ public static unsafe class SharedMemoryManager
                   "inputMethod": 0,
                   "charset": 0,
                   "toggleHotkey": 0,
-                  "hotkeyVKey": 16,
-                  "hotkeyModifiers": 514,
+                  "hotkeyVKey": 192,
+                  "hotkeyModifiers": 1,
                   "toneStyle": 0,
                   "autoRestoreEnglishWords": true,
                   "allowRepeatKeyUndo": true,
@@ -254,40 +254,18 @@ public static unsafe class SharedMemoryManager
             pShared[4] = (byte)(ParseBool("allowLeadingWAsU", false) ? 1 : 0);
             pShared[5] = (byte)ParseUint("inputMethod", 0);
             pShared[6] = (byte)ParseUint("charset", 0);
-            byte hotkeyType = (byte)ParseUint("toggleHotkey", 0);
-            pShared[7] = hotkeyType;
+            pShared[7] = 0; // Luôn cố định preset mặc định
 
-            uint vKey = ParseUint("hotkeyVKey", 0x10);
-            uint mods = ParseUint("hotkeyModifiers", 0x0202);
-
-            // Đảm bảo các phím tắt chuẩn luôn có giá trị chính xác
-            if (hotkeyType == 0) // Ctrl + Shift
-            {
-                vKey = 0x10;
-                mods = 0x0202;
-            }
-            else if (hotkeyType == 1) // Alt + Z
-            {
-                vKey = 0x5A;
-                mods = 0x0001;
-            }
-            else if (hotkeyType == 2) // Ctrl + Space
-            {
-                vKey = 0x20;
-                mods = 0x0002;
-            }
-            else if (hotkeyType == 3) // None
-            {
-                vKey = 0;
-                mods = 0;
-            }
+            // Phím tắt mặc định cố định: `/~ dưới nút Esc (0xC0) & Hankaku/Zenkaku (JP)
+            uint vKey = 0xC0;
+            uint mods = 0x0001;
 
             *(uint*)(pShared + 12) = vKey;
             *(uint*)(pShared + 16) = mods;
             pShared[20] = (byte)(ParseBool("allowFreeTonePlacement", true) ? 1 : 0);
             pShared[21] = (byte)(ParseBool("enablePreedit", false) ? 1 : 0);
 
-            DebugLog.Write($"Loaded config from disk: hotkeyType={hotkeyType}, vKey=0x{vKey:X2}, mods=0x{mods:X4}, preedit={pShared[21]}");
+            DebugLog.Write($"Loaded config from disk: hotkeyPreset={pShared[7]}, vKey=0x{vKey:X2}, mods=0x{mods:X4}, preedit={pShared[21]}");
         }
         catch (Exception ex)
         {

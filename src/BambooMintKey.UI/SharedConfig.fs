@@ -39,9 +39,9 @@ type AppConfig = {
         InputMethod = 0uy
         Charset = 0uy
         ToggleHotkey = 0uy
-        HotkeyVKey = 0x10u
-        HotkeyModifiers = 0x0202u
-        HotkeyDisplay = "Ctrl + Shift"
+        HotkeyVKey = 0xC0u
+        HotkeyModifiers = 0x0001u
+        HotkeyDisplay = "`/ ~ / 半角/全角 (JP) | Alt + ~"
         StartWithWindows = false
         EnablePreedit = false
         MacroEnabled = false
@@ -154,23 +154,10 @@ module ConfigStore =
                     cfg.EnablePreedit <- if span.Length > 21 then span[21] <> 0uy else false
                     cfg.InputMethod <- span[5]
                     cfg.Charset <- span[6]
-                    cfg.ToggleHotkey <- span[7]
-
-                    let vKeyPtr : nativeptr<uint32> = NativePtr.ofNativeInt (pView + 12n)
-                    let modPtr : nativeptr<uint32> = NativePtr.ofNativeInt (pView + 16n)
-                    let vKey = NativePtr.read vKeyPtr
-                    let mods = NativePtr.read modPtr
-                    if vKey <> 0u || mods <> 0u then
-                        cfg.HotkeyVKey <- vKey
-                        cfg.HotkeyModifiers <- mods
-                    elif cfg.ToggleHotkey = 1uy then
-                        cfg.HotkeyVKey <- 0x5Au
-                        cfg.HotkeyModifiers <- 0x0001u
-                    elif cfg.ToggleHotkey = 2uy then
-                        cfg.HotkeyVKey <- 0x20u
-                        cfg.HotkeyModifiers <- 0x0002u
-
-                    cfg.HotkeyDisplay <- getHotkeyDisplayString cfg.HotkeyVKey cfg.HotkeyModifiers
+                    cfg.ToggleHotkey <- 0uy
+                    cfg.HotkeyVKey <- 0xC0u
+                    cfg.HotkeyModifiers <- 0x0001u
+                    cfg.HotkeyDisplay <- "`/ ~ / 半角/全角 (JP) | Alt + ~"
 
                     UnmapViewOfFile(pView) |> ignore
                     loadedFromMemory <- true
@@ -304,13 +291,13 @@ module ConfigStore =
                     if span.Length > 21 then span[21] <- if cfg.EnablePreedit then 1uy else 0uy
                     span[5] <- cfg.InputMethod
                     span[6] <- cfg.Charset
-                    span[7] <- cfg.ToggleHotkey
+                    span[7] <- 0uy
 
                     let vKeyPtr : nativeptr<uint32> = NativePtr.ofNativeInt (pView + 12n)
-                    NativePtr.write vKeyPtr cfg.HotkeyVKey
+                    NativePtr.write vKeyPtr 0xC0u
 
                     let modPtr : nativeptr<uint32> = NativePtr.ofNativeInt (pView + 16n)
-                    NativePtr.write modPtr cfg.HotkeyModifiers
+                    NativePtr.write modPtr 0x0001u
 
                     // Tăng StateSequence tại offset 8
                     let seqPtr : nativeptr<uint32> = NativePtr.ofNativeInt (pView + 8n)

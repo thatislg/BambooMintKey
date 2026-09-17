@@ -61,6 +61,8 @@ public unsafe class BambooMintKeyTextService
     private uint _keyEventSinkCookie;
     private uint _compartmentEventSinkCookie;
     private bool _isActivated;
+    [ThreadStatic] public static bool IsInternalCompartmentSync;
+    private bool _hasFocus;
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern uint WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
@@ -89,10 +91,18 @@ public unsafe class BambooMintKeyTextService
                         KeyEventSinkHelper.UpdatePreservedKeys(pThreadMgr, clientId);
                         if (pThreadMgr != IntPtr.Zero)
                         {
-                            bool currentGlobalMode = SharedMemoryManager.IsVietnameseMode;
-                            TsfCompartmentHelper.SetOpenClose(pThreadMgr, clientId, currentGlobalMode);
-                            TsfCompartmentHelper.SetConversionMode(pThreadMgr, clientId, currentGlobalMode);
-                            LangBarItemButton.NotifyStateChanged();
+                            try
+                            {
+                                IsInternalCompartmentSync = true;
+                                bool currentGlobalMode = SharedMemoryManager.IsVietnameseMode;
+                                TsfCompartmentHelper.SetOpenClose(pThreadMgr, clientId, currentGlobalMode);
+                                TsfCompartmentHelper.SetConversionMode(pThreadMgr, clientId, currentGlobalMode);
+                                LangBarItemButton.NotifyStateChanged();
+                            }
+                            finally
+                            {
+                                IsInternalCompartmentSync = false;
+                            }
                         }
                     }
                 }
@@ -324,6 +334,13 @@ public unsafe class BambooMintKeyTextService
     private int OnCompartmentChanged(Guid* rguid)
     {
         if (rguid == null) return HResult.InvalidArgument;
+        if (IsInternalCompartmentSync) return HResult.Ok;
+        if (!_hasFocus)
+        {
+            DebugLog.Write($"OnCompartmentChanged ignored because thread has no focus: rguid={*rguid}");
+            return HResult.Ok;
+        }
+
         DebugLog.Write($"OnCompartmentChanged called: rguid={*rguid}");
 
         if (*rguid == Guids.GuidCompartmentKeyboardOpenClose ||
@@ -334,7 +351,15 @@ public unsafe class BambooMintKeyTextService
                 DebugLog.Write($"OnCompartmentChanged: OpenClose changed to {isOpen}");
                 if (isOpen != SharedMemoryManager.IsVietnameseMode)
                 {
-                    GlobalVEState.SetVietnameseMode(isOpen, GlobalVEState.SyncTarget.All, _pThreadMgr, _clientId);
+                    try
+                    {
+                        IsInternalCompartmentSync = true;
+                        GlobalVEState.SetVietnameseMode(isOpen, GlobalVEState.SyncTarget.All, _pThreadMgr, _clientId);
+                    }
+                    finally
+                    {
+                        IsInternalCompartmentSync = false;
+                    }
                 }
             }
         }
@@ -522,19 +547,28 @@ public unsafe class BambooMintKeyTextService
         var rootPtr = thisPtr - sizeof(IntPtr);
         var target = GetTarget(rootPtr);
 
-        DebugLog.Write($"OnSetFocus called, focus={pdimFocus}, prev={pdimPrevFocus}, threadMgr={target._pThreadMgr}");
+        target._hasFocus = (pdimFocus != IntPtr.Zero);
+        DebugLog.Write($"OnSetFocus called, focus={pdimFocus}, prev={pdimPrevFocus}, hasFocus={target._hasFocus}, threadMgr={target._pThreadMgr}");
 
         // Khi chuyển sang ô nhập liệu khác -> Chốt từ đang gõ dở và làm sạch State
         CompositionManager.EndComposition();
         BridgeStateManager.ResetState();
 
-        // Đồng bộ trạng thái hiện tại (từ SharedMemoryManager) vào Thread Compartment của thread này
-        if (target._pThreadMgr != IntPtr.Zero)
+        // Chỉ khi thực sự có focus vào ô nhập liệu (pdimFocus != IntPtr.Zero) mới đồng bộ trạng thái vào Thread Compartment
+        if (target._hasFocus && target._pThreadMgr != IntPtr.Zero)
         {
-            bool currentGlobalMode = SharedMemoryManager.IsVietnameseMode;
-            TsfCompartmentHelper.SetOpenClose(target._pThreadMgr, target._clientId, currentGlobalMode);
-            TsfCompartmentHelper.SetConversionMode(target._pThreadMgr, target._clientId, currentGlobalMode);
-            LangBarItemButton.NotifyStateChanged();
+            try
+            {
+                IsInternalCompartmentSync = true;
+                bool currentGlobalMode = SharedMemoryManager.IsVietnameseMode;
+                TsfCompartmentHelper.SetOpenClose(target._pThreadMgr, target._clientId, currentGlobalMode);
+                TsfCompartmentHelper.SetConversionMode(target._pThreadMgr, target._clientId, currentGlobalMode);
+                LangBarItemButton.NotifyStateChanged();
+            }
+            finally
+            {
+                IsInternalCompartmentSync = false;
+            }
         }
 
         return HResult.Ok;

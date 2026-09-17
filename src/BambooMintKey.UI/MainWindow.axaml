@@ -130,35 +130,24 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Card: Cài đặt phím tắt tự do (Custom Key Binding) -->
+                        <!-- Card: Phím tắt chuyển đổi chế độ V/E mặc định (Cố định chuẩn TSF) -->
                         <Border Classes="card">
-                            <StackPanel Spacing="10">
+                            <StackPanel Spacing="8">
                                 <TextBlock Text="Phím tắt chuyển đổi chế độ (Việt / Anh):" FontWeight="Bold" FontSize="13" Foreground="#16a34a"/>
                                 
-                                <!-- Khung ghi nhận phím tắt -->
-                                <Grid ColumnDefinitions="*, Auto, Auto" Margin="0,2,0,4">
-                                    <TextBox Grid.Column="0" Name="TxtHotkeyDisplay" IsReadOnly="True"
-                                             FontSize="14" FontWeight="Bold" Foreground="#0f172a"
-                                             Background="#f8fafc" BorderBrush="#16a34a" BorderThickness="1.5"
-                                             CornerRadius="6,0,0,6" Padding="10,8" VerticalContentAlignment="Center"
-                                             Text="Ctrl + Shift"/>
-                                    <Button Grid.Column="1" Name="BtnRecordHotkey" Classes="primary"
-                                             Content="⌨ Bấm để gán phím" CornerRadius="0" Padding="14,8"/>
-                                    <Button Grid.Column="2" Name="BtnClearHotkey" Classes="secondary"
-                                             Content="✕ Gỡ phím" CornerRadius="0,6,6,0" Padding="12,8"/>
-                                </Grid>
-
-                                <TextBlock Name="TxtHotkeyHelp" Text="Bấm nút 'Gán phím' rồi nhấn tổ hợp phím bất kỳ trên bàn phím của bạn." FontSize="11" Foreground="#64748b"/>
-
-                                <!-- Phím tắt mẫu chọn nhanh -->
-                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                    <TextBlock Text="Chọn nhanh:" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
-                                    <Button Name="ChipCtrlShift" Classes="chip" Content="Ctrl + Shift"/>
-                                    <Button Name="ChipCtrlShiftQ" Classes="chip" Content="Ctrl + Shift + Q"/>
-                                    <Button Name="ChipAltZ" Classes="chip" Content="Alt + Z"/>
-                                    <Button Name="ChipCtrlSpace" Classes="chip" Content="Ctrl + Space"/>
-                                    <Button Name="ChipCtrlTilde" Classes="chip" Content="Ctrl + ~"/>
-                                </StackPanel>
+                                <Border Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="6" Padding="12,10">
+                                    <StackPanel Spacing="6">
+                                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                            <Border Background="#16a34a15" BorderBrush="#16a34a" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                                <TextBlock Text="MẶC ĐỊNH CỐ ĐỊNH" FontSize="10" FontWeight="Bold" Foreground="#16a34a"/>
+                                            </Border>
+                                            <TextBlock Text="Phím dưới Esc (` / ~ / 半角/全角 / 漢字)" FontSize="13" FontWeight="Bold" Foreground="#0f172a" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <TextBlock Text="• Bàn phím US: Nhấn phím `/~ dưới nút Esc (hoặc Alt + ~ / Ctrl + ~)" FontSize="11" Foreground="#475569"/>
+                                        <TextBlock Text="• Bàn phím Nhật (JIS): Nhấn phím 半角/全角 / 漢字 dưới nút Esc" FontSize="11" Foreground="#475569"/>
+                                        <TextBlock Text="• Phím tắt được quản lý bởi Windows TSF — không lo bị xung đột hay tự reset." FontSize="11" Foreground="#64748b" FontStyle="Italic"/>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </Border>
 
