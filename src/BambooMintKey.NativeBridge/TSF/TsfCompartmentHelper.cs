@@ -52,25 +52,6 @@ public unsafe struct TfCompartmentVTable
     public delegate* unmanaged[Stdcall]<IntPtr, Variant*, int> GetValue;
 }
 
-/// <summary>VTable cho ITfThreadMgr (msctf.h)</summary>
-[StructLayout(LayoutKind.Sequential)]
-public unsafe struct TfThreadMgrVTable
-{
-    public delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int> QueryInterface;
-    public delegate* unmanaged[Stdcall]<IntPtr, uint> AddRef;
-    public delegate* unmanaged[Stdcall]<IntPtr, uint> Release;
-
-    public delegate* unmanaged[Stdcall]<IntPtr, uint*, int> Activate;
-    public delegate* unmanaged[Stdcall]<IntPtr, int> Deactivate;
-    public delegate* unmanaged[Stdcall]<IntPtr, IntPtr*, int> CreateDocumentMgr;
-    public delegate* unmanaged[Stdcall]<IntPtr, IntPtr*, int> EnumDocumentMgrs;
-    public delegate* unmanaged[Stdcall]<IntPtr, IntPtr*, int> GetFocus;
-    public delegate* unmanaged[Stdcall]<IntPtr, IntPtr, int> SetFocus;
-    public delegate* unmanaged[Stdcall]<IntPtr, IntPtr, IntPtr, IntPtr*, int> AssociateFocus;
-    public delegate* unmanaged[Stdcall]<IntPtr, IntPtr, int*, int> IsAssocBaseWnd;
-    public delegate* unmanaged[Stdcall]<IntPtr, IntPtr*, int> GetGlobalCompartment;
-}
-
 /// <summary>
 /// Trợ thủ đồng bộ trạng thái Input Mode Compartment với Windows 10/11 Taskbar Input Indicator.
 /// </summary>
@@ -79,58 +60,11 @@ public static unsafe class TsfCompartmentHelper
     private const ushort VtI4 = 3;
 
     /// <summary>
-    /// Đồng bộ chế độ gõ V (Conversion On = 1) hoặc E (Conversion Off = 0) vào Global Compartment.
-    /// </summary>
-    public static int SetGlobalConversionMode(IntPtr pThreadMgr, uint clientId, bool isVietnamese)
-    {
-        if (pThreadMgr == IntPtr.Zero) return HResult.InvalidArgument;
-
-        var tmVTable = *(TfThreadMgrVTable**)pThreadMgr;
-        IntPtr pGlobalCompMgr = IntPtr.Zero;
-        int hr = tmVTable->GetGlobalCompartment(pThreadMgr, &pGlobalCompMgr);
-        if (hr != HResult.Ok || pGlobalCompMgr == IntPtr.Zero) return hr;
-
-        try
-        {
-            var compMgrVTable = *(TfCompartmentMgrVTable**)pGlobalCompMgr;
-            Guid guidConversion = Guids.GuidCompartmentKeyboardInputModeConversion;
-            IntPtr pComp = IntPtr.Zero;
-
-            hr = compMgrVTable->GetCompartment(pGlobalCompMgr, &guidConversion, &pComp);
-            if (hr != HResult.Ok || pComp == IntPtr.Zero) return hr;
-
-            try
-            {
-                var compVTable = *(TfCompartmentVTable**)pComp;
-                Variant varVal = new()
-                {
-                    vt = VtI4,
-                    lVal = isVietnamese ? 1 : 0
-                };
-                int setHr = compVTable->SetValue(pComp, clientId, &varVal);
-                DebugLog.Write($"TsfCompartmentHelper.SetGlobalConversionMode isVietnamese={isVietnamese}, hr=0x{setHr:X8}");
-                return setHr;
-            }
-            finally
-            {
-                NativeCom.Release(pComp);
-            }
-        }
-        finally
-        {
-            NativeCom.Release(pGlobalCompMgr);
-        }
-    }
-
-    /// <summary>
-    /// Đồng bộ chế độ gõ V (Conversion On = 1) hoặc E (Conversion Off = 0) vào Thread Manager Compartment và Global Compartment.
+    /// Đồng bộ chế độ gõ V (Conversion On = 1) hoặc E (Conversion Off = 0) vào Thread Manager Compartment.
     /// </summary>
     public static int SetConversionMode(IntPtr pThreadMgr, uint clientId, bool isVietnamese)
     {
         if (pThreadMgr == IntPtr.Zero) return HResult.InvalidArgument;
-
-        // Đồng bộ vào Global Compartment để toàn bộ hệ thống (kể cả Taskbar Shell) nhận biết
-        SetGlobalConversionMode(pThreadMgr, clientId, isVietnamese);
 
         Guid iidCompMgr = Guids.IidITfCompartmentMgr;
         IntPtr pCompMgr = IntPtr.Zero;
@@ -225,58 +159,11 @@ public static unsafe class TsfCompartmentHelper
     }
 
     /// <summary>
-    /// Ghi trạng thái Open/Close (1 = Vietnamese, 0 = English) vào Global Compartment.
-    /// </summary>
-    public static int SetGlobalOpenClose(IntPtr pThreadMgr, uint clientId, bool isOpen)
-    {
-        if (pThreadMgr == IntPtr.Zero) return HResult.InvalidArgument;
-
-        var tmVTable = *(TfThreadMgrVTable**)pThreadMgr;
-        IntPtr pGlobalCompMgr = IntPtr.Zero;
-        int hr = tmVTable->GetGlobalCompartment(pThreadMgr, &pGlobalCompMgr);
-        if (hr != HResult.Ok || pGlobalCompMgr == IntPtr.Zero) return hr;
-
-        try
-        {
-            var compMgrVTable = *(TfCompartmentMgrVTable**)pGlobalCompMgr;
-            Guid guidOpenClose = Guids.GuidCompartmentKeyboardOpenClose;
-            IntPtr pComp = IntPtr.Zero;
-
-            hr = compMgrVTable->GetCompartment(pGlobalCompMgr, &guidOpenClose, &pComp);
-            if (hr != HResult.Ok || pComp == IntPtr.Zero) return hr;
-
-            try
-            {
-                var compVTable = *(TfCompartmentVTable**)pComp;
-                Variant varVal = new()
-                {
-                    vt = VtI4,
-                    lVal = isOpen ? 1 : 0
-                };
-                int setHr = compVTable->SetValue(pComp, clientId, &varVal);
-                DebugLog.Write($"TsfCompartmentHelper.SetGlobalOpenClose isOpen={isOpen}, hr=0x{setHr:X8}");
-                return setHr;
-            }
-            finally
-            {
-                NativeCom.Release(pComp);
-            }
-        }
-        finally
-        {
-            NativeCom.Release(pGlobalCompMgr);
-        }
-    }
-
-    /// <summary>
-    /// Ghi trạng thái Open/Close (1 = Vietnamese, 0 = English) vào TSF Compartment và Global Compartment.
+    /// Ghi trạng thái Open/Close (1 = Vietnamese, 0 = English) vào TSF Compartment.
     /// </summary>
     public static int SetOpenClose(IntPtr pThreadMgr, uint clientId, bool isOpen)
     {
         if (pThreadMgr == IntPtr.Zero) return HResult.InvalidArgument;
-
-        // Đồng bộ vào Global Compartment để toàn bộ hệ thống (kể cả Taskbar Shell) nhận biết
-        SetGlobalOpenClose(pThreadMgr, clientId, isOpen);
 
         Guid iidCompMgr = Guids.IidITfCompartmentMgr;
         IntPtr pCompMgr = IntPtr.Zero;

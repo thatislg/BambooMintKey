@@ -110,13 +110,21 @@ public static unsafe class LangBarItemButton
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static nint MsgWndProc(IntPtr hWnd, uint msg, nuint wParam, nint lParam)
     {
-        if (msg == WmStateChanged)
+        try
         {
-            DebugLog.Write($"MsgWndProc handling WM_STATE_CHANGED on UI thread={Environment.CurrentManagedThreadId}");
-            NotifyStateChangedInternal();
+            if (msg == WmStateChanged)
+            {
+                DebugLog.Write($"MsgWndProc handling WM_STATE_CHANGED on UI thread={Environment.CurrentManagedThreadId}");
+                NotifyStateChangedInternal();
+                return 0;
+            }
+            return DefWindowProcW(hWnd, msg, wParam, lParam);
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Write($"MsgWndProc exception: {ex.Message}");
             return 0;
         }
-        return DefWindowProcW(hWnd, msg, wParam, lParam);
     }
 
     private static void EnsureMsgWndCreated()
@@ -696,7 +704,9 @@ public static unsafe class LangBarItemButton
                     _sinkCookie = 1;
                     *pdwCookie = _sinkCookie;
                 }
-                DebugLog.Write($"LangBarItemButton.AdviseSink: ITfLangBarItemSink connected via QI pSink={pSink}");
+                _uiThreadId = GetCurrentThreadId();
+                EnsureMsgWndCreated();
+                DebugLog.Write($"LangBarItemButton.AdviseSink: ITfLangBarItemSink connected via QI pSink={pSink}, uiThread={_uiThreadId}");
                 return HResult.Ok;
             }
 
@@ -723,11 +733,18 @@ public static unsafe class LangBarItemButton
                 _pLangBarSink = IntPtr.Zero;
                 _sinkCookie = 0;
                 DebugLog.Write("LangBarItemButton.UnadviseSink: ITfLangBarItemSink disconnected");
-                return HResult.Ok;
             }
         }
-        DebugLog.Write("LangBarItemButton.UnadviseSink: cookie mismatch or no sink");
-        return HResult.InvalidArgument;
+        lock (MsgWndLock)
+        {
+            if (_hMsgWnd != IntPtr.Zero)
+            {
+                DestroyWindow(_hMsgWnd);
+                _hMsgWnd = IntPtr.Zero;
+            }
+        }
+        _uiThreadId = 0;
+        return HResult.Ok;
     }
 
     // =====================================================================
@@ -796,8 +813,6 @@ public static unsafe class LangBarItemButton
 
         _pThreadMgr = pThreadMgr;
         _clientId = clientId;
-        _uiThreadId = GetCurrentThreadId();
-        EnsureMsgWndCreated();
 
         if (!_listenerStarted)
         {
@@ -882,6 +897,9 @@ public static unsafe class LangBarItemButton
     /// </summary>
     public static void NotifyStateChanged()
     {
+        IntPtr sink = _pLangBarSink;
+        if (sink == IntPtr.Zero) return; // Không có sink kết nối (như trong SearchHost, app thường) -> Bỏ qua ngay!
+
         IntPtr hWnd = _hMsgWnd;
         uint currentThread = GetCurrentThreadId();
         DebugLog.Write($"LangBarItemButton.NotifyStateChanged ENTER currentThread={currentThread}, uiThread={_uiThreadId}, hMsgWnd={hWnd}");
