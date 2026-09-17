@@ -84,8 +84,7 @@ public unsafe class BambooMintKeyTextService
                     {
                         DebugLog.Write("StateWatcher: Sự kiện cấu hình thay đổi đã được kích hoạt!");
                         KeyEventSinkHelper.UpdatePreservedKeys(pThreadMgr, clientId);
-                        LangBarItemButton.NotifyStateChanged();
-                        TsfCompartmentHelper.SetConversionMode(pThreadMgr, clientId, SharedMemoryManager.IsVietnameseMode);
+                        GlobalVEState.ResyncFromSharedMemory(pThreadMgr, clientId);
                     }
                 }
                 else

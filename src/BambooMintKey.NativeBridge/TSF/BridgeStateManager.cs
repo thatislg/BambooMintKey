@@ -57,26 +57,22 @@ public static class BridgeStateManager
         }
     }
 
-    /// <summary>Kiểm tra xem chế độ gõ tiếng Việt hiện đang bật (V) hay tắt (E) qua Shared Memory.</summary>
+    /// <summary>
+    /// Kiểm tra xem chế độ gõ tiếng Việt hiện đang bật (V) hay tắt (E).
+    /// Single source of truth nằm trong GlobalVEState / SharedMemoryManager.
+    /// </summary>
     public static bool IsVietnameseMode
     {
-        get => SharedMemoryManager.IsVietnameseMode;
-        set => SharedMemoryManager.IsVietnameseMode = value;
+        get => GlobalVEState.IsVietnameseMode;
+        set => GlobalVEState.SetVietnameseMode(value, GlobalVEState.SyncTarget.All);
     }
 
-    /// <summary>Đảo trạng thái gõ tiếng Việt / tiếng Anh trong Shared Memory và trả về trạng thái mới.</summary>
+    /// <summary>
+    /// Đảo trạng thái gõ tiếng Việt / tiếng Anh và trả về trạng thái mới.
+    /// </summary>
     public static bool ToggleVietnameseMode()
     {
-        bool newMode = SharedMemoryManager.ToggleVietnameseMode();
-        _currentConfig = new EngineConfig.EngineConfig(
-            newMode,
-            _currentConfig.AutoRestoreEnglishWords,
-            _currentConfig.AllowRepeatKeyUndo,
-            _currentConfig.AllowLeadingWAsU,
-            _currentConfig.ToneStyle,
-            _currentConfig.AllowFreeTonePlacement
-        );
-        return newMode;
+        return GlobalVEState.ToggleVietnameseMode(GlobalVEState.SyncTarget.All);
     }
 
     // =========================================================================

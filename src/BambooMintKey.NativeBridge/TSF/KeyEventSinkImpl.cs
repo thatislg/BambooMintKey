@@ -164,13 +164,11 @@ public static unsafe class KeyEventSinkImpl
         // 0. Bắt phím tắt chuyển đổi chế độ V/E (Ctrl + Shift hoặc Alt + Z)
         if (KeyInputTranslator.IsToggleHotkeyPressed(wParam, lParam))
         {
-            bool newMode = BridgeStateManager.ToggleVietnameseMode();
-            LangBarItemButton.NotifyStateChanged();
             var target = BambooMintKeyTextService.GetTarget(thisPtr - (sizeof(IntPtr) * 2));
-            if (target != null && target.ThreadMgr != IntPtr.Zero)
-            {
-                TsfCompartmentHelper.SetConversionMode(target.ThreadMgr, target.ClientId, newMode);
-            }
+            bool newMode = GlobalVEState.ToggleVietnameseMode(
+                GlobalVEState.SyncTarget.All,
+                target?.ThreadMgr ?? IntPtr.Zero,
+                target?.ClientId ?? 0);
             DebugLog.Write($"OnKeyDown ToggleHotkey triggered! New IsVietnameseMode={newMode}");
             *pfEaten = 1;
             return HResult.Ok;
@@ -253,13 +251,11 @@ public static unsafe class KeyEventSinkImpl
 
         if (rguid != null && *rguid == Guids.GuidPreservedKeyToggle)
         {
-            bool newMode = BridgeStateManager.ToggleVietnameseMode();
-            LangBarItemButton.NotifyStateChanged();
             var target = BambooMintKeyTextService.GetTarget(thisPtr - (sizeof(IntPtr) * 2));
-            if (target != null && target.ThreadMgr != IntPtr.Zero)
-            {
-                TsfCompartmentHelper.SetConversionMode(target.ThreadMgr, target.ClientId, newMode);
-            }
+            bool newMode = GlobalVEState.ToggleVietnameseMode(
+                GlobalVEState.SyncTarget.All,
+                target?.ThreadMgr ?? IntPtr.Zero,
+                target?.ClientId ?? 0);
             DebugLog.Write($"OnPreservedKey Toggle triggered! New IsVietnameseMode={newMode}");
             *pfEaten = 1;
             return HResult.Ok;

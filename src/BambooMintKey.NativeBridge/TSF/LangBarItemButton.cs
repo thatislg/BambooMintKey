@@ -224,19 +224,10 @@ public static unsafe class LangBarItemButton
         }
         else
         {
-            // Click chuột trái: Đảo chế độ V/E tức thì
-            bool newMode = BridgeStateManager.ToggleVietnameseMode();
+            // Click chuột trái: Đảo chế độ V/E tức thì qua API trung tâm
+            bool newMode = GlobalVEState.ToggleVietnameseMode(GlobalVEState.SyncTarget.All, _pThreadMgr, _clientId);
 
-            // 1. Gửi thông báo OnUpdate tới Sink để vẽ lại Icon ngay
-            NotifyStateChanged();
-
-            // 2. Đồng bộ lập tức tới TSF Input Mode Compartment của Windows 10/11 Shell
-            if (_pThreadMgr != IntPtr.Zero)
-            {
-                TsfCompartmentHelper.SetConversionMode(_pThreadMgr, _clientId, newMode);
-            }
-
-            DebugLog.Write($"LangBarItemButton OnClick toggled IsVietnameseMode={newMode} (Sink + Compartment synchronized)");
+            DebugLog.Write($"LangBarItemButton OnClick toggled IsVietnameseMode={newMode} (GlobalVEState synchronized)");
         }
         DebugLog.Write($"LangBarItemButton OnClick EXIT click={click}");
         return HResult.Ok;
@@ -467,12 +458,8 @@ public static unsafe class LangBarItemButton
         switch (cmdId)
         {
             case MenuCommands.ToggleVietnameseMode:
-                bool newMode = BridgeStateManager.ToggleVietnameseMode();
-                NotifyStateChanged();
-                if (_pThreadMgr != IntPtr.Zero)
-                {
-                    TsfCompartmentHelper.SetConversionMode(_pThreadMgr, _clientId, newMode);
-                }
+                bool newMode = GlobalVEState.ToggleVietnameseMode(GlobalVEState.SyncTarget.All, _pThreadMgr, _clientId);
+                DebugLog.Write($"LangBarItemButton ExecuteMenuCommand toggled IsVietnameseMode={newMode}");
                 break;
 
             case MenuCommands.ToneStyleModern:

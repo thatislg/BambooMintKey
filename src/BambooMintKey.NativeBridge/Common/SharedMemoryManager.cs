@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Dương Gia Long and LMO contributors
 // SPDX-License-Identifier: MIT
 using System.Runtime.InteropServices;
+using System.Threading;
 using BambooMintKey.NativeBridge.TSF;
 
 namespace BambooMintKey.NativeBridge.Common;
@@ -15,6 +16,7 @@ public static unsafe class SharedMemoryManager
 {
     private const string MapName = @"Local\BambooMintKey_SharedConfig_v1";
     private const string EventName = @"Local\BambooMintKey_StateChangedEvent_v1";
+    private const string MutexName = @"Local\BambooMintKey_VE_State_Mutex_v1";
     // Universal SDDL cho phép Everyone (WD), ALL APPLICATION PACKAGES/AppContainer (AC) và Low Integrity (LW)
     private const string UniversalSddl = "D:(A;;GA;;;WD)(A;;GA;;;AC)S:(ML;;NW;;;LW)";
     private const uint PageReadWrite = 0x04;
@@ -23,6 +25,7 @@ public static unsafe class SharedMemoryManager
 
     private static IntPtr _hMap = IntPtr.Zero;
     private static IntPtr _hEvent = IntPtr.Zero;
+    private static Mutex? _stateMutex;
     private static byte* _pShared = null;
     private static bool _fallbackVietnameseMode = true;
     private static readonly Lock InitLock = new();
@@ -169,6 +172,19 @@ public static unsafe class SharedMemoryManager
                 if (_hEvent == IntPtr.Zero)
                 {
                     _hEvent = CreateEventW(pSaPtr, true /* ManualReset */, false, EventName);
+                }
+
+                // Tạo hoặc mở named mutex để đồng bộ trạng thái V/E giữa các process
+                if (_stateMutex == null)
+                {
+                    try
+                    {
+                        _stateMutex = new Mutex(false, MutexName);
+                    }
+                    catch (Exception ex)
+                    {
+                        DebugLog.Write($"SharedMemoryManager: Failed to create/open state mutex: {ex.Message}");
+                    }
                 }
             }
             finally
@@ -326,17 +342,104 @@ public static unsafe class SharedMemoryManager
             }
             return _fallbackVietnameseMode;
         }
-        set
+        set => AtomicSetVietnameseMode(value);
+    }
+
+    /// <summary>
+    /// Đảo trạng thái V/E một cách atomic giữa các process.
+    /// Nếu mutex không khả dụng, fallback về toggle không atomic.
+    /// </summary>
+    public static bool AtomicToggleVietnameseMode()
+    {
+        EnsureInitialized();
+
+        bool? acquired = null;
+        try
         {
-            EnsureInitialized();
-            if (_pShared != null)
+            acquired = _stateMutex?.WaitOne(TimeSpan.FromMilliseconds(500));
+        }
+        catch (AbandonedMutexException)
+        {
+            // Mutex bị abandon bởi process khác crash; ta vẫn có quyền sở hữu
+            acquired = true;
+        }
+
+        try
+        {
+            if (acquired == true)
             {
-                _pShared[0] = (byte)(value ? 1 : 0);
-                SignalStateChanged();
+                // Trong critical section: đọc, tính, ghi, signal
+                if (_pShared != null)
+                {
+                    byte current = _pShared[0];
+                    byte next = (byte)(current == 0 ? 1 : 0);
+                    _pShared[0] = next;
+                    SignalStateChanged();
+                    return next != 0;
+                }
             }
             else
             {
-                _fallbackVietnameseMode = value;
+                DebugLog.Write("SharedMemoryManager.AtomicToggleVietnameseMode: could not acquire mutex, falling back to non-atomic toggle");
+            }
+
+            // Mutex unavailable hoặc _pShared null: fallback
+            _fallbackVietnameseMode = !_fallbackVietnameseMode;
+            return _fallbackVietnameseMode;
+        }
+        finally
+        {
+            if (acquired == true)
+            {
+                try { _stateMutex?.ReleaseMutex(); }
+                catch (Exception ex) { DebugLog.Write($"SharedMemoryManager.AtomicToggleVietnameseMode: ReleaseMutex failed: {ex.Message}"); }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Đặt trạng thái V/E một cách atomic giữa các process.
+    /// </summary>
+    public static bool AtomicSetVietnameseMode(bool value)
+    {
+        EnsureInitialized();
+
+        bool? acquired = null;
+        try
+        {
+            acquired = _stateMutex?.WaitOne(TimeSpan.FromMilliseconds(500));
+        }
+        catch (AbandonedMutexException)
+        {
+            acquired = true;
+        }
+
+        try
+        {
+            if (acquired == true)
+            {
+                if (_pShared != null)
+                {
+                    byte next = (byte)(value ? 1 : 0);
+                    _pShared[0] = next;
+                    SignalStateChanged();
+                    return value;
+                }
+            }
+            else
+            {
+                DebugLog.Write("SharedMemoryManager.AtomicSetVietnameseMode: could not acquire mutex, falling back to non-atomic set");
+            }
+
+            _fallbackVietnameseMode = value;
+            return value;
+        }
+        finally
+        {
+            if (acquired == true)
+            {
+                try { _stateMutex?.ReleaseMutex(); }
+                catch (Exception ex) { DebugLog.Write($"SharedMemoryManager.AtomicSetVietnameseMode: ReleaseMutex failed: {ex.Message}"); }
             }
         }
     }
@@ -346,17 +449,7 @@ public static unsafe class SharedMemoryManager
     /// </summary>
     public static bool ToggleVietnameseMode()
     {
-        EnsureInitialized();
-        if (_pShared != null)
-        {
-            byte current = _pShared[0];
-            byte next = (byte)(current == 0 ? 1 : 0);
-            _pShared[0] = next;
-            SignalStateChanged();
-            return next != 0;
-        }
-        _fallbackVietnameseMode = !_fallbackVietnameseMode;
-        return _fallbackVietnameseMode;
+        return AtomicToggleVietnameseMode();
     }
 
     /// <summary>
