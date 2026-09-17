@@ -54,6 +54,118 @@ public static unsafe class LangBarItemButton
     [DllImport("uxtheme.dll", EntryPoint = "#135", SetLastError = true)]
     private static extern int SetPreferredAppMode(int appMode);
 
+    // Win32 Message-Only Window APIs điều phối OnUpdate về UI Thread (STA)
+    private const uint WmUser = 0x0400;
+    private const uint WmStateChanged = WmUser + 101;
+    private static IntPtr _hMsgWnd = IntPtr.Zero;
+    private static uint _uiThreadId = 0;
+    private const string MsgWndClassName = "BambooMintKey_LangBar_MsgWnd";
+    private static bool _classRegistered = false;
+    private static readonly Lock MsgWndLock = new();
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct WndclassexW
+    {
+        public uint cbSize;
+        public uint style;
+        public delegate* unmanaged[Stdcall]<IntPtr, uint, nuint, nint, nint> lpfnWndProc;
+        public int cbClsExtra;
+        public int cbWndExtra;
+        public IntPtr hInstance;
+        public IntPtr hIcon;
+        public IntPtr hCursor;
+        public IntPtr hbrBackground;
+        public char* lpszMenuName;
+        public char* lpszClassName;
+        public IntPtr hIconSm;
+    }
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern ushort RegisterClassExW(ref WndclassexW lpwcx);
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern IntPtr CreateWindowExW(
+        uint dwExStyle,
+        string lpClassName,
+        string lpWindowName,
+        uint dwStyle,
+        int x, int y, int nWidth, int nHeight,
+        IntPtr hWndParent,
+        IntPtr hMenu,
+        IntPtr hInstance,
+        IntPtr lpParam);
+
+    [DllImport("user32.dll")]
+    private static extern bool DestroyWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool PostMessageW(IntPtr hWnd, uint Msg, nuint wParam, nint lParam);
+
+    [DllImport("user32.dll")]
+    private static extern nint DefWindowProcW(IntPtr hWnd, uint uMsg, nuint wParam, nint lParam);
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetCurrentThreadId();
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+    private static nint MsgWndProc(IntPtr hWnd, uint msg, nuint wParam, nint lParam)
+    {
+        if (msg == WmStateChanged)
+        {
+            DebugLog.Write($"MsgWndProc handling WM_STATE_CHANGED on UI thread={Environment.CurrentManagedThreadId}");
+            NotifyStateChangedInternal();
+            return 0;
+        }
+        return DefWindowProcW(hWnd, msg, wParam, lParam);
+    }
+
+    private static void EnsureMsgWndCreated()
+    {
+        lock (MsgWndLock)
+        {
+            if (_hMsgWnd != IntPtr.Zero) return;
+
+            try
+            {
+                if (!_classRegistered)
+                {
+                    fixed (char* pClassName = MsgWndClassName)
+                    {
+                        WndclassexW wc = new()
+                        {
+                            cbSize = (uint)sizeof(WndclassexW),
+                            style = 0,
+                            lpfnWndProc = &MsgWndProc,
+                            cbClsExtra = 0,
+                            cbWndExtra = 0,
+                            hInstance = IntPtr.Zero,
+                            hIcon = IntPtr.Zero,
+                            hCursor = IntPtr.Zero,
+                            hbrBackground = IntPtr.Zero,
+                            lpszMenuName = null,
+                            lpszClassName = pClassName,
+                            hIconSm = IntPtr.Zero
+                        };
+                        ushort atom = RegisterClassExW(ref wc);
+                        _classRegistered = (atom != 0);
+                        DebugLog.Write($"RegisterClassExW({MsgWndClassName}) result={atom}");
+                    }
+                }
+
+                // HWND_MESSAGE = -3
+                _hMsgWnd = CreateWindowExW(
+                    0, MsgWndClassName, "BambooMintKey_LangBar_MsgWnd", 0,
+                    0, 0, 0, 0,
+                    new IntPtr(-3), IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+                DebugLog.Write($"CreateWindowExW message-only window={_hMsgWnd}, thread={_uiThreadId}");
+            }
+            catch (Exception ex)
+            {
+                DebugLog.Write($"EnsureMsgWndCreated error: {ex.Message}");
+            }
+        }
+    }
+
     static LangBarItemButton()
     {
         try { SetPreferredAppMode(1 /* AllowDark */); } catch { }
@@ -166,8 +278,8 @@ public static unsafe class LangBarItemButton
 
         pInfo->clsidService = Guids.TextServiceClsid;
         pInfo->guidItem = Guids.GuidLbiInputMode;
-        // Dùng TfLbiStyleBtnToggle | TfLbiStyleShownInTray để Taskbar xử lý đảo trạng thái hai chiều tức thì
-        pInfo->dwStyle = TsfLangBarFlags.TfLbiStyleBtnToggle |
+        // Dùng TfLbiStyleBtnButton | TfLbiStyleShownInTray theo chuẩn Google Mozc TSF
+        pInfo->dwStyle = TsfLangBarFlags.TfLbiStyleBtnButton |
                          TsfLangBarFlags.TfLbiStyleShownInTray;
         pInfo->ulSort = 0;
 
@@ -184,12 +296,12 @@ public static unsafe class LangBarItemButton
         return HResult.Ok;
     }
 
-    /// <summary>[WinSDK: ITfLangBarItem::GetStatus] - Trả về trạng thái hiện tại (Enabled/Disabled/Hidden).</summary>
+    /// <summary>[WinSDK: ITfLangBarItem::GetStatus] - Trả về trạng thái hiện tại (Enabled/Disabled/Hidden/Toggled).</summary>
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int GetStatus(IntPtr thisPtr, uint* pdwStatus)
     {
         if (pdwStatus == null) return HResult.InvalidArgument;
-        *pdwStatus = 0; // Nút luôn enabled và hiển thị bình thường
+        *pdwStatus = BridgeStateManager.IsVietnameseMode ? TsfLangBarFlags.TfLbiStatusBtnToggled : 0;
         return HResult.Ok;
     }
 
@@ -684,6 +796,8 @@ public static unsafe class LangBarItemButton
 
         _pThreadMgr = pThreadMgr;
         _clientId = clientId;
+        _uiThreadId = GetCurrentThreadId();
+        EnsureMsgWndCreated();
 
         if (!_listenerStarted)
         {
@@ -748,30 +862,59 @@ public static unsafe class LangBarItemButton
             _sinkCookie = 0;
         }
 
+        lock (MsgWndLock)
+        {
+            if (_hMsgWnd != IntPtr.Zero)
+            {
+                DestroyWindow(_hMsgWnd);
+                _hMsgWnd = IntPtr.Zero;
+            }
+        }
+        _uiThreadId = 0;
+
         _pThreadMgr = IntPtr.Zero;
         _clientId = 0;
     }
 
     /// <summary>
     /// Báo cho Windows vẽ lại Icon, Text và Tooltip qua ITfLangBarItemSink::OnUpdate.
-    /// Được gọi khi người dùng click chuột trái vào nút hoặc nhấn phím tắt chuyển chế độ (Ctrl+Shift+Q).
+    /// Tự động điều phối (marshal) về đúng UI Thread đã đăng ký AddItem nếu được gọi từ luồng nền.
     /// </summary>
     public static void NotifyStateChanged()
     {
-        IntPtr sink = _pLangBarSink;
-        DebugLog.Write($"LangBarItemButton.NotifyStateChanged ENTER _pLangBarSink={sink}, thread={Environment.CurrentManagedThreadId}");
-        if (sink != IntPtr.Zero)
+        IntPtr hWnd = _hMsgWnd;
+        uint currentThread = GetCurrentThreadId();
+        DebugLog.Write($"LangBarItemButton.NotifyStateChanged ENTER currentThread={currentThread}, uiThread={_uiThreadId}, hMsgWnd={hWnd}");
+
+        if (hWnd != IntPtr.Zero && currentThread != _uiThreadId && _uiThreadId != 0)
         {
-            var sinkVTable = *(TfLangBarItemSinkVTable**)sink;
-            // [WinSDK: ITfLangBarItemSink::OnUpdate]
-            int hr = sinkVTable->OnUpdate(
-                sink,
-                TsfLangBarFlags.TfLbiIcon | TsfLangBarFlags.TfLbiText | TsfLangBarFlags.TfLbiTooltip);
-            DebugLog.Write($"LangBarItemButton.NotifyStateChanged: OnUpdate sent to Windows Taskbar hr=0x{hr:X8}");
+            // Đang ở luồng nền -> PostMessage sang UI Thread để gọi OnUpdate đúng chuẩn COM STA
+            bool posted = PostMessageW(hWnd, WmStateChanged, 0, 0);
+            DebugLog.Write($"LangBarItemButton.NotifyStateChanged: PostMessageW to UI thread={_uiThreadId} returned {posted}");
         }
         else
         {
-            DebugLog.Write("LangBarItemButton.NotifyStateChanged: _pLangBarSink is NULL in this process");
+            // Đã ở trên UI Thread hoặc chưa có msg window -> Gọi trực tiếp
+            NotifyStateChangedInternal();
+        }
+    }
+
+    private static void NotifyStateChangedInternal()
+    {
+        IntPtr sink = _pLangBarSink;
+        DebugLog.Write($"LangBarItemButton.NotifyStateChangedInternal ENTER _pLangBarSink={sink}, thread={Environment.CurrentManagedThreadId}");
+        if (sink != IntPtr.Zero)
+        {
+            var sinkVTable = *(TfLangBarItemSinkVTable**)sink;
+            // [WinSDK: ITfLangBarItemSink::OnUpdate] Chuẩn Mozc gửi TF_LBI_ICON | TF_LBI_TEXT | TF_LBI_TOOLTIP | TF_LBI_STATUS
+            int hr = sinkVTable->OnUpdate(
+                sink,
+                TsfLangBarFlags.TfLbiIcon | TsfLangBarFlags.TfLbiText | TsfLangBarFlags.TfLbiTooltip | TsfLangBarFlags.TfLbiStatus);
+            DebugLog.Write($"LangBarItemButton.NotifyStateChangedInternal: OnUpdate sent to Windows Taskbar hr=0x{hr:X8}");
+        }
+        else
+        {
+            DebugLog.Write("LangBarItemButton.NotifyStateChangedInternal: _pLangBarSink is NULL in this process");
         }
     }
 }

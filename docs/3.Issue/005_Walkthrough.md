@@ -78,3 +78,28 @@
      `D:\Kojin\BambooMintKey\bin\dist\BambooMintKey-Setup.exe` (12.38 MB).
 3. **Quản lý phiên bản:**
    - Toàn bộ thay đổi đã được commit và push lên nhánh `main` của repository `thatislg/BambooMintKey`.
+
+---
+
+## 4. Bổ sung: Khắc phục lỗi hiển thị phản ánh Icon Taskbar E/V (2026-09-18)
+
+- **Vấn đề phát sinh sau khi phím tắt mượt:** Phím tắt chuyển đổi E/V rất mượt mà và không giắt phím, nhưng icon E/V trên Taskbar không cập nhật theo.
+- **Nguyên nhân cốt lõi qua Runtime Log (`BambooMintKey_Runtime.log`):**
+  1. **Apartment Thread Mismatch (STA vs Worker Thread):** `ITfLangBarItemSink::OnUpdate` là interface COM đơn luồng (STA) thuộc về UI Thread của `explorer.exe` (Thread 6). Khi gọi từ luồng nền (Worker Thread 3/7), Windows TSF âm thầm hủy thông báo vẽ lại. Khi gọi trên UI Thread 6, Explorer gọi ngay `GetIcon` sau 54ms.
+  2. **Cấu hình `dwStyle` và thiếu `TF_LBI_STATUS`:** Cần chuyển `dwStyle` sang `TfLbiStyleBtnButton | TfLbiStyleShownInTray` và gửi cờ `TF_LBI_STATUS` trong `OnUpdate` theo đúng chuẩn Google Mozc TSF (`tip_lang_bar_menu.cc`).
+  3. **Cập nhật Global Compartment:** Cần cập nhật cả Global Compartment (`ITfThreadMgr::GetGlobalCompartment`) để Windows 10/11 Input Indicator đồng bộ trên toàn hệ điều hành.
+- **Các tệp đã chỉnh sửa:**
+  - **[LangBarItemButton.cs](file:///d:/Kojin/BambooMintKey/src/BambooMintKey.NativeBridge/TSF/LangBarItemButton.cs)**:
+    + Thêm Message-Only Window Win32 (`HWND_MESSAGE`) tạo trên UI Thread khi `Register()`.
+    + Trong `NotifyStateChanged()`: Nếu đang ở luồng nền, `PostMessageW` thông điệp `WM_STATE_CHANGED` sang UI Thread để gọi `OnUpdate` chuẩn STA COM.
+    + Cập nhật `dwStyle` thành `TsfLangBarFlags.TfLbiStyleBtnButton | TsfLangBarFlags.TfLbiStyleShownInTray`.
+    + `GetStatus`: Trả về `BridgeStateManager.IsVietnameseMode ? TsfLangBarFlags.TfLbiStatusBtnToggled : 0`.
+    + `OnUpdate`: Gửi kèm cờ `TsfLangBarFlags.TfLbiStatus`.
+  - **[TsfCompartmentHelper.cs](file:///d:/Kojin/BambooMintKey/src/BambooMintKey.NativeBridge/TSF/TsfCompartmentHelper.cs)**:
+    + Thêm `TfThreadMgrVTable` hỗ trợ `GetGlobalCompartment` (slot 11).
+    + Thêm `SetGlobalOpenClose` và `SetGlobalConversionMode`.
+    + `SetOpenClose` và `SetConversionMode` tự động cập nhật cả Thread Compartment lẫn Global Compartment.
+- **Kết quả nghiệm thu:**
+  - 321 Core Tests + 5 NativeBridge Tests: **PASSED (100%)**.
+  - Đóng gói installer mới thành công: `bin/dist/BambooMintKey-Setup.exe` (12.38 MB).
+
