@@ -139,7 +139,9 @@ public static unsafe class KeyEventSinkHelper
     private static (uint vKey, uint modifiers, string desc)[] GetActiveToggleKeys()
     {
         uint vKey = SharedMemoryManager.HotkeyVKey;
-        uint modifiers = SharedMemoryManager.HotkeyModifiers;
+        // Bỏ OnKeyUp bit khi đăng ký PreservedKey để toggle xảy ra ngay khi nhấn,
+        // thay vì phải chờ nhả phím (behavior gây cảm giác "phải bấm thêm space").
+        uint modifiers = SharedMemoryManager.HotkeyModifiers & ~TsfModFlags.OnKeyUp;
 
         if (vKey == 0 && modifiers == 0)
         {

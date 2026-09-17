@@ -78,6 +78,21 @@ public static unsafe class KeyEventSinkImpl
     }
 
     private static uint _lastObservedSeq = 0;
+    // Guard để tránh double-toggle khi cả OnKeyDown và OnPreservedKey cùng kích hoạt trong một lần nhấn phím tắt.
+    private static long _lastToggleTick = 0;
+    private const int ToggleGuardMs = 250;
+
+    private static bool TryRecordToggle()
+    {
+        long now = Environment.TickCount64;
+        if (now - _lastToggleTick < ToggleGuardMs)
+        {
+            DebugLog.Write($"Toggle guard: skip duplicate within {ToggleGuardMs}ms (last={_lastToggleTick}, now={now})");
+            return false;
+        }
+        _lastToggleTick = now;
+        return true;
+    }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int OnTestKeyDown(IntPtr thisPtr, IntPtr pic, UIntPtr wParam, IntPtr lParam, int* pfEaten)
@@ -165,11 +180,15 @@ public static unsafe class KeyEventSinkImpl
         if (KeyInputTranslator.IsToggleHotkeyPressed(wParam, lParam))
         {
             var target = BambooMintKeyTextService.GetTarget(thisPtr - (sizeof(IntPtr) * 2));
-            bool newMode = GlobalVEState.ToggleVietnameseMode(
-                GlobalVEState.SyncTarget.All,
-                target?.ThreadMgr ?? IntPtr.Zero,
-                target?.ClientId ?? 0);
-            DebugLog.Write($"OnKeyDown ToggleHotkey triggered! New IsVietnameseMode={newMode}");
+            bool toggled = TryRecordToggle();
+            if (toggled)
+            {
+                bool newMode = GlobalVEState.ToggleVietnameseMode(
+                    GlobalVEState.SyncTarget.All,
+                    target?.ThreadMgr ?? IntPtr.Zero,
+                    target?.ClientId ?? 0);
+                DebugLog.Write($"OnKeyDown ToggleHotkey triggered! New IsVietnameseMode={newMode}");
+            }
             *pfEaten = 1;
             return HResult.Ok;
         }
@@ -252,11 +271,15 @@ public static unsafe class KeyEventSinkImpl
         if (rguid != null && *rguid == Guids.GuidPreservedKeyToggle)
         {
             var target = BambooMintKeyTextService.GetTarget(thisPtr - (sizeof(IntPtr) * 2));
-            bool newMode = GlobalVEState.ToggleVietnameseMode(
-                GlobalVEState.SyncTarget.All,
-                target?.ThreadMgr ?? IntPtr.Zero,
-                target?.ClientId ?? 0);
-            DebugLog.Write($"OnPreservedKey Toggle triggered! New IsVietnameseMode={newMode}");
+            bool toggled = TryRecordToggle();
+            if (toggled)
+            {
+                bool newMode = GlobalVEState.ToggleVietnameseMode(
+                    GlobalVEState.SyncTarget.All,
+                    target?.ThreadMgr ?? IntPtr.Zero,
+                    target?.ClientId ?? 0);
+                DebugLog.Write($"OnPreservedKey Toggle triggered! New IsVietnameseMode={newMode}");
+            }
             *pfEaten = 1;
             return HResult.Ok;
         }

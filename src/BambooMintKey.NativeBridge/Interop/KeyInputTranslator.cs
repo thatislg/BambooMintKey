@@ -168,18 +168,18 @@ public static class KeyInputTranslator
             return false; // Phím tắt bị tắt
         }
 
-        // 1. Kiểm tra Virtual Key chính
-        bool vkMatches = (currentVk == targetVk) || targetVk == 0x10 /* Shift */ && (currentVk == 0x10 || currentVk == 0x11 || currentVk == 0xA0 || currentVk == 0xA1 || currentVk == 0xA2 || currentVk == 0xA3);
-
-        if (!vkMatches)
+        // 1. Kiểm tra Virtual Key chính (chính xác, không mở rộng ra các phím khác)
+        if (currentVk != targetVk)
         {
             return false;
         }
 
-        // 2. Kiểm tra các phím bổ trợ bắt buộc
-        bool needCtrl = (targetMods & TsfModFlags.Control) != 0;
-        bool needAlt = (targetMods & TsfModFlags.Alt) != 0;
-        bool needShift = (targetMods & TsfModFlags.Shift) != 0;
+        // 2. Kiểm tra các phím bổ trợ bắt buộc.
+        // Bỏ qua bit OnKeyUp khi so sánh vì bit đó chỉ ảnh hưởng PreservedKey, không ảnh hưởng trạng thái phím đang đè.
+        uint effectiveTargetMods = targetMods & ~TsfModFlags.OnKeyUp;
+        bool needCtrl = (effectiveTargetMods & TsfModFlags.Control) != 0;
+        bool needAlt = (effectiveTargetMods & TsfModFlags.Alt) != 0;
+        bool needShift = (effectiveTargetMods & TsfModFlags.Shift) != 0;
 
         bool isCtrlDown = IsKeyDown((int)VkControl) || IsKeyDown(0xA2) || IsKeyDown(0xA3);
         bool isAltDown = IsKeyDown((int)VkMenu) || IsKeyDown(0xA4) || IsKeyDown(0xA5);
