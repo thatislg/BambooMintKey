@@ -102,7 +102,7 @@ Tạo bộ cài MSIX và đưa BambooMintKey lên Microsoft Store, song song v�
 | # | Issue | Mô tả | Trạng thái | File |
 |---|---|---|---|---|
 | 004 | Lỗi hiển thị ICON EV | Icon chế độ V/E không đồng bộ với trạng thái thực tế | 🔍 Đang điều tra | `docs/3.Issue/004_EV_IconError.md` |
-| 005 | Shortcut Key Auto Reset | Phím tắt chuyển V/E tự động reset về Ctrl+Shift | 🔍 Đang điều tra | `docs/3.Issue/005_ShortcutKeyAutoResetError.md` |
+| 005 | Phím tắt chuyển V/E cần thêm phím Space mới có hiệu lực | Bấm Ctrl+Shift toggle không kích hoạt ngay, phải thêm Space | 🔍 Đang điều tra | `docs/3.Issue/005_ShortcutKeyAutoResetError.md` |
 | 006 | Preedit Toggle Not Working | Toggle Preedit trên UI không có tác dụng trên ứng dụng | 🔍 Đang điều tra | `docs/3.Issue/006_PreeditToggleNotWorking.md` |
 | 007 | UI Autostart After Uninstall | UI vẫn chạy cùng Windows sau khi gỡ cài đặt | ✅ Code đã sửa, chờ build | `docs/3.Issue/007_UIAutostartAfterUninstall.md` |
 | 008 | Per-Application V/E Mode | Trạng thái V/E không đồng nhất giữa các ứng dụng | 🛠️ Code đã sửa, chờ build/test | `docs/3.Issue/008_PerApplicationVEMode.md` |
@@ -112,8 +112,8 @@ Tạo bộ cài MSIX và đưa BambooMintKey lên Microsoft Store, song song v�
 1. **Issue 008** — đã implement `OnSetFocus` resync global V/E mode; cần build + test chuyển focus giữa các app.
 2. **Issue 007** — đã sửa, chỉ cần build + test installer.
 3. **Issue 006** — liên quan Phase 5 đang kiểm thử, cần verify sau khi cài lại build mới.
-4. **Issue 004** — cần điều tra thêm, có thể liên quan đến shared memory sync.
-5. **Issue 005** — cần thu thập thêm thông tin tái hiện.
+4. **Issue 005** — phím tắt chuyển V/E cần thêm Space mới có hiệu lực; cần xác nhận cấu hình hotkey và fix nhận diện phím tắt.
+5. **Issue 004** — cần điều tra thêm, có thể liên quan đến shared memory sync.
 
 ---
 
