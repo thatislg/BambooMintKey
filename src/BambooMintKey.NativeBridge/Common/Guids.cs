@@ -166,4 +166,8 @@ public static class Guids
     /// <summary>GUID_COMPARTMENT_KEYBOARD_OPENCLOSE - Trạng thái Open/Close của bộ gõ.</summary>
     /// <remarks>Lấy từ Windows SDK ctffunc.h: uuid(a3ce0321-4a8c-11d7-a6e2-00065b84435c).</remarks>
     public static readonly Guid GuidCompartmentKeyboardOpenClose = new("A3CE0321-4A8C-11D7-A6E2-00065B84435C");
+
+    /// <summary>IID_ITfCompartmentEventSink - Nhận thông báo thay đổi trạng thái Compartment (msctf.h: 743abd5f-f26d-48df-8cc5-238492419b64).</summary>
+    public static readonly Guid IidITfCompartmentEventSink = new("743ABD5F-F26D-48DF-8CC5-238492419B64");
 }
+

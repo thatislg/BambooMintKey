@@ -40,6 +40,7 @@ public unsafe class BambooMintKeyTextService
     private static TfTextInputProcessorExVTable* _processorVTable;
     private static TfThreadMgrEventSinkVTable* _threadMgrSinkVTable;
     private static TfDisplayAttributeProviderVTable* _displayAttributeProviderVTable;
+    private static TfCompartmentEventSinkVTable* _compartmentSinkVTable;
 
     // Instance native structure holding interfaces
     [StructLayout(LayoutKind.Sequential)]
@@ -49,7 +50,8 @@ public unsafe class BambooMintKeyTextService
         public IntPtr VTableThreadMgrSink;              // Con trỏ vtable ITfThreadMgrEventSink (offset 1)
         public IntPtr VTableKeyEventSink;               // Con trỏ vtable ITfKeyEventSink (offset 2)
         public IntPtr VTableDisplayAttributeProvider;   // Con trỏ vtable ITfDisplayAttributeProvider (offset 3)
-        public IntPtr GCHandle;                         // GCHandle trỏ ngược lại instance C# (offset 4)
+        public IntPtr VTableCompartmentEventSink;       // Con trỏ vtable ITfCompartmentEventSink (offset 4)
+        public IntPtr GCHandle;                         // GCHandle trỏ ngược lại instance C# (offset 5)
     }
 
     private int _refCount = 1;
@@ -57,6 +59,7 @@ public unsafe class BambooMintKeyTextService
     private uint _clientId = TsfFlags.TfInvalidClientId;
     private uint _threadMgrEventSinkCookie;
     private uint _keyEventSinkCookie;
+    private uint _compartmentEventSinkCookie;
     private bool _isActivated;
 
     [DllImport("kernel32.dll", SetLastError = true)]
@@ -84,7 +87,13 @@ public unsafe class BambooMintKeyTextService
                     {
                         DebugLog.Write("StateWatcher: Sự kiện cấu hình thay đổi đã được kích hoạt!");
                         KeyEventSinkHelper.UpdatePreservedKeys(pThreadMgr, clientId);
-                        GlobalVEState.ResyncFromSharedMemory(pThreadMgr, clientId);
+                        if (pThreadMgr != IntPtr.Zero)
+                        {
+                            bool currentGlobalMode = SharedMemoryManager.IsVietnameseMode;
+                            TsfCompartmentHelper.SetOpenClose(pThreadMgr, clientId, currentGlobalMode);
+                            TsfCompartmentHelper.SetConversionMode(pThreadMgr, clientId, currentGlobalMode);
+                            LangBarItemButton.NotifyStateChanged();
+                        }
                     }
                 }
                 else
@@ -124,6 +133,7 @@ public unsafe class BambooMintKeyTextService
         layout->VTableThreadMgrSink = (IntPtr)_threadMgrSinkVTable;
         layout->VTableKeyEventSink = KeyEventSinkImpl.GetVTablePointer();
         layout->VTableDisplayAttributeProvider = (IntPtr)_displayAttributeProviderVTable;
+        layout->VTableCompartmentEventSink = (IntPtr)_compartmentSinkVTable;
         layout->GCHandle = GCHandle.ToIntPtr(gcHandle);
 
         ComServerState.ObjectCreated();
@@ -161,6 +171,13 @@ public unsafe class BambooMintKeyTextService
         _displayAttributeProviderVTable->Release = &Release_DisplayAttributeProvider;
         _displayAttributeProviderVTable->EnumDisplayAttributeInfo = &EnumDisplayAttributeInfo;
         _displayAttributeProviderVTable->GetDisplayAttributeInfo = &GetDisplayAttributeInfo;
+
+        _compartmentSinkVTable = (TfCompartmentEventSinkVTable*)RuntimeHelpers.AllocateTypeAssociatedMemory(
+            typeof(BambooMintKeyTextService), sizeof(TfCompartmentEventSinkVTable));
+        _compartmentSinkVTable->QueryInterface = &QueryInterface_CompartmentSink;
+        _compartmentSinkVTable->AddRef = &AddRef_CompartmentSink;
+        _compartmentSinkVTable->Release = &Release_CompartmentSink;
+        _compartmentSinkVTable->OnChange = &OnChange_CompartmentSink;
     }
 
     internal static BambooMintKeyTextService GetTarget(IntPtr thisPtr)
@@ -208,6 +225,14 @@ public unsafe class BambooMintKeyTextService
         if (*riid == Guids.IidITfDisplayAttributeProvider)
         {
             *ppvObject = rootPtr + (sizeof(IntPtr) * 3);
+            var processorVTable = *(TfTextInputProcessorExVTable**)rootPtr;
+            processorVTable->AddRef(rootPtr);
+            return HResult.Ok;
+        }
+
+        if (*riid == Guids.IidITfCompartmentEventSink)
+        {
+            *ppvObject = rootPtr + (sizeof(IntPtr) * 4);
             var processorVTable = *(TfTextInputProcessorExVTable**)rootPtr;
             processorVTable->AddRef(rootPtr);
             return HResult.Ok;
@@ -274,6 +299,47 @@ public unsafe class BambooMintKeyTextService
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static uint Release_DisplayAttributeProvider(IntPtr thisPtr)
         => ReleaseImpl(thisPtr - (sizeof(IntPtr) * 3));
+
+    // Proxy Unknown & Callbacks cho Interface con thứ 5 (CompartmentEventSink)
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+    private static int QueryInterface_CompartmentSink(IntPtr thisPtr, Guid* riid, IntPtr* ppvObject)
+        => QueryInterfaceImpl(thisPtr - (sizeof(IntPtr) * 4), riid, ppvObject);
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+    private static uint AddRef_CompartmentSink(IntPtr thisPtr)
+        => AddRefImpl(thisPtr - (sizeof(IntPtr) * 4));
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+    private static uint Release_CompartmentSink(IntPtr thisPtr)
+        => ReleaseImpl(thisPtr - (sizeof(IntPtr) * 4));
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+    private static int OnChange_CompartmentSink(IntPtr thisPtr, Guid* rguid)
+    {
+        var rootPtr = thisPtr - (sizeof(IntPtr) * 4);
+        var target = GetTarget(rootPtr);
+        return target.OnCompartmentChanged(rguid);
+    }
+
+    private int OnCompartmentChanged(Guid* rguid)
+    {
+        if (rguid == null) return HResult.InvalidArgument;
+        DebugLog.Write($"OnCompartmentChanged called: rguid={*rguid}");
+
+        if (*rguid == Guids.GuidCompartmentKeyboardOpenClose ||
+            *rguid == Guids.GuidCompartmentKeyboardInputModeConversion)
+        {
+            if (TsfCompartmentHelper.GetOpenClose(_pThreadMgr, _clientId, out bool isOpen))
+            {
+                DebugLog.Write($"OnCompartmentChanged: OpenClose changed to {isOpen}");
+                if (isOpen != SharedMemoryManager.IsVietnameseMode)
+                {
+                    GlobalVEState.SetVietnameseMode(isOpen, GlobalVEState.SyncTarget.All, _pThreadMgr, _clientId);
+                }
+            }
+        }
+        return HResult.Ok;
+    }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int EnumDisplayAttributeInfo(IntPtr thisPtr, IntPtr* ppEnum)
@@ -348,8 +414,20 @@ public unsafe class BambooMintKeyTextService
         // 5. Đăng ký Language Bar Item Button vào Taskbar
         LangBarItemButton.Register(pThreadMgr, tfClientId);
 
-        // 6. Đồng bộ trạng thái Input Mode Compartment với Windows Shell Taskbar
-        TsfCompartmentHelper.SetConversionMode(pThreadMgr, tfClientId, BridgeStateManager.IsVietnameseMode);
+        // 6. Đồng bộ trạng thái ban đầu vào Open/Close Compartment và ConversionMode
+        bool initialMode = SharedMemoryManager.IsVietnameseMode;
+        BridgeStateManager.IsVietnameseMode = initialMode;
+        TsfCompartmentHelper.SetOpenClose(pThreadMgr, tfClientId, initialMode);
+        TsfCompartmentHelper.SetConversionMode(pThreadMgr, tfClientId, initialMode);
+
+        // 6.1. Đăng ký ITfCompartmentEventSink lắng nghe thay đổi của GUID_COMPARTMENT_KEYBOARD_OPENCLOSE
+        var compSinkPtr = thisPtr + (sizeof(IntPtr) * 4);
+        fixed (Guid* pGuidOpenClose = &Guids.GuidCompartmentKeyboardOpenClose)
+        {
+            target._compartmentEventSinkCookie = TsfCompartmentHelper.AdviseCompartmentEventSink(
+                pThreadMgr, pGuidOpenClose, compSinkPtr);
+            DebugLog.Write($"Advise CompartmentEventSink cookie={target._compartmentEventSinkCookie}");
+        }
 
         // 7. Khởi động luồng lắng nghe cập nhật cấu hình theo thời gian thực
         target.StartStateWatcher();
@@ -387,9 +465,16 @@ public unsafe class BambooMintKeyTextService
         // Dừng luồng lắng nghe cấu hình
         target.StopStateWatcher();
 
-        // Lưu ý: Không gọi LangBarItemButton.Unregister() ở đây vì Windows Shell
-        // tự quản lý hiển thị/ẩn icon theo trạng thái kích hoạt của TIP.
-        // Gỡ bỏ nút ở đây sẽ làm icon biến mất khi chuyển đổi tiêu điểm giữa các cửa sổ.
+        // Gỡ CompartmentEventSink
+        if (target._compartmentEventSinkCookie != 0)
+        {
+            fixed (Guid* pGuidOpenClose = &Guids.GuidCompartmentKeyboardOpenClose)
+            {
+                TsfCompartmentHelper.UnadviseCompartmentEventSink(
+                    target._pThreadMgr, pGuidOpenClose, target._compartmentEventSinkCookie);
+            }
+            target._compartmentEventSinkCookie = 0;
+        }
 
         // 1. Unadvise KeyEventSink & Unregister Preserved Keys
         if (target._keyEventSinkCookie != 0)
@@ -443,11 +528,13 @@ public unsafe class BambooMintKeyTextService
         CompositionManager.EndComposition();
         BridgeStateManager.ResetState();
 
-        // Ép buộc đồng bộ global V/E state vào process/thread hiện tại.
-        // Điều này ngăn Windows TSF hoặc ứng dụng tự lưu mode per-thread/per-document.
+        // Đồng bộ trạng thái hiện tại (từ SharedMemoryManager) vào Thread Compartment của thread này
         if (target._pThreadMgr != IntPtr.Zero)
         {
-            GlobalVEState.ResyncFromSharedMemory(target._pThreadMgr, target._clientId);
+            bool currentGlobalMode = SharedMemoryManager.IsVietnameseMode;
+            TsfCompartmentHelper.SetOpenClose(target._pThreadMgr, target._clientId, currentGlobalMode);
+            TsfCompartmentHelper.SetConversionMode(target._pThreadMgr, target._clientId, currentGlobalMode);
+            LangBarItemButton.NotifyStateChanged();
         }
 
         return HResult.Ok;
@@ -460,3 +547,4 @@ public unsafe class BambooMintKeyTextService
     private static int OnPopContext(IntPtr thisPtr, IntPtr pic) => HResult.Ok;
     #endregion
 }
+

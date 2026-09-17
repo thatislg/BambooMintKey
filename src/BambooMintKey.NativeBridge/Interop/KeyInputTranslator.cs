@@ -48,6 +48,9 @@ public static class KeyInputTranslator
     private static extern short GetKeyState(int nVirtKey);
 
     [DllImport("user32.dll")]
+    private static extern short GetAsyncKeyState(int vKey);
+
+    [DllImport("user32.dll")]
     private static extern bool GetKeyboardState(byte[] lpKeyState);
 
     [DllImport("user32.dll")]
@@ -129,66 +132,7 @@ public static class KeyInputTranslator
         return char.IsWhiteSpace(c) || char.IsPunctuation(c) || char.IsSymbol(c);
     }
 
-    [DllImport("user32.dll")]
-    private static extern short GetAsyncKeyState(int vKey);
-
-    private static bool IsKeyDown(int vKey)
-    {
-        return ((GetKeyState(vKey) & 0x8000) != 0) || ((GetAsyncKeyState(vKey) & 0x8000) != 0);
-    }
-
-    // =========================================================================
-    // Hotkey detection
-    // =========================================================================
-
     /// <summary>VK_SHIFT (0x10) - Phím Shift (modifier).</summary>
     private const uint VkShift = 0x10;
-
-    /// <summary>VK_Q (0x51) - Phím ký tự Q.</summary>
-    public const uint VkQ = 0x51;
-
-    /// <summary>VK_Z (0x5A) - Phím ký tự Z.</summary>
-    public const uint VkZ = 0x5A;
-
-    /// <summary>
-    /// Kiểm tra xem sự kiện bàn phím hiện tại có phải là phím tắt chuyển đổi chế độ V/E hay không.
-    /// Theo yêu cầu người dùng: Ctrl + Shift + Q.
-    /// <summary>
-    /// Kiểm tra xem tổ hợp phím hiện tại có khớp với phím tắt chuyển đổi V/E đã cài đặt trong cấu hình hay không.
-    /// Hỗ trợ cả 1 phím, 2 phím, 3 phím (Ctrl+Shift+Z, Ctrl+Alt+Space, ...) và 4 phím.
-    /// </summary>
-    public static bool IsToggleHotkeyPressed(UIntPtr wParam, IntPtr lParam)
-    {
-        uint currentVk = (uint)wParam;
-        uint targetVk = SharedMemoryManager.HotkeyVKey;
-        uint targetMods = SharedMemoryManager.HotkeyModifiers;
-
-        if (targetVk == 0 && targetMods == 0)
-        {
-            return false; // Phím tắt bị tắt
-        }
-
-        // 1. Kiểm tra Virtual Key chính (chính xác, không mở rộng ra các phím khác)
-        if (currentVk != targetVk)
-        {
-            return false;
-        }
-
-        // 2. Kiểm tra các phím bổ trợ bắt buộc.
-        // Bỏ qua bit OnKeyUp khi so sánh vì bit đó chỉ ảnh hưởng PreservedKey, không ảnh hưởng trạng thái phím đang đè.
-        uint effectiveTargetMods = targetMods & ~TsfModFlags.OnKeyUp;
-        bool needCtrl = (effectiveTargetMods & TsfModFlags.Control) != 0;
-        bool needAlt = (effectiveTargetMods & TsfModFlags.Alt) != 0;
-        bool needShift = (effectiveTargetMods & TsfModFlags.Shift) != 0;
-
-        bool isCtrlDown = IsKeyDown((int)VkControl) || IsKeyDown(0xA2) || IsKeyDown(0xA3);
-        bool isAltDown = IsKeyDown((int)VkMenu) || IsKeyDown(0xA4) || IsKeyDown(0xA5);
-        bool isShiftDown = IsKeyDown((int)VkShift) || IsKeyDown(0xA0) || IsKeyDown(0xA1);
-
-        if (needCtrl && !isCtrlDown) return false;
-        if (needAlt && !isAltDown) return false;
-        if (needShift && !isShiftDown) return false;
-
-        return true;
-    }
 }
+

@@ -147,25 +147,15 @@ public static unsafe class SharedMemoryManager
                     {
                         _pShared = (byte*)pView;
 
-                        // Nếu là tiến trình đầu tiên tạo ra map, khởi tạo giá trị mặc định (Bật Tiếng Việt)
+                        // Nếu là tiến trình đầu tiên tạo ra map, khởi tạo giá trị mặc định ban đầu
                         if (isCreator)
                         {
                             _pShared[0] = 1; // 1 = IsVietnameseMode On (V)
-                            _pShared[1] = 0; // 0 = ToneStyle New
-                            _pShared[2] = 1; // AutoRestoreEnglishWords
-                            _pShared[3] = 1; // AllowRepeatKeyUndo
-                            _pShared[4] = 0; // AllowLeadingWAsU
-                            _pShared[5] = 0; // 0 = Telex, 1 = VNI, 2 = Simple Telex
-                            _pShared[6] = 0; // 0 = Unicode, 1 = Compound, 2 = TCVN3
-                            _pShared[7] = 0; // 0 = Ctrl+Shift, 1 = Alt+Z, 2 = Ctrl+Space, 3 = None
                             *(uint*)(_pShared + 8) = 1; // StateSequence ban đầu
-                            *(uint*)(_pShared + 12) = 0x10; // HotkeyVKey: VK_SHIFT (0x10) mặc định
-                            *(uint*)(_pShared + 16) = 0x0202; // HotkeyModifiers: Control | OnKeyUp (0x0202) mặc định
-                            _pShared[20] = 1; // AllowFreeTonePlacement (Mặc định: Bật)
-
-                            // Đọc cấu hình người dùng đã lưu trong file config.json nếu có
-                            LoadInitialConfigFromDisk(_pShared);
                         }
+
+                        // Luôn nạp và đồng bộ cấu hình người dùng từ file config.json nếu có
+                        LoadInitialConfigFromDisk(_pShared);
                     }
                 }
 
@@ -264,13 +254,40 @@ public static unsafe class SharedMemoryManager
             pShared[4] = (byte)(ParseBool("allowLeadingWAsU", false) ? 1 : 0);
             pShared[5] = (byte)ParseUint("inputMethod", 0);
             pShared[6] = (byte)ParseUint("charset", 0);
-            pShared[7] = (byte)ParseUint("toggleHotkey", 0);
-            *(uint*)(pShared + 12) = ParseUint("hotkeyVKey", 0x10);
-            *(uint*)(pShared + 16) = ParseUint("hotkeyModifiers", 0x0202);
+            byte hotkeyType = (byte)ParseUint("toggleHotkey", 0);
+            pShared[7] = hotkeyType;
+
+            uint vKey = ParseUint("hotkeyVKey", 0x10);
+            uint mods = ParseUint("hotkeyModifiers", 0x0202);
+
+            // Đảm bảo các phím tắt chuẩn luôn có giá trị chính xác
+            if (hotkeyType == 0) // Ctrl + Shift
+            {
+                vKey = 0x10;
+                mods = 0x0202;
+            }
+            else if (hotkeyType == 1) // Alt + Z
+            {
+                vKey = 0x5A;
+                mods = 0x0001;
+            }
+            else if (hotkeyType == 2) // Ctrl + Space
+            {
+                vKey = 0x20;
+                mods = 0x0002;
+            }
+            else if (hotkeyType == 3) // None
+            {
+                vKey = 0;
+                mods = 0;
+            }
+
+            *(uint*)(pShared + 12) = vKey;
+            *(uint*)(pShared + 16) = mods;
             pShared[20] = (byte)(ParseBool("allowFreeTonePlacement", true) ? 1 : 0);
             pShared[21] = (byte)(ParseBool("enablePreedit", false) ? 1 : 0);
 
-            DebugLog.Write($"Loaded config from disk: vKey={*(uint*)(pShared + 12)}, mods={*(uint*)(pShared + 16)}, preedit={pShared[21]}");
+            DebugLog.Write($"Loaded config from disk: hotkeyType={hotkeyType}, vKey=0x{vKey:X2}, mods=0x{mods:X4}, preedit={pShared[21]}");
         }
         catch (Exception ex)
         {

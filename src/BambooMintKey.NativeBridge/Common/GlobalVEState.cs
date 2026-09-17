@@ -68,6 +68,7 @@ public static unsafe class GlobalVEState
     {
         if ((target & SyncTarget.Compartment) != 0 && pThreadMgr != IntPtr.Zero)
         {
+            TsfCompartmentHelper.SetOpenClose(pThreadMgr, clientId, IsVietnameseMode);
             TsfCompartmentHelper.SetConversionMode(pThreadMgr, clientId, IsVietnameseMode);
         }
 

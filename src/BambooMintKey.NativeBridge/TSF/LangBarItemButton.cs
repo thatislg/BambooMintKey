@@ -224,10 +224,10 @@ public static unsafe class LangBarItemButton
         }
         else
         {
-            // Click chuột trái: Đảo chế độ V/E tức thì qua API trung tâm
+            // Click chuột trái: Đảo chế độ V/E toàn cục qua GlobalVEState
             bool newMode = GlobalVEState.ToggleVietnameseMode(GlobalVEState.SyncTarget.All, _pThreadMgr, _clientId);
 
-            DebugLog.Write($"LangBarItemButton OnClick toggled IsVietnameseMode={newMode} (GlobalVEState synchronized)");
+            DebugLog.Write($"LangBarItemButton OnClick toggled IsVietnameseMode={newMode}");
         }
         DebugLog.Write($"LangBarItemButton OnClick EXIT click={click}");
         return HResult.Ok;

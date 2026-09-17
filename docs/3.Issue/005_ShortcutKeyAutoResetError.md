@@ -7,7 +7,8 @@
 # Issue 005 : Phím tắt chuyển V/E cần thêm phím Space mới có hiệu lực
 
 **Mã tài liệu:** `005_ShortcutKeyAutoResetError`  
-**Trạng thái:** 🔍 Đang điều tra  
+**Trạng thái:** 🛠️ Đã sửa (Đã áp dụng giải pháp Mozc TSF Native)  
+**Giải pháp:** `docs/3.Issue/005_01_Mozc_TSF_Mode_Activation.md`  
 **Mức độ nghiêm trọng:** Cao — ảnh hưởng trực tiếp trải nghiệm chuyển đổi chế độ gõ.  
 **Liên quan:** `docs/2.Design/Phase3/003_00_Taskbar_LanguageBar.md`, `src/BambooMintKey.UI/MainWindow.axaml.fs`, `src/BambooMintKey.NativeBridge/TSF/KeyEventSinkImpl.cs`
 

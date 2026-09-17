@@ -77,84 +77,42 @@ public static unsafe class KeyEventSinkImpl
         return HResult.Ok;
     }
 
-    private static uint _lastObservedSeq = 0;
-    // Guard để tránh double-toggle khi cả OnKeyDown và OnPreservedKey cùng kích hoạt trong một lần nhấn phím tắt.
-    private static long _lastToggleTick = 0;
-    private const int ToggleGuardMs = 250;
-
-    private static bool TryRecordToggle()
-    {
-        long now = Environment.TickCount64;
-        if (now - _lastToggleTick < ToggleGuardMs)
-        {
-            DebugLog.Write($"Toggle guard: skip duplicate within {ToggleGuardMs}ms (last={_lastToggleTick}, now={now})");
-            return false;
-        }
-        _lastToggleTick = now;
-        return true;
-    }
-
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int OnTestKeyDown(IntPtr thisPtr, IntPtr pic, UIntPtr wParam, IntPtr lParam, int* pfEaten)
     {
-        DebugLog.WriteAndFlush($"OnTestKeyDown ENTER vk={(uint)wParam}");
         if (pfEaten == null) return HResult.Pointer;
         *pfEaten = 0;
 
-        // Đồng bộ cấu hình tức thì nếu StateSequence đã tăng từ GUI
-        uint curSeq = SharedMemoryManager.StateSequence;
-        if (curSeq != _lastObservedSeq)
-        {
-            _lastObservedSeq = curSeq;
-            var target = BambooMintKeyTextService.GetTarget(thisPtr - (sizeof(IntPtr) * 2));
-            if (target != null && target.ThreadMgr != IntPtr.Zero)
-            {
-                KeyEventSinkHelper.UpdatePreservedKeys(target.ThreadMgr, target.ClientId);
-                LangBarItemButton.NotifyStateChanged();
-                TsfCompartmentHelper.SetConversionMode(target.ThreadMgr, target.ClientId, SharedMemoryManager.IsVietnameseMode);
-            }
-        }
-
-        // 0. Kiểm tra phím tắt chuyển đổi chế độ V/E (Hỗ trợ phím tùy chọn tự do)
-        if (KeyInputTranslator.IsToggleHotkeyPressed(wParam, lParam))
-        {
-            *pfEaten = 1;
-            return HResult.Ok;
-        }
-
-        // 1. Không can thiệp nếu người dùng đang bấm tổ hợp phím tắt (Ctrl/Alt/Win)
-        if (KeyInputTranslator.IsModifierModifierPressed())
-        {
-            DebugLog.Write("OnTestKeyDown modifier pressed, skip");
-            return HResult.Ok;
-        }
-
-        // 1.1. Nếu đang ở chế độ tiếng Anh (E) -> Bỏ qua hoàn toàn, không nuốt phím
+        // 1. Nếu đang ở chế độ tiếng Anh (E / Closed) -> Pass-through ngay lập tức, không nuốt phím
         if (!BridgeStateManager.IsVietnameseMode)
+        {
+            return HResult.Ok;
+        }
+
+        // 2. Không can thiệp nếu người dùng đang bấm tổ hợp phím tắt (Ctrl/Alt/Win)
+        if (KeyInputTranslator.IsModifierModifierPressed())
         {
             return HResult.Ok;
         }
 
         uint vkCode = (uint)wParam;
 
-        // 2. Can thiệp nếu là Backspace khi đang có phiên Composition
+        // 3. Can thiệp nếu là Backspace khi đang có phiên Composition
         if (vkCode == KeyInputTranslator.VkBack && CompositionManager.HasActiveComposition())
         {
             *pfEaten = 1;
             return HResult.Ok;
         }
 
-        // 3. Chuyển đổi mã phím sang ký tự để kiểm tra
+        // 4. Chuyển đổi mã phím sang ký tự để kiểm tra
         var inputChar = KeyInputTranslator.ConvertVirtualKeyToChar(wParam, lParam);
         if (inputChar.HasValue)
         {
             char c = inputChar.Value;
-            DebugLog.WriteAndFlush($"OnTestKeyDown char={c}");
             // Nếu là ký tự bảng chữ cái hoặc đang có composition
             if (char.IsLetter(c) || CompositionManager.HasActiveComposition())
             {
                 *pfEaten = 1;
-                DebugLog.WriteAndFlush($"OnTestKeyDown EATEN char={c}");
             }
         }
 
@@ -172,26 +130,8 @@ public static unsafe class KeyEventSinkImpl
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int OnKeyDown(IntPtr thisPtr, IntPtr pic, UIntPtr wParam, IntPtr lParam, int* pfEaten)
     {
-        DebugLog.WriteAndFlush($"OnKeyDown ENTER vk={(uint)wParam}");
         if (pfEaten == null) return HResult.Pointer;
         *pfEaten = 0;
-
-        // 0. Bắt phím tắt chuyển đổi chế độ V/E (Ctrl + Shift hoặc Alt + Z)
-        if (KeyInputTranslator.IsToggleHotkeyPressed(wParam, lParam))
-        {
-            var target = BambooMintKeyTextService.GetTarget(thisPtr - (sizeof(IntPtr) * 2));
-            bool toggled = TryRecordToggle();
-            if (toggled)
-            {
-                bool newMode = GlobalVEState.ToggleVietnameseMode(
-                    GlobalVEState.SyncTarget.All,
-                    target?.ThreadMgr ?? IntPtr.Zero,
-                    target?.ClientId ?? 0);
-                DebugLog.Write($"OnKeyDown ToggleHotkey triggered! New IsVietnameseMode={newMode}");
-            }
-            *pfEaten = 1;
-            return HResult.Ok;
-        }
 
         if (KeyInputTranslator.IsModifierModifierPressed())
         {
@@ -271,14 +211,13 @@ public static unsafe class KeyEventSinkImpl
         if (rguid != null && *rguid == Guids.GuidPreservedKeyToggle)
         {
             var target = BambooMintKeyTextService.GetTarget(thisPtr - (sizeof(IntPtr) * 2));
-            bool toggled = TryRecordToggle();
-            if (toggled)
+            if (target != null && target.ThreadMgr != IntPtr.Zero)
             {
                 bool newMode = GlobalVEState.ToggleVietnameseMode(
                     GlobalVEState.SyncTarget.All,
-                    target?.ThreadMgr ?? IntPtr.Zero,
-                    target?.ClientId ?? 0);
-                DebugLog.Write($"OnPreservedKey Toggle triggered! New IsVietnameseMode={newMode}");
+                    target.ThreadMgr,
+                    target.ClientId);
+                DebugLog.Write($"OnPreservedKey Toggle executed! New IsVietnameseMode={newMode}");
             }
             *pfEaten = 1;
             return HResult.Ok;

@@ -29,7 +29,7 @@ public static class BridgeStateManager
     {
         get
         {
-            bool isVn = SharedMemoryManager.IsVietnameseMode;
+            bool isVn = IsVietnameseMode;
             bool autoRestore = SharedMemoryManager.AutoRestoreEnglishWords;
             bool repeatUndo = SharedMemoryManager.AllowRepeatKeyUndo;
             bool leadingW = SharedMemoryManager.AllowLeadingWAsU;

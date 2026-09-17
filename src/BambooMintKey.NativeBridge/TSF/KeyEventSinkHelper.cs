@@ -126,6 +126,7 @@ public static unsafe class KeyEventSinkHelper
     private static readonly (uint vKey, uint modifiers)[] AllPossibleKeys =
     [
         (0x10 /* Shift */, TsfModFlags.Control | TsfModFlags.OnKeyUp),
+        (0x11 /* Control */, TsfModFlags.Shift | TsfModFlags.OnKeyUp),
         (0x5A /* 'Z' */, TsfModFlags.Alt),
         (0x20 /* Space */, TsfModFlags.Control),
         (0x51 /* 'Q' */, TsfModFlags.Control | TsfModFlags.Shift)
@@ -138,10 +139,33 @@ public static unsafe class KeyEventSinkHelper
     /// </summary>
     private static (uint vKey, uint modifiers, string desc)[] GetActiveToggleKeys()
     {
+        byte toggleHotkey = SharedMemoryManager.ToggleHotkey;
+        if (toggleHotkey == 3) // None
+        {
+            return [];
+        }
+
+        if (toggleHotkey == 0) // Ctrl + Shift
+        {
+            return
+            [
+                (0x10 /* VK_SHIFT */, TsfModFlags.Control | TsfModFlags.OnKeyUp, "BambooMintKey Toggle (Shift on Ctrl)"),
+                (0x11 /* VK_CONTROL */, TsfModFlags.Shift | TsfModFlags.OnKeyUp, "BambooMintKey Toggle (Ctrl on Shift)")
+            ];
+        }
+
+        if (toggleHotkey == 1) // Alt + Z
+        {
+            return [(0x5A /* 'Z' */, TsfModFlags.Alt, "BambooMintKey Toggle (Alt+Z)")];
+        }
+
+        if (toggleHotkey == 2) // Ctrl + Space
+        {
+            return [(0x20 /* Space */, TsfModFlags.Control, "BambooMintKey Toggle (Ctrl+Space)")];
+        }
+
         uint vKey = SharedMemoryManager.HotkeyVKey;
-        // Bỏ OnKeyUp bit khi đăng ký PreservedKey để toggle xảy ra ngay khi nhấn,
-        // thay vì phải chờ nhả phím (behavior gây cảm giác "phải bấm thêm space").
-        uint modifiers = SharedMemoryManager.HotkeyModifiers & ~TsfModFlags.OnKeyUp;
+        uint modifiers = SharedMemoryManager.HotkeyModifiers;
 
         if (vKey == 0 && modifiers == 0)
         {

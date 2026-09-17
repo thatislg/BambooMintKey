@@ -110,4 +110,185 @@ public static unsafe class TsfCompartmentHelper
             NativeCom.Release(pCompMgr);
         }
     }
+
+    /// <summary>
+    /// Đọc trạng thái Open/Close (1 = Vietnamese, 0 = English) từ TSF Compartment.
+    /// </summary>
+    public static bool GetOpenClose(IntPtr pThreadMgr, uint clientId, out bool isOpen)
+    {
+        isOpen = true; // Mặc định mở
+        if (pThreadMgr == IntPtr.Zero) return false;
+
+        Guid iidCompMgr = Guids.IidITfCompartmentMgr;
+        IntPtr pCompMgr = IntPtr.Zero;
+
+        var unk = *(TfCompartmentMgrVTable**)pThreadMgr;
+        int hr = unk->QueryInterface(pThreadMgr, &iidCompMgr, &pCompMgr);
+        if (hr != HResult.Ok || pCompMgr == IntPtr.Zero) return false;
+
+        try
+        {
+            var compMgrVTable = *(TfCompartmentMgrVTable**)pCompMgr;
+            Guid guidOpenClose = Guids.GuidCompartmentKeyboardOpenClose;
+            IntPtr pComp = IntPtr.Zero;
+
+            hr = compMgrVTable->GetCompartment(pCompMgr, &guidOpenClose, &pComp);
+            if (hr != HResult.Ok || pComp == IntPtr.Zero) return false;
+
+            try
+            {
+                var compVTable = *(TfCompartmentVTable**)pComp;
+                Variant varVal = new();
+                hr = compVTable->GetValue(pComp, &varVal);
+                if (hr == HResult.Ok && varVal.vt == VtI4)
+                {
+                    isOpen = varVal.lVal != 0;
+                    return true;
+                }
+                return false;
+            }
+            finally
+            {
+                NativeCom.Release(pComp);
+            }
+        }
+        finally
+        {
+            NativeCom.Release(pCompMgr);
+        }
+    }
+
+    /// <summary>
+    /// Ghi trạng thái Open/Close (1 = Vietnamese, 0 = English) vào TSF Compartment.
+    /// </summary>
+    public static int SetOpenClose(IntPtr pThreadMgr, uint clientId, bool isOpen)
+    {
+        if (pThreadMgr == IntPtr.Zero) return HResult.InvalidArgument;
+
+        Guid iidCompMgr = Guids.IidITfCompartmentMgr;
+        IntPtr pCompMgr = IntPtr.Zero;
+
+        var unk = *(TfCompartmentMgrVTable**)pThreadMgr;
+        int hr = unk->QueryInterface(pThreadMgr, &iidCompMgr, &pCompMgr);
+        if (hr != HResult.Ok || pCompMgr == IntPtr.Zero) return hr;
+
+        try
+        {
+            var compMgrVTable = *(TfCompartmentMgrVTable**)pCompMgr;
+            Guid guidOpenClose = Guids.GuidCompartmentKeyboardOpenClose;
+            IntPtr pComp = IntPtr.Zero;
+
+            hr = compMgrVTable->GetCompartment(pCompMgr, &guidOpenClose, &pComp);
+            if (hr != HResult.Ok || pComp == IntPtr.Zero) return hr;
+
+            try
+            {
+                var compVTable = *(TfCompartmentVTable**)pComp;
+                Variant varVal = new()
+                {
+                    vt = VtI4,
+                    lVal = isOpen ? 1 : 0
+                };
+                int setHr = compVTable->SetValue(pComp, clientId, &varVal);
+                DebugLog.Write($"TsfCompartmentHelper.SetOpenClose isOpen={isOpen}, hr=0x{setHr:X8}");
+                return setHr;
+            }
+            finally
+            {
+                NativeCom.Release(pComp);
+            }
+        }
+        finally
+        {
+            NativeCom.Release(pCompMgr);
+        }
+    }
+
+    /// <summary>
+    /// Đảo trạng thái Open/Close và đồng bộ cả ConversionMode.
+    /// </summary>
+    public static bool ToggleOpenClose(IntPtr pThreadMgr, uint clientId)
+    {
+        bool isOpen = true;
+        GetOpenClose(pThreadMgr, clientId, out isOpen);
+        bool newOpen = !isOpen;
+        SetOpenClose(pThreadMgr, clientId, newOpen);
+        SetConversionMode(pThreadMgr, clientId, newOpen);
+        return newOpen;
+    }
+
+    /// <summary>
+    /// Đăng ký lắng nghe sự kiện thay đổi của một Compartment qua ITfCompartmentEventSink.
+    /// </summary>
+    public static uint AdviseCompartmentEventSink(IntPtr pThreadMgr, Guid* pGuidCompartment, IntPtr pSink)
+    {
+        if (pThreadMgr == IntPtr.Zero || pSink == IntPtr.Zero || pGuidCompartment == null) return 0;
+
+        Guid iidCompMgr = Guids.IidITfCompartmentMgr;
+        IntPtr pCompMgr = IntPtr.Zero;
+
+        var unk = *(TfCompartmentMgrVTable**)pThreadMgr;
+        int hr = unk->QueryInterface(pThreadMgr, &iidCompMgr, &pCompMgr);
+        if (hr != HResult.Ok || pCompMgr == IntPtr.Zero) return 0;
+
+        try
+        {
+            var compMgrVTable = *(TfCompartmentMgrVTable**)pCompMgr;
+            IntPtr pComp = IntPtr.Zero;
+
+            hr = compMgrVTable->GetCompartment(pCompMgr, pGuidCompartment, &pComp);
+            if (hr != HResult.Ok || pComp == IntPtr.Zero) return 0;
+
+            try
+            {
+                return TsfEventSinkHelper.AdviseSink(pComp, Guids.IidITfCompartmentEventSink, pSink);
+            }
+            finally
+            {
+                NativeCom.Release(pComp);
+            }
+        }
+        finally
+        {
+            NativeCom.Release(pCompMgr);
+        }
+    }
+
+    /// <summary>
+    /// Gỡ đăng ký lắng nghe sự kiện Compartment.
+    /// </summary>
+    public static void UnadviseCompartmentEventSink(IntPtr pThreadMgr, Guid* pGuidCompartment, uint cookie)
+    {
+        if (pThreadMgr == IntPtr.Zero || cookie == 0 || pGuidCompartment == null) return;
+
+        Guid iidCompMgr = Guids.IidITfCompartmentMgr;
+        IntPtr pCompMgr = IntPtr.Zero;
+
+        var unk = *(TfCompartmentMgrVTable**)pThreadMgr;
+        int hr = unk->QueryInterface(pThreadMgr, &iidCompMgr, &pCompMgr);
+        if (hr != HResult.Ok || pCompMgr == IntPtr.Zero) return;
+
+        try
+        {
+            var compMgrVTable = *(TfCompartmentMgrVTable**)pCompMgr;
+            IntPtr pComp = IntPtr.Zero;
+
+            hr = compMgrVTable->GetCompartment(pCompMgr, pGuidCompartment, &pComp);
+            if (hr != HResult.Ok || pComp == IntPtr.Zero) return;
+
+            try
+            {
+                TsfEventSinkHelper.UnadviseSink(pComp, cookie);
+            }
+            finally
+            {
+                NativeCom.Release(pComp);
+            }
+        }
+        finally
+        {
+            NativeCom.Release(pCompMgr);
+        }
+    }
 }
+
