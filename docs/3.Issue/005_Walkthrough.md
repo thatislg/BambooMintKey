@@ -83,23 +83,65 @@
 
 ## 4. Bổ sung: Khắc phục lỗi hiển thị phản ánh Icon Taskbar E/V (2026-09-18)
 
-- **Vấn đề phát sinh sau khi phím tắt mượt:** Phím tắt chuyển đổi E/V rất mượt mà và không giắt phím, nhưng icon E/V trên Taskbar không cập nhật theo.
+- **Hiện tượng:** Phím tắt chuyển đổi E/V rất mượt mà và không giắt phím, nhưng icon E/V trên Taskbar không cập nhật theo.
 - **Nguyên nhân cốt lõi qua Runtime Log (`BambooMintKey_Runtime.log`):**
   1. **Apartment Thread Mismatch (STA vs Worker Thread):** `ITfLangBarItemSink::OnUpdate` là interface COM đơn luồng (STA) thuộc về UI Thread của `explorer.exe` (Thread 6). Khi gọi từ luồng nền (Worker Thread 3/7), Windows TSF âm thầm hủy thông báo vẽ lại. Khi gọi trên UI Thread 6, Explorer gọi ngay `GetIcon` sau 54ms.
-  2. **Cấu hình `dwStyle` và thiếu `TF_LBI_STATUS`:** Cần chuyển `dwStyle` sang `TfLbiStyleBtnButton | TfLbiStyleShownInTray` và gửi cờ `TF_LBI_STATUS` trong `OnUpdate` theo đúng chuẩn Google Mozc TSF (`tip_lang_bar_menu.cc`).
-  3. **Cập nhật Global Compartment:** Cần cập nhật cả Global Compartment (`ITfThreadMgr::GetGlobalCompartment`) để Windows 10/11 Input Indicator đồng bộ trên toàn hệ điều hành.
-- **Các tệp đã chỉnh sửa:**
+  2. **Cấu hình `dwStyle` và cờ trạng thái:** Cần cấu hình nút chuẩn Google Mozc TSF (`tip_lang_bar_menu.cc`): `TfLbiStyleBtnButton | TfLbiStyleShownInTray`, `GetStatus` trả về `TfLbiStatusBtnToggled` khi ở chế độ Tiếng Việt, và gửi cờ `TfLbiStatus` kèm trong `OnUpdate`.
+- **Giải pháp áp dụng:**
   - **[LangBarItemButton.cs](file:///d:/Kojin/BambooMintKey/src/BambooMintKey.NativeBridge/TSF/LangBarItemButton.cs)**:
-    + Thêm Message-Only Window Win32 (`HWND_MESSAGE`) tạo trên UI Thread khi `Register()`.
-    + Trong `NotifyStateChanged()`: Nếu đang ở luồng nền, `PostMessageW` thông điệp `WM_STATE_CHANGED` sang UI Thread để gọi `OnUpdate` chuẩn STA COM.
-    + Cập nhật `dwStyle` thành `TsfLangBarFlags.TfLbiStyleBtnButton | TsfLangBarFlags.TfLbiStyleShownInTray`.
-    + `GetStatus`: Trả về `BridgeStateManager.IsVietnameseMode ? TsfLangBarFlags.TfLbiStatusBtnToggled : 0`.
-    + `OnUpdate`: Gửi kèm cờ `TsfLangBarFlags.TfLbiStatus`.
-  - **[TsfCompartmentHelper.cs](file:///d:/Kojin/BambooMintKey/src/BambooMintKey.NativeBridge/TSF/TsfCompartmentHelper.cs)**:
-    + Thêm `TfThreadMgrVTable` hỗ trợ `GetGlobalCompartment` (slot 11).
-    + Thêm `SetGlobalOpenClose` và `SetGlobalConversionMode`.
-    + `SetOpenClose` và `SetConversionMode` tự động cập nhật cả Thread Compartment lẫn Global Compartment.
-- **Kết quả nghiệm thu:**
-  - 321 Core Tests + 5 NativeBridge Tests: **PASSED (100%)**.
-  - Đóng gói installer mới thành công: `bin/dist/BambooMintKey-Setup.exe` (12.38 MB).
+    + Thêm cơ chế Marshalling thông điệp qua Win32 Message-Only Window (`HWND_MESSAGE`).
+    + Khi luồng nền phát hiện thay đổi trạng thái, `PostMessageW(hMsgWnd, WM_STATE_CHANGED, 0, 0)` sang UI Thread.
+    + `MsgWndProc` trên UI Thread tiếp nhận và gọi `_pLangBarSink->OnUpdate()` đúng căn hộ STA COM.
+
+---
+
+## 5. Sự cố nghiêm trọng: Crash `msctf.dll` (`0xc000041d`) trên `SearchHost.exe` & `explorer.exe` (Màn hình đen) và Cách khắc phục triệt để
+
+### 5.1. Triệu chứng sự cố
+Sau khi cài đặt phiên bản thử nghiệm hỗ trợ cập nhật Global Compartment, khi người dùng chọn IME BambooMintKey:
+- `SearchHost.exe` (CortanaUI / Windows Search) và `explorer.exe` lập tức bị sập, thanh Taskbar biến mất, màn hình máy tính chuyển sang màu đen.
+- **Windows Event Log ghi nhận:**
+  ```
+  Faulting application name: SearchHost.exe, version: 2607.28006.200.0, time stamp: 0x6a6d0c36
+  Faulting module name: msctf.dll, version: 10.0.26100.9278, time stamp: 0x328c1816
+  Exception code: 0xc000041d (STATUS_FATAL_USER_CALLBACK_EXCEPTION)
+  Fault offset: 0x0000000000028ebb
+  Faulting application path: C:\WINDOWS\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\SearchHost.exe
+  Faulting module path: C:\WINDOWS\System32\msctf.dll
+  Faulting package-relative application ID: CortanaUI
+  ```
+
+### 5.2. Điều tra nguyên nhân gốc rễ (Root Cause)
+1. **Lệch VTable Slot COM trong `TsfCompartmentHelper.cs` (Thủ phạm gây Access Violation):**
+   - Trong nỗ lực gọi `ITfThreadMgr::GetGlobalCompartment`, một cấu trúc `TfThreadMgrVTable` tự chế đã được cài đặt, gán `GetGlobalCompartment` vào **Slot 11**.
+   - Đối chiếu trực tiếp với file định nghĩa chính thức của Windows 11 SDK (`C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\um\msctf.h:1119-1196`):
+     - Slot 0..2: `IUnknown` (`QueryInterface`, `AddRef`, `Release`)
+     - Slot 3..9: Các method context & focus
+     - Slot 10: `IsThreadFocus`
+     - **Slot 11: `GetFunctionProvider(REFCLSID clsid, ITfFunctionProvider **ppFuncProv)`** (KHÔNG PHẢI `GetGlobalCompartment`!)
+     - Slot 12: `EnumFunctionProviders`
+     - **Slot 13: `GetGlobalCompartment`**
+   - **Hậu quả chết người:** Khi gọi slot 11, chương trình thực chất đã gọi vào `GetFunctionProvider` và truyền vào một con trỏ stack tùy ý thay vì một con trỏ GUID `REFCLSID`. `msctf.dll` cố giải tham chiếu con trỏ rác này gây ra **Access Violation** tại `msctf.dll+0x28ebb`, làm sập bất kỳ tiến trình nào kích hoạt IME (`SearchHost.exe`, `explorer.exe`).
+2. **Vi phạm bảo mật Sandbox AppContainer của UWP:**
+   - Ban đầu, `LangBarItemButton.Register()` gọi `EnsureMsgWndCreated()` tạo cửa sổ Win32 `HWND_MESSAGE` trên mọi tiến trình nạp DLL IME.
+   - Các ứng dụng hiện đại của Windows 10/11 như `SearchHost.exe`, Start Menu, Settings chạy trong môi trường bảo mật AppContainer cô lập, nghiêm cấm việc tùy tiện tạo cửa sổ Win32, gây xung đột và crash.
+
+### 5.3. Giải pháp triệt để & Kiến trúc an toàn 100%
+1. **Gỡ bỏ hoàn toàn VTable slot tự chế và `GetGlobalCompartment`:**
+   - Xóa bỏ toàn bộ `TfThreadMgrVTable`, `SetGlobalOpenClose` và `SetGlobalConversionMode`.
+   - Trở lại đúng 100% triết lý thiết kế của Google Japanese Input (Mozc): Mozc không bao giờ gọi `GetGlobalCompartment` trên ThreadMgr. Việc thao tác compartment được thực hiện an toàn qua `QueryInterface(IID_ITfCompartmentMgr)` trên chính `pThreadMgr` và `pContext`.
+2. **Cô lập tạo Message-Only Window Win32:**
+   - Chuyển lệnh gọi `EnsureMsgWndCreated()` từ `Register()` sang hàm `AdviseSink()`.
+   - **Đặc tính kỹ thuật:** `AdviseSink()` chỉ duy nhất được gọi bởi `explorer.exe` (khi Taskbar gắn kết Sink theo dõi Language Bar). Tất cả các tiến trình khác (Edge, Chrome, Word, đặc biệt là `SearchHost.exe` trong AppContainer) **hoàn toàn không bao giờ tạo window Win32 này**.
+   - Thêm điều kiện kiểm tra sớm (early exit) trong `NotifyStateChanged()`: nếu `_pLangBarSink == IntPtr.Zero` thì lập tức thoát, không thực hiện bất kỳ lệnh Win32 nào.
+3. **Bảo vệ ranh giới NativeAOT:**
+   - Bọc toàn bộ phần thân `MsgWndProc` bằng khối `try-catch (Exception ex)` để đảm bảo không một ngoại lệ C# nào có thể thoát ra môi trường unmanaged của Windows (tránh mã lỗi `0xc000041d`).
+
+### 5.4. Kết quả nghiệm thu thực tế
+- **Độ ổn định:** Hoàn toàn chấm dứt tình trạng crash `msctf.dll`, `SearchHost.exe`, `explorer.exe`. Hệ điều hành hoạt động trơn tru 100%.
+- **Trải nghiệm gõ & chuyển chế độ:** Phím tắt cố định dưới nút Esc (`~` trên US, Hankaku/Zenkaku trên JP) phản hồi tức thì, không độ trễ, không kẹt phím.
+- **Biểu tượng Taskbar:** Nhận diện và cập nhật biểu tượng E/V tức thì sau mỗi lần nhấn phím tắt.
+- **Kiểm thử tự động:** Toàn bộ 326 unit tests (`BambooMintKey.Core.Tests` và `BambooMintKey.NativeBridge.Tests`) vượt qua thành công 100%.
+- **Bản phân phối:** File cài đặt đã được đóng gói thành công: `D:\Kojin\BambooMintKey\bin\dist\BambooMintKey-Setup.exe` (12.37 MB).
+
 
