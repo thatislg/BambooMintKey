@@ -212,4 +212,4 @@ jobs:
           version="${GITHUB_REF_NAME#v}"
           url="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/BambooMintKey-Setup.exe"
           echo "Updating WinGet manifest for version $version from $url"
-          komac update BambooMintKey.BambooMintKey --version "$version" --urls "$url" --token "$WINGET_TOKEN" --submit
+          komac update LMO-LAB.BambooMintKey --version "$version" --urls "$url" --token "$WINGET_TOKEN" --submit

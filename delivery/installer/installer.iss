@@ -2,7 +2,7 @@
 #ifndef MyAppVersion
   #define MyAppVersion "1.0.1"
 #endif
-#define MyAppPublisher "BambooMintKey Team"
+#define MyAppPublisher "LMO-LAB"
 #define MyAppURL "https://github.com/thatislg/BambooMintKey"
 #define MyAppExeName "BambooMintKey.UI.exe"
 

@@ -2,14 +2,14 @@
 PackageIdentifier: BambooMintKey.BambooMintKey
 PackageVersion: 1.0.0
 PackageLocale: en-US
-Publisher: BambooMintKey Team
+Publisher: LMO-LAB
 PublisherUrl: https://github.com/thatislg/BambooMintKey
 PublisherSupportUrl: https://github.com/thatislg/BambooMintKey/issues
 PackageName: BambooMintKey
 PackageUrl: https://github.com/thatislg/BambooMintKey
 License: MIT
 LicenseUrl: https://github.com/thatislg/BambooMintKey/blob/main/LICENSE
-Copyright: Copyright (c) 2026 BambooMintKey Team
+Copyright: Copyright (c) 2026 LMO-LAB
 ShortDescription: Modern Vietnamese Input Method Engine powered by F# NativeAOT and Text Services Framework.
 Description: |
   BambooMintKey is an open-source, high-performance Vietnamese Input Method Engine (IME)

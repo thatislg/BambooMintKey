@@ -102,9 +102,9 @@ Bạn trả lời theo mẫu:
 | Prompt | Giá trị |
 |---|---|
 | PackageIdentifier | `BambooMintKey.BambooMintKey` |
-| PackageVersion | `1.0.0` |
-| Publisher | `BambooMintKey Team` |
+| PackageVersion | `1.0.0` (hoặc phiên bản bạn submit) |
 | PackageName | `BambooMintKey` |
+| Publisher | `LMO-LAB` |
 | License | `MIT` |
 | ShortDescription | `Modern Vietnamese Input Method Engine powered by F# NativeAOT and Text Services Framework.` |
 

@@ -79,7 +79,7 @@ XML
 
   <Properties>
     <DisplayName>BambooMintKey</DisplayName>
-    <PublisherDisplayName>BambooMintKey Team</PublisherDisplayName>
+    <PublisherDisplayName>LMO-LAB</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 

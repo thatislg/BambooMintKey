@@ -73,7 +73,7 @@ Dưới đây là định nghĩa kịch bản đầy đủ dùng để biên d�
 ```iss
 #define MyAppName "BambooMintKey"
 #define MyAppVersion "1.0.0"
-#define MyAppPublisher "BambooMintKey Team"
+#define MyAppPublisher "LMO-LAB"
 #define MyAppURL "[https://github.com/thatislg/BambooMintKey](https://github.com/thatislg/BambooMintKey)"
 #define MyAppExeName "BambooMintKey.UI.exe"
 

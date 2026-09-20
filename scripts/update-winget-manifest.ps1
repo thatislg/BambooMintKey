@@ -10,7 +10,7 @@ param (
     [Parameter(Mandatory = $true)]
     [string]$InstallerSha256,
 
-    [string]$ManifestDir = "manifests\b\BambooMintKey\BambooMintKey",
+    [string]$ManifestDir = "manifests\l\LMO-LAB\BambooMintKey",
     [string]$DefaultLocale = "en-US"
 )
 
@@ -28,7 +28,7 @@ if (-not (Test-Path $VersionDir)) {
 
 $versionTemplate = @'
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.version.1.9.0.schema.json
-PackageIdentifier: BambooMintKey.BambooMintKey
+PackageIdentifier: LMO-LAB.BambooMintKey
 PackageVersion: {{VERSION}}
 DefaultLocale: {{DEFAULT_LOCALE}}
 ManifestType: version
@@ -37,17 +37,17 @@ ManifestVersion: 1.9.0
 
 $localeTemplate = @'
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.9.0.schema.json
-PackageIdentifier: BambooMintKey.BambooMintKey
+PackageIdentifier: LMO-LAB.BambooMintKey
 PackageVersion: {{VERSION}}
 PackageLocale: {{DEFAULT_LOCALE}}
-Publisher: BambooMintKey Team
+Publisher: LMO-LAB
 PublisherUrl: https://github.com/thatislg/BambooMintKey
 PublisherSupportUrl: https://github.com/thatislg/BambooMintKey/issues
 PackageName: BambooMintKey
 PackageUrl: https://github.com/thatislg/BambooMintKey
 License: MIT
 LicenseUrl: https://github.com/thatislg/BambooMintKey/blob/main/LICENSE
-Copyright: Copyright (c) 2026 BambooMintKey Team
+Copyright: Copyright (c) 2026 LMO-LAB
 ShortDescription: Modern Vietnamese Input Method Engine powered by F# NativeAOT and Text Services Framework.
 Description: |
   BambooMintKey is an open-source, high-performance Vietnamese Input Method Engine (IME)
@@ -67,7 +67,7 @@ ManifestVersion: 1.9.0
 
 $installerTemplate = @'
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.9.0.schema.json
-PackageIdentifier: BambooMintKey.BambooMintKey
+PackageIdentifier: LMO-LAB.BambooMintKey
 PackageVersion: {{VERSION}}
 MinimumOSVersion: 10.0.19041.0
 InstallerType: inno
@@ -112,9 +112,9 @@ $versionYaml = Expand-Placeholders $versionTemplate $placeholders
 $localeYaml = Expand-Placeholders $localeTemplate $placeholders
 $installerYaml = Expand-Placeholders $installerTemplate $placeholders
 
-$versionYaml | Out-File -FilePath (Join-Path $VersionDir "BambooMintKey.BambooMintKey.yaml") -Encoding UTF8NoBOM
-$localeYaml | Out-File -FilePath (Join-Path $VersionDir "BambooMintKey.BambooMintKey.locale.$DefaultLocale.yaml") -Encoding UTF8NoBOM
-$installerYaml | Out-File -FilePath (Join-Path $VersionDir "BambooMintKey.BambooMintKey.installer.yaml") -Encoding UTF8NoBOM
+$versionYaml | Out-File -FilePath (Join-Path $VersionDir "LMO-LAB.BambooMintKey.yaml") -Encoding UTF8NoBOM
+$localeYaml | Out-File -FilePath (Join-Path $VersionDir "LMO-LAB.BambooMintKey.locale.$DefaultLocale.yaml") -Encoding UTF8NoBOM
+$installerYaml | Out-File -FilePath (Join-Path $VersionDir "LMO-LAB.BambooMintKey.installer.yaml") -Encoding UTF8NoBOM
 
 Write-Host "Manifest files written to $VersionDir"
 
