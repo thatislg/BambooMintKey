@@ -3,6 +3,7 @@ namespace BambooMintKey.UI
 
 open System
 open System.Diagnostics
+open System.Reflection
 open Avalonia
 open Avalonia.Controls
 open Avalonia.Markup.Xaml
@@ -77,6 +78,29 @@ type MainWindow (args: string[]) as this =
         btnSave <- this.FindControl<Button>("BtnSave")
         txtStatus <- this.FindControl<TextBlock>("TxtStatus")
 
+        let txtVersionInfo = this.FindControl<TextBlock>("TxtVersionInfo")
+        let currentVersionStr =
+            try
+                let procPath = Environment.ProcessPath
+                if not (String.IsNullOrEmpty(procPath)) then
+                    let fvi = FileVersionInfo.GetVersionInfo(procPath)
+                    if not (String.IsNullOrEmpty(fvi.ProductVersion)) then
+                        let cleanVer = fvi.ProductVersion.Split('+').[0].Trim()
+                        cleanVer
+                    elif not (String.IsNullOrEmpty(fvi.FileVersion)) then
+                        let parts = fvi.FileVersion.Split('.')
+                        if parts.Length >= 3 then sprintf "%s.%s.%s" parts.[0] parts.[1] parts.[2] else fvi.FileVersion
+                    else
+                        let ver = Assembly.GetExecutingAssembly().GetName().Version
+                        if ver <> null then sprintf "%d.%d.%d" ver.Major ver.Minor (max 0 ver.Build) else "1.0.1"
+                else
+                    let ver = Assembly.GetExecutingAssembly().GetName().Version
+                    if ver <> null then sprintf "%d.%d.%d" ver.Major ver.Minor (max 0 ver.Build) else "1.0.1"
+            with _ -> "1.0.1"
+
+        if txtVersionInfo <> null then
+            txtVersionInfo.Text <- sprintf "Phiên bản %s (NativeAOT & Pure F# Core)" currentVersionStr
+
         if btnClearSandbox <> null then
             btnClearSandbox.Click.Add(fun _ -> 
                 if txtSandbox <> null then txtSandbox.Text <- ""
@@ -92,7 +116,7 @@ type MainWindow (args: string[]) as this =
         if btnCheckUpdate <> null then
             btnCheckUpdate.Click.Add(fun _ ->
                 if txtStatus <> null then
-                    txtStatus.Text <- "Bạn đang sử dụng phiên bản mới nhất (v1.0.0)."
+                    txtStatus.Text <- sprintf "Bạn đang sử dụng phiên bản mới nhất (v%s)." currentVersionStr
             )
 
         if btnDefault <> null then

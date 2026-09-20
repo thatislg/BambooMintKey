@@ -213,7 +213,7 @@
                     <StackPanel Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <TextBlock Text="🎍" FontSize="56" HorizontalAlignment="Center"/>
                         <TextBlock Text="BambooMintKey" FontSize="22" FontWeight="Bold" Foreground="#16a34a" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Phiên bản 1.0.0 (NativeAOT &amp; Pure F# Core)" FontSize="12" Foreground="#64748b" HorizontalAlignment="Center"/>
+                        <TextBlock Name="TxtVersionInfo" Text="Phiên bản 1.0.1 (NativeAOT &amp; Pure F# Core)" FontSize="12" Foreground="#64748b" HorizontalAlignment="Center"/>
                         <TextBlock Text="Kiến trúc Text Services Framework (TSF) TIP 64-bit hiện đại cho Windows 10/11." FontSize="11" TextWrapping="Wrap" TextAlignment="Center" Foreground="#334155" MaxWidth="400"/>
                         
                         <Separator Background="#e2e8f0" Margin="0,4"/>

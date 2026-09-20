@@ -334,13 +334,13 @@ type PredictiveEngine = {
 | 9.9 | Viết PredictiveEngine API | `Lookup`, `Learn`, `GetCandidates` | Cao | 9.6, 9.7 |
 | 9.10 | Tích hợp vào KeyEventSink | Gọi PredictiveEngine từ TSF | Cao | 9.9 |
 | 9.11 | UI candidate window | Hiển thị danh sách gợi ý | Trung bình | 9.10 |
-| 9.12 | Test MSIX path | Verify user data lưu đúng chỗ | Trung bình | 9.7 |
+| 9.12 | Test AppData path | Verify user data lưu đúng chỗ (%APPDATA%\BambooMintKey) | Trung bình | 9.7 |
 
 ---
 
 ## 10. Tài liệu liên quan
 
-- `docs/2.Design/Phase6/006_00_MSIX_Store_Packaging.md` — packaging và storage trong MSIX.
+- `docs/2.Design/Phase6/006_00_MSIX_Store_Packaging.md` — packaging và distribution cho Windows Store.
 - `docs/2.Design/Phase5/005_05_DisplayAttributeProvider.md` — hiển thị composition.
 - `docs/2.Design/Phase2/002_03_KeyEventSink_and_Core_Interop.md` — luồng xử lý phím.
 - VnCoreNLP: https://github.com/vncorenlp/VnCoreNLP

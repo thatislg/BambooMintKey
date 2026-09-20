@@ -6,8 +6,8 @@
 
 # BambooMintKey Progress Tracking
 
-**Cập nhật:** 2026-09-17  
-**Phiên bản hiện tại:** 1.0.0  
+**Cập nhật:** 2026-09-18  
+**Phiên bản hiện tại:** 1.0.1  
 **Branch chính:** `main`
 
 ---
@@ -21,7 +21,7 @@
 | Phase 3 | Taskbar, Icon, Settings GUI | ✅ Hoàn thành | 100% |
 | Phase 4 | Free Tone, English Protection | ✅ Hoàn thành | 100% |
 | Phase 5 | Display Attribute, Preedit Toggle | 🧪 Đang kiểm thử | 90% |
-| Phase 6 | MSIX Store Packaging | 📝 Đang thiết kế | 10% |
+| Phase 6 | Win32 Store App & Distribution | 🛠️ Đang triển khai | 70% |
 | Phase 7 | (Dự phòng) | ⏸️ Chưa bắt đầu | 0% |
 
 ---
@@ -61,41 +61,29 @@
 
 ---
 
-## 3. Phase 6 — MSIX Store Packaging (Đang thiết kế)
+## 3. Phase 6 — Win32 Store App & Phân Phối (Inno Setup)
 
 ### 3.1. Mục tiêu
 
-Tạo bộ cài MSIX và đưa BambooMintKey lên Microsoft Store, song song với bộ cài Inno Setup hiện tại.
+Phát hành BambooMintKey lên Microsoft Store dưới dạng **Win32 Desktop App (`.exe`)** sử dụng bộ cài Inno Setup, đồng bộ với GitHub Releases và WinGet. Hủy bỏ hoàn toàn mô hình MSIX thuần do không tương thích cơ chế TSF.
 
 ### 3.2. Design document
 
 | Tài liệu | Mô tả | Trạng thái |
 |---|---|---|
-| `docs/2.Design/Phase6/006_00_MSIX_Store_Packaging.md` | Draft outline quy trình MSIX + Store | 📝 Draft |
+| `docs/2.Design/Phase6/006_00_MSIX_Store_Packaging.md` | Thiết kế phân phối Win32 Store App | 🎯 Approved |
 
 ### 3.3. Các task cần thực hiện
 
-| # | Task | Mô tả | Ưu tiên | Phụ thuộc |
+| # | Task | Mô tả | Ưu tiên | Trạng thái |
 |---|---|---|---|---|
-| 6.1 | Quyết định kiến trúc MSIX | Sparse Package vs Packaged COM vs Hybrid | Cao | — |
-| 6.2 | Reserve tên app trên Partner Center | Đăng ký `BambooMintKey` / Publisher CN | Cao | 6.1 |
-| 6.3 | Tạo `AppxManifest.xml` mẫu | Identity, capabilities, COM extension | Cao | 6.1, 6.2 |
-| 6.4 | Tạo assets Store | Logo 50x50, 150x150, 44x44, Wide 310x150, screenshot 1366x768 | Trung bình | 6.2 |
-| 6.5 | Viết `scripts/stage-msix.ps1` | Copy artifact vào thư mục staging | Cao | 6.3 |
-| 6.6 | Viết `scripts/build-msix.ps1` | MakeAppx + sign + validate | Cao | 6.5 |
-| 6.7 | Test sideload MSIX | Cài trên VM sạch, verify UI mở được | Cao | 6.6 |
-| 6.8 | Test TSF trong MSIX context | Gõ tiếng Việt sau khi cài từ MSIX | Cao | 6.7 |
-| 6.9 | CI/CD GitHub Actions | Workflow build & upload MSIX artifact | Trung bình | 6.6 |
-| 6.10 | Submit lên Microsoft Store | Partner Center submission | Thấp | 6.8 |
-
-### 3.4. Câu hỏi cần trả lời
-
-- [ ] Tên Publisher trong Store là gì?
-- [ ] Có đồng ý dùng Sparse Package (cần full trust) không?
-- [ ] Có cần migration config từ `%APPDATA%\BambooMintKey\config.json` sang MSIX container không?
-- [ ] Có giữ 2 kênh phân phối song song (GitHub `.exe` + Store MSIX) không?
-
----
+| 6.1 | Quyết định kiến trúc Store | Chọn Win32 Store App (.exe), loại bỏ MSIX | Cao | ✅ Hoàn thành |
+| 6.2 | Quản lý phiên bản tập trung | `Directory.Build.props` -> Inno Setup + UI | Cao | ✅ Hoàn thành |
+| 6.3 | Hoàn thiện Inno Setup script | Hỗ trợ `/VERYSILENT /NORESTART`, restart ctfmon | Cao | ✅ Hoàn thành |
+| 6.4 | Script `build-installer.ps1` | Tự động build NativeAOT + UI + Inno Setup | Cao | ✅ Hoàn thành |
+| 6.5 | Kiểm thử cài đặt / gỡ cài đặt local | Test silent install và gỡ sạch sẽ | Cao | ⏳ Đang kiểm thử |
+| 6.6 | Chuẩn bị tài sản Store | Icon 512x512, screenshots giao diện | Trung bình | ⏳ Chờ |
+| 6.7 | Đăng ký Partner Center | Đăng ký app name `BambooMintKey`, nộp link .exe | Trung bình | ⏳ Chờ |
 
 ## 4. Bug / Issue đang mở
 

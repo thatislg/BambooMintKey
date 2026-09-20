@@ -15,6 +15,16 @@ Write-Host "====================================================" -ForegroundCol
 Write-Host "  BambooMintKey Installer Build" -ForegroundColor Cyan
 Write-Host "====================================================" -ForegroundColor Cyan
 
+# Đọc phiên bản tập trung từ Directory.Build.props
+$PropsPath = Join-Path $RootDir "Directory.Build.props"
+$AppVersion = "1.0.0"
+if (Test-Path $PropsPath) {
+    [xml]$propsXml = Get-Content $PropsPath
+    $vNode = $propsXml.Project.PropertyGroup.Version | Select-Object -First 1
+    if ($vNode) { $AppVersion = $vNode.Trim() }
+}
+Write-Host "[INFO] Detected Application Version: $AppVersion" -ForegroundColor Cyan
+
 # 1. Build NativeAOT TSF COM DLL (output: publish\win-x64\BambooMintKey.dll)
 $BuildNativeScript = Join-Path $RootDir "scripts\build-native.ps1"
 Write-Host "[1/3] Building NativeAOT TSF bridge..." -ForegroundColor Yellow
@@ -81,7 +91,7 @@ if (-not $Iscc) {
     $Iscc = $IsccFallback
 }
 
-& $Iscc $InstallerScript
+& $Iscc "/DMyAppVersion=$AppVersion" $InstallerScript
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERROR] Installer compilation failed." -ForegroundColor Red
     exit $LASTEXITCODE
