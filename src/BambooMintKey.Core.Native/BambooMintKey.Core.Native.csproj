@@ -1,0 +1,33 @@
+<!--
+  BambooMintKey - Vietnamese Telex Input Method Editor
+  Copyright (c) 2026 Dương Gia Long and LMO contributors
+  SPDX-License-Identifier: MIT
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!-- NativeAOT configuration for Linux Fcitx5 shared library -->
+    <PublishAot>true</PublishAot>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>BambooMintKeyCore</AssemblyName>
+    <NativeLib>Shared</NativeLib>
+
+    <!-- Size/performance optimization (the F# engine uses only invariant casing) -->
+    <StripSymbols>true</StripSymbols>
+    <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!-- Library metadata -->
+    <Product>BambooMintKey Vietnamese Input</Product>
+    <Description>NativeAOT C-ABI shared library exposing the F# Telex engine to the Linux Fcitx5 addon</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BambooMintKey.Core\BambooMintKey.Core.fsproj" />
+  </ItemGroup>
+
+</Project>

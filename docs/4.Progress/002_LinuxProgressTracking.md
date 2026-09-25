@@ -24,11 +24,11 @@
 | Milestone | Tên Hạng Mục | Trọng Số | Trạng Thái | Tiến Độ (%) | Ghi Chú |
 |:---:|---|:---:|:---:|:---:|---|
 | **M0** | **Tài Liệu Thiết Kế Kỹ Thuật & Test Matrix** | 15% | ✅ Hoàn thành | 100% | 4 tài liệu đặc tả: C-ABI, Addon & D-Bus, UI, E2E Test |
-| **M1** | **`BambooMintKey.Core.Native` (C# NativeAOT)** | 25% | 🛠️ Đang thực hiện | 0% | C-ABI `.so`, quản lý Context Handles |
+| **M1** | **`BambooMintKey.Core.Native` (C# NativeAOT)** | 25% | 🛠️ Đang thực hiện | 14% | M1.1 hoàn thành: project + publish `.so` (export `bmk_version`) |
 | **M2** | **`BambooMintKey.Fcitx5` Addon (C++/D-Bus)** | 30% | ⏳ Chờ M1 | 0% | Addon Fcitx5, D-Bus V/E service, inotify watcher |
 | **M3** | **`BambooMintKey.UI.Linux` (Avalonia F#)** | 18% | ⏳ Chờ M1 | 0% | GUI cấu hình chuẩn XDG, D-Bus client, single instance |
 | **M4** | **Kiểm Thử E2E & Đóng Gói (Delivery)** | 12% | ⏳ Chờ M2, M3 | 0% | Test Wayland/X11, script cài đặt `install_linux.sh` |
-| **Tổng** | **Toàn bộ Phase 7 (Linux / Fcitx5)** | **100%** | 🛠️ **Đang triển khai** | **15%** | |
+| **Tổng** | **Toàn bộ Phase 7 (Linux / Fcitx5)** | **100%** | 🛠️ **Đang triển khai** | **18%** | |
 
 ---
 
@@ -70,12 +70,12 @@
 ### 🎯 Milestone 1: Xây Dựng `BambooMintKey.Core.Native` (C# NativeAOT C-ABI)
 > **Mục tiêu:** Đóng gói lõi F# thành thư viện `libBambooMintKeyCore.so` xuất các hàm C-ABI chuẩn, hỗ trợ đa context độc lập cho từng `InputContext` của Fcitx5.
 
-- [ ] **M1.1 — Khởi tạo Project & Cấu hình NativeAOT**
-  - [ ] Tạo thư mục `src/BambooMintKey.Core.Native/`.
-  - [ ] Tạo `BambooMintKey.Core.Native.csproj` nhắm mục tiêu `net10.0`, `PublishAot=true`, `NativeLib=Shared`, `AllowUnsafeBlocks=true`.
-  - [ ] Thêm tham chiếu đến `src/BambooMintKey.Core/BambooMintKey.Core.fsproj`.
-  - [ ] Cấu hình cờ tối ưu hóa NativeAOT (StripSymbols, InvariantGlobalization nếu cần).
-  - [ ] Xác minh lệnh `dotnet publish -c Release -r linux-x64` sinh thành công file `.so`.
+- [x] **M1.1 — Khởi tạo Project & Cấu hình NativeAOT**
+  - [x] Tạo thư mục `src/BambooMintKey.Core.Native/`.
+  - [x] Tạo `BambooMintKey.Core.Native.csproj` nhắm mục tiêu `net10.0`, `PublishAot=true`, `NativeLib=Shared`, `AllowUnsafeBlocks=true`.
+  - [x] Thêm tham chiếu đến `src/BambooMintKey.Core/BambooMintKey.Core.fsproj`.
+  - [x] Cấu hình cờ tối ưu hóa NativeAOT (StripSymbols, InvariantGlobalization nếu cần).
+  - [x] Xác minh lệnh `dotnet publish -c Release -r linux-x64` sinh thành công file `.so` (export `bmk_version`).
 
 - [ ] **M1.2 — Thiết kế Đối Tượng Context (`EngineContext`)**
   - [ ] Định nghĩa class `EngineContext` đại diện cho 1 phiên gõ độc lập.
@@ -222,7 +222,8 @@
 | 2026-09-26 | Phase 7 | Khởi tạo tài liệu | Nghiên cứu khả thi [007_01](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/2.Design/Phase7/007_01_InvestigationForLinux.md), lập roadmap [007_002](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/2.Design/Phase7/007_002_Roadmap.md) và thiết lập checklist theo dõi tiến độ [002_LinuxProgressTracking.md](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/4.Progress/002_LinuxProgressTracking.md). | ✅ Hoàn thành |
 | 2026-09-26 | Phase 7 | Cập nhật kiến trúc D-Bus | Cập nhật cơ chế đồng bộ 3 kênh (D-Bus cho V/E real-time, inotify cho config ít đổi, JSON cho persistence) và bổ sung Milestone 0 (Design Specs & Test Matrix). | ✅ Hoàn thành |
 | 2026-09-26 | M0 | M0.1 - M0.4 | **Hoàn thành toàn bộ Milestone 0**: Soạn thảo 4 tài liệu thiết kế kỹ thuật chi tiết ([007_03](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/2.Design/Phase7/007_03_CoreNative_CABI_Design.md), [007_04](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/2.Design/Phase7/007_04_Fcitx5_Addon_Design.md), [007_05](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/2.Design/Phase7/007_05_UILinux_Design.md), [007_06](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/2.Design/Phase7/007_06_E2E_TestPlan_and_Delivery.md)) kèm đầy đủ ma trận kiểm thử và tiêu chuẩn Pass/Fail. | ✅ Hoàn thành |
-| | M1 | M1.1 - M1.7 | Khởi tạo project `src/BambooMintKey.Core.Native` và viết C-ABI wrapper. | ⏳ Tiếp theo |
+| 2026-09-26 | M1 | M1.1 | Khởi tạo project `src/BambooMintKey.Core.Native` (C# NativeAOT): tạo `BambooMintKey.Core.Native.csproj` (`net10.0`, `PublishAot`, `NativeLib=Shared`, `AllowUnsafeBlocks`), tham chiếu F# Core, cờ `StripSymbols`/`InvariantGlobalization`, thêm `Exports.cs` (export `bmk_version`). Đã publish thành công `BambooMintKeyCore.so` và xác minh symbol `bmk_version@@V1.0`. | ✅ Hoàn thành |
+| | M1 | M1.2 - M1.7 | Triển khai Context Handle, xử lý phím, trích xuất buffer, cấu hình runtime và test matrix C-ABI. | ⏳ Tiếp theo |
 
 ---
 
