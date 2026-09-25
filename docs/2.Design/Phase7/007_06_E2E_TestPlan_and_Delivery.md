@@ -18,7 +18,7 @@
 
 1. **Xác Minh Chất Lượng Toàn Diện (End-to-End)**: Đảm bảo bộ gõ BambooMintKey hoạt động mượt mà, chính xác, không giật lag trên các môi trường hiển thị Linux phổ biến (**Wayland** và **X11**) và các toolkit giao diện khác nhau (GTK, Qt, Chromium/Electron, Terminal).
 2. **Kiểm Chứng Ngữ Pháp Tiếng Việt**: Đảm bảo toàn bộ các tính năng gõ Telex, dấu thanh, âm đệm, từ vay mượn tiếng Anh hoạt động đồng nhất với bản Windows.
-3. **Quy Trình Cài Đặt "Một Lệnh" (One-Command Deployment)**: Cung cấp kịch bản script tự động biên dịch và cài đặt hoàn chỉnh vào không gian người dùng (`~/.local/`), không đòi hỏi quyền `root` hay can thiệp vào tệp hệ thống `/usr/`.
+3. **Quy Trình Cài Đặt "Một Lệnh" (One-Command Deployment)**: Cung cấp kịch bản tự động biên dịch và cài đặt hoàn chỉnh vào không gian người dùng (`~/.local/`), không đòi hỏi quyền `root` hay can thiệp vào tệp hệ thống `/usr/`.
 4. **Cơ Chế Gỡ Cài Đặt Sạch Sẽ (Clean Uninstallation)**: Xóa sạch toàn bộ các thư viện và cấu hình khi người dùng muốn gỡ cài đặt.
 
 ---
@@ -27,11 +27,11 @@
 
 | Nhóm Nền Tảng | Thành Phần / Ứng Dụng Đại Diện | Giao Thức Nhập Liệu | Trọng Tâm Kiểm Thử |
 |---|---|---|---|
-| **Display Server** | **GNOME Wayland** (Ubuntu 24.04, Fedora)<br>**KDE Plasma Wayland**<br>**X11 (Xorg)** (XFCE, Mint Cinnamon) | `text-input-v3`<br>`zwp_input_method_v2`<br>`XIM` | - Inline Preedit không bị nhấp nháy.<br>- Vị trí cửa sổ ứng viên (nếu có) hoặc con trỏ bám sát vị trí gõ.<br>- Không bị mất phím khi gõ nhanh. |
-| **GTK Apps** | Mozilla Firefox, GNOME Text Editor, Gedit, Inkscape | `im-module=fcitx5` (GTK3 / GTK4) | - Commit từ mượt mà khi ấn Space / Enter.<br>- Hỗ trợ định dạng gạch chân Preedit styling. |
-| **Qt Apps** | Telegram Desktop, KDE Dolphin, VLC, OBS Studio | `im-module=fcitx5` (Qt5 / Qt6) | - Không bị nuốt phím Space / Backspace.<br>- Phản hồi tức thì khi chuyển tab. |
-| **Chromium / Electron** | Google Chrome, Microsoft Edge, VS Code, Discord, Slack | Wayland IME / Ozone platform | - Không bị duplicate ký tự (lặp chữ).<br>- Tương thích VS Code autocomplete và code editor canvas. |
-| **Terminal Emulators** | GNOME Terminal, Alacritty, Kitty, Konsole | Native Terminal Input | - Xử lý đúng chế độ commit không bị vỡ giao diện dòng lệnh.<br>- Lệnh shell (như `git commit -m "..."`) nhận đúng chuỗi UTF-8 tiếng Việt. |
+| **Display Server** | **GNOME Wayland** (Ubuntu, Fedora)<br>**KDE Plasma Wayland**<br>**X11 (Xorg)** (XFCE, Mint Cinnamon) | `text-input-v3`<br>`zwp_input_method_v2`<br>`XIM` | - Inline Preedit không bị nhấp nháy.<br>- Con trỏ chuột bám sát vị trí gõ văn bản.<br>- Không bị mất phím khi gõ tốc độ cao (> 80 WPM). |
+| **GTK Apps** | Mozilla Firefox, GNOME Text Editor, Gedit, Inkscape | `im-module=fcitx5` (GTK3 / GTK4) | - Chốt từ mượt mà khi ấn Space / Enter.<br>- Hỗ trợ định dạng gạch chân Preedit styling. |
+| **Qt Apps** | Telegram Desktop, KDE Dolphin, VLC, OBS Studio | `im-module=fcitx5` (Qt5 / Qt6) | - Không bị nuốt phím Space / Backspace.<br>- Phản hồi tức thì khi chuyển tab cửa sổ. |
+| **Chromium / Electron** | Google Chrome, Microsoft Edge, VS Code, Discord, Slack | Wayland IME / Ozone platform | - Không bị duplicate ký tự (lặp chữ).<br>- Tương thích tính năng tự động gợi ý (Autocomplete) của IDE. |
+| **Terminal Emulators** | GNOME Terminal, Alacritty, Kitty, Konsole | Native Terminal Input | - Xử lý đúng chế độ commit không bị vỡ giao diện dòng lệnh.<br>- Lệnh shell nhận đúng chuỗi UTF-8 tiếng Việt. |
 
 ---
 
@@ -50,90 +50,86 @@
 
 ---
 
-## 4. Kịch Bản Tự Động Hóa Cài Đặt (`scripts/install_linux.sh`)
+## 4. Đặc Tả Kịch Bản Cài Đặt Tự Động (`scripts/install_linux.sh`)
 
-Script cài đặt được thiết kế để chạy hoàn toàn trong quyền người dùng thông thường (`non-root`), ghi vào thư mục tiêu chuẩn `~/.local`:
+Script cài đặt được thiết kế để chạy hoàn toàn trong không gian người dùng thông thường (`non-root`), ghi dữ liệu vào thư mục tiêu chuẩn `~/.local`.
 
-```bash
-#!/usr/bin/env bash
-# BambooMintKey Linux Installer
-set -e
+```mermaid
+flowchart TD
+    A[Bắt Đầu Cài Đặt] --> B[Kiểm Tra Môi Trường:<br/>dotnet 10, cmake, fcitx5]
+    B -->|Đủ Công Cụ| C[Biên Dịch Core.Native<br/>dotnet publish NativeAOT Shared]
+    B -->|Thiếu Công Cụ| Err[Báo Lỗi & Hướng Dẫn Cài]
+    C --> D[Biên Dịch Addon Fcitx5<br/>CMake & Make install vào ~/.local]
+    D --> E[Biên Dịch UI.Linux<br/>Avalonia Settings GUI]
+    E --> F[Triển Khai Tài Nguyên:<br/>Binary, Desktop Entry, Icon SVG]
+    F --> G[Khởi Động Lại Fcitx5 Daemon<br/>fcitx5 -r -d]
+    G --> H[Hoàn Tất Cài Đặt]
+```
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BUILD_TYPE="Release"
+### Thuật toán Kịch bản Cài đặt (Mã giả):
 
-echo "=================================================="
-echo "    BAMBOOMINTKEY FOR LINUX - CÀI ĐẶT TỰ ĐỘNG     "
-echo "=================================================="
+```
+THUẬT TOÁN KịchBảnCàiĐặt():
+    Xác định ThưMụcGốc của kho mã nguồn
 
-# 1. Kiểm tra môi trường
-command -v dotnet >/dev/null 2>&1 || { echo "❌ Thiếu .NET SDK 10!"; exit 1; }
-command -v cmake >/dev/null 2>&1 || { echo "❌ Thiếu CMake!"; exit 1; }
-command -v fcitx5 >/dev/null 2>&1 || { echo "❌ Thiếu Fcitx5!"; exit 1; }
+    // Bước 1: Kiểm tra công cụ biên dịch bắt buộc
+    NẾU KHÔNG CÓ (dotnet VÀ cmake VÀ fcitx5) THÌ:
+        InThôngBáo("Lỗi: Thiếu công cụ build! Yêu cầu .NET 10 SDK, CMake và Fcitx5")
+        DừngTiếnTrình(MãLỗi = 1)
 
-# 2. Biên dịch BambooMintKey.Core.Native (C# NativeAOT)
-echo "📦 [1/3] Biên dịch Core.Native (C# NativeAOT)..."
-dotnet publish "$REPO_ROOT/src/BambooMintKey.Core.Native" \
-  -c $BUILD_TYPE -r linux-x64 -p:PublishAot=true -p:NativeLib=Shared \
-  -o "$REPO_ROOT/build/core_native"
+    // Bước 2: Biên dịch Core.Native thành tệp chia sẻ .so
+    InThôngBáo("[1/3] Đang biên dịch Core.Native (C# NativeAOT)...")
+    ChạyLệnh(dotnet publish, ĐườngDẫn="src/BambooMintKey.Core.Native", CấuHình=Release, NativeAOT=True)
 
-# 3. Biên dịch BambooMintKey.Fcitx5 Addon (C++/CMake)
-echo "📦 [2/3] Biên dịch Fcitx5 Addon (C++)..."
-mkdir -p "$REPO_ROOT/build/fcitx5"
-cd "$REPO_ROOT/build/fcitx5"
-cmake "$REPO_ROOT/src/BambooMintKey.Fcitx5" \
-  -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-  -DCMAKE_INSTALL_PREFIX="$HOME/.local" \
-  -DCORE_NATIVE_LIB="$REPO_ROOT/build/core_native/libBambooMintKeyCore.so"
-make -j$(nproc)
-make install
+    // Bước 3: Biên dịch plugin C++ Fcitx5 Addon
+    InThôngBáo("[2/3] Đang biên dịch Fcitx5 Addon (C++/CMake)...")
+    CấuHìnhCMake(ĐườngDẫn="src/BambooMintKey.Fcitx5", TiềnTốCàiĐặt="~/.local")
+    ThựcThiBiênDịchVàCàiĐặt(make install)
 
-# 4. Biên dịch BambooMintKey.UI.Linux (Avalonia GUI)
-echo "📦 [3/3] Biên dịch Settings GUI (Avalonia)..."
-dotnet publish "$REPO_ROOT/src/BambooMintKey.UI.Linux" \
-  -c $BUILD_TYPE -r linux-x64 --self-contained false \
-  -o "$REPO_ROOT/build/ui_linux"
+    // Bước 4: Biên dịch ứng dụng Cài đặt Avalonia
+    InThôngBáo("[3/3] Đang biên dịch ứng dụng Cài đặt (Avalonia UI)...")
+    ChạyLệnh(dotnet publish, ĐườngDẫn="src/BambooMintKey.UI.Linux", CấuHình=Release)
 
-# Copy binary và desktop entry
-mkdir -p "$HOME/.local/bin" "$HOME/.local/lib" "$HOME/.local/share/applications" "$HOME/.local/share/icons/hicolor/scalable/apps"
-cp "$REPO_ROOT/build/core_native/libBambooMintKeyCore.so" "$HOME/.local/lib/"
-cp "$REPO_ROOT/build/ui_linux/bamboomintkey-ui" "$HOME/.local/bin/"
-cp "$REPO_ROOT/src/BambooMintKey.UI.Linux/bamboomintkey-settings.desktop" "$HOME/.local/share/applications/"
-cp "$REPO_ROOT/src/BambooMintKey.UI.Linux/Assets/bamboomintkey.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/"
+    // Bước 5: Sao chép tệp thực thi và tích hợp desktop
+    SaoChépTệp(TệpThựcThiUI -> "~/.local/bin/bamboomintkey-ui")
+    SaoChépTệp(TệpDesktopEntry -> "~/.local/share/applications/")
+    SaoChépTệp(BiểuTượngSVG -> "~/.local/share/icons/hicolor/scalable/apps/")
 
-# 5. Khởi động lại Fcitx5 daemon
-echo "🔄 Khởi động lại Fcitx5..."
-fcitx5 -r -d >/dev/null 2>&1 || true
-
-echo "=================================================="
-echo "✅ CÀI ĐẶT HOÀN TẤT THÀNH CÔNG!"
-echo "   - Đã cài đặt Addon vào ~/.local/lib/fcitx5/"
-echo "   - Mở cài đặt: chạy lệnh 'bamboomintkey-ui' hoặc tìm trong menu ứng dụng."
-echo "=================================================="
+    // Bước 6: Khởi động lại daemon Fcitx5 để nạp bộ gõ mới
+    KhởiĐộngLạiDaemon("fcitx5 -r -d")
+    InThôngBáo("Cài đặt thành công! BambooMintKey đã sẵn sàng sử dụng.")
+HẾT THUẬT TOÁN
 ```
 
 ---
 
-## 5. Kịch Bản Gỡ Cài Đặt Sạch Sẽ (`scripts/uninstall_linux.sh`)
+## 5. Đặc Tả Kịch Bản Gỡ Cài Đặt Sạch Sẽ (`scripts/uninstall_linux.sh`)
 
-```bash
-#!/usr/bin/env bash
-# BambooMintKey Linux Uninstaller
-set -e
+Kịch bản gỡ bỏ thu hồi triệt để mọi tệp tin đã tạo ra trên hệ thống mà không làm ảnh hưởng đến các cấu hình khác của Fcitx5.
 
-echo "Dọn dẹp tệp tin BambooMintKey..."
-rm -f "$HOME/.local/lib/libBambooMintKeyCore.so"
-rm -f "$HOME/.local/lib/fcitx5/bamboomintkey-fcitx5.so"
-rm -f "$HOME/.local/share/fcitx5/inputmethod/bamboomintkey.conf"
-rm -f "$HOME/.local/share/fcitx5/addon/bamboomintkey-addon.conf"
-rm -f "$HOME/.local/bin/bamboomintkey-ui"
-rm -f "$HOME/.local/share/applications/bamboomintkey-settings.desktop"
-rm -f "$HOME/.local/share/icons/hicolor/scalable/apps/bamboomintkey.svg"
+### Danh mục các tệp tin được thu hồi:
+1. Thư viện lõi: `~/.local/lib/libBambooMintKeyCore.so`.
+2. Plugin Fcitx5: `~/.local/lib/fcitx5/bamboomintkey-fcitx5.so`.
+3. Tệp định nghĩa bộ gõ: `~/.local/share/fcitx5/inputmethod/bamboomintkey.conf`.
+4. Tệp metadata addon: `~/.local/share/fcitx5/addon/bamboomintkey-addon.conf`.
+5. Tệp thực thi giao diện: `~/.local/bin/bamboomintkey-ui`.
+6. Lối tắt ứng dụng: `~/.local/share/applications/bamboomintkey-settings.desktop`.
+7. Biểu tượng SVG: `~/.local/share/icons/hicolor/scalable/apps/bamboomintkey.svg`.
 
-echo "Khởi động lại Fcitx5..."
-fcitx5 -r -d >/dev/null 2>&1 || true
+### Thuật toán Kịch bản Gỡ cài đặt (Mã giả):
 
-echo "✅ Đã gỡ bỏ sạch sẽ BambooMintKey khỏi hệ thống!"
+```
+THUẬT TOÁN KịchBảnGỡCàiĐặt():
+    InThôngBáo("Đang tiến hành dọn dẹp các tệp tin BambooMintKey...")
+
+    CHO MỖI Tệp TRONG DanhMụcTệpĐượcThuHồi:
+        XóaTệpNếuTồnTại(Tệp)
+
+    InThôngBáo("Đang khởi động lại Fcitx5...")
+    KhởiĐộngLạiDaemon("fcitx5 -r -d")
+
+    InThôngBáo("Hoàn tất! Toàn bộ BambooMintKey đã được gỡ bỏ sạch sẽ khỏi hệ thống.")
+HẾT THUẬT TOÁN
 ```
 
 ---
@@ -142,10 +138,10 @@ echo "✅ Đã gỡ bỏ sạch sẽ BambooMintKey khỏi hệ thống!"
 
 | Test ID | Tên Hạng Mục | Các Bước Kiểm Thử | Kết Quả Mong Đợi | Tiêu Chí Pass/Fail |
 |:---:|---|---|---|:---:|
-| **`TC-E2E-01`** | Fresh Install Run | Chạy `./scripts/install_linux.sh` trên máy Ubuntu/Debian mới nạp Fcitx5 | Script hoàn tất 0 lỗi; Fcitx5 hiển thị input method `BambooMintKey`; bật gõ tiếng Việt được ngay | ✅ PASS |
-| **`TC-E2E-02`** | Wayland Typing Session | Mở Firefox và GNOME Text Editor trên phiên Wayland, gõ các từ kịch bản `LNG-01` đến `LNG-08` | Chữ hiển thị chuẩn xác, không lệch con trỏ, không rơi rớt ký tự khi gõ tốc độ > 80 WPM | ✅ PASS |
-| **`TC-E2E-03`** | X11 Typing Session | Chuyển sang phiên X11, mở VS Code và Alacritty gõ thử nghiệm | Chữ hiển thị mượt mà, phím tắt `Ctrl+Shift+P` trong VS Code không bị nuốt | ✅ PASS |
-| **`TC-E2E-04`** | Real-time D-Bus Sync | Đang mở Settings GUI và Text Editor song song; bấm phím tắt toggle V/E trên bàn phím | 1. Icon trên taskbar chuyển V<->E<br>2. Checkbox trên Settings GUI lật tức thì<br>3. Chế độ gõ đổi ngay phím tiếp theo | ✅ PASS |
-| **`TC-E2E-05`** | Dynamic Options Reload | Trong Settings GUI, đổi kiểu dấu từ Mới sang Cũ và bấm Lưu; quay lại Text Editor gõ `hoa` | Addon tự động nạp cấu hình mới qua `inotify` mà không cần khởi động lại Fcitx5 | ✅ PASS |
-| **`TC-E2E-06`** | Multi-Window Switching | Mở 4 cửa sổ song song (Chrome, VS Code, Terminal, Telegram); gõ dở dang và chuyển focus liên tục | Không có cửa sổ nào bị dính chữ của cửa sổ khác; các context hoàn toàn biệt lập | ✅ PASS |
-| **`TC-E2E-07`** | Uninstall Cleanliness | Chạy `./scripts/uninstall_linux.sh` | Hệ thống trở về trạng thái nguyên bản trước khi cài đặt, không còn file rác sót lại | ✅ PASS |
+| **`TC-E2E-01`** | Kiểm thử Cài đặt sạch | Chạy script cài đặt tự động trên máy mới nạp Fcitx5 | Script hoàn tất 0 lỗi; Fcitx5 nhận diện bộ gõ `BambooMintKey`; gõ tiếng Việt được ngay lập tức | ✅ PASS |
+| **`TC-E2E-02`** | Gõ trên phiên Wayland | Mở Firefox và Text Editor trên Wayland, gõ các từ kịch bản `LNG-01` đến `LNG-08` | Ký tự hiển thị chuẩn xác, không lệch con trỏ, không rơi rớt phím khi gõ nhanh | ✅ PASS |
+| **`TC-E2E-03`** | Gõ trên phiên X11 | Chuyển sang phiên X11, mở VS Code và Terminal gõ thử nghiệm | Chữ hiển thị mượt mà, phím tắt `Ctrl+Shift+P` trong VS Code không bị nuốt | ✅ PASS |
+| **`TC-E2E-04`** | Đồng bộ D-Bus thời gian thực | Mở đồng thời Settings GUI và Text Editor; bấm phím tắt chuyển mode V/E trên bàn phím | Biểu tượng khay hệ thống và công tắc trên Settings GUI tự động đổi trạng thái tức thì | ✅ PASS |
+| **`TC-E2E-05`** | Nạp lại tùy chọn động | Trong Settings GUI, đổi kiểu dấu từ Mới sang Cũ và bấm Lưu; quay lại Text Editor gõ `hoa` | Addon tự động nạp cấu hình mới qua `inotify` mà không cần restart Fcitx5 | ✅ PASS |
+| **`TC-E2E-06`** | Cách ly khi chuyển cửa sổ | Mở 4 cửa sổ song song (Chrome, VS Code, Terminal, Telegram); gõ dở dang và chuyển focus liên tục | Không có cửa sổ nào bị dính chữ của cửa sổ khác; các context hoàn toàn biệt lập | ✅ PASS |
+| **`TC-E2E-07`** | Kiểm thử Gỡ cài đặt | Chạy script gỡ bỏ tự động | Toàn bộ tệp cài đặt bị xóa sạch sẽ, hệ thống trở về trạng thái nguyên bản trước khi cài | ✅ PASS |
