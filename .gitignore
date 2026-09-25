@@ -31,3 +31,7 @@ $RECYCLE.BIN/
 *.tmp
 *.dmp
 _ReSharper*/
+
+## Python
+__pycache__/
+*.pyc

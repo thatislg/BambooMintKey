@@ -24,11 +24,11 @@
 | Milestone | Tên Hạng Mục | Trọng Số | Trạng Thái | Tiến Độ (%) | Ghi Chú |
 |:---:|---|:---:|:---:|:---:|---|
 | **M0** | **Tài Liệu Thiết Kế Kỹ Thuật & Test Matrix** | 15% | ✅ Hoàn thành | 100% | 4 tài liệu đặc tả: C-ABI, Addon & D-Bus, UI, E2E Test |
-| **M1** | **`BambooMintKey.Core.Native` (C# NativeAOT)** | 25% | 🛠️ Đang thực hiện | 14% | M1.1 hoàn thành: project + publish `.so` (export `bmk_version`) |
+| **M1** | **`BambooMintKey.Core.Native` (C# NativeAOT)** | 25% | 🛠️ Đang thực hiện | 86% | M1.1-M1.6 xong (full C-ABI), M1.7 chờ chạy test |
 | **M2** | **`BambooMintKey.Fcitx5` Addon (C++/D-Bus)** | 30% | ⏳ Chờ M1 | 0% | Addon Fcitx5, D-Bus V/E service, inotify watcher |
 | **M3** | **`BambooMintKey.UI.Linux` (Avalonia F#)** | 18% | ⏳ Chờ M1 | 0% | GUI cấu hình chuẩn XDG, D-Bus client, single instance |
 | **M4** | **Kiểm Thử E2E & Đóng Gói (Delivery)** | 12% | ⏳ Chờ M2, M3 | 0% | Test Wayland/X11, script cài đặt `install_linux.sh` |
-| **Tổng** | **Toàn bộ Phase 7 (Linux / Fcitx5)** | **100%** | 🛠️ **Đang triển khai** | **18%** | |
+| **Tổng** | **Toàn bộ Phase 7 (Linux / Fcitx5)** | **100%** | 🛠️ **Đang triển khai** | **37%** | |
 
 ---
 
@@ -77,36 +77,36 @@
   - [x] Cấu hình cờ tối ưu hóa NativeAOT (StripSymbols, InvariantGlobalization nếu cần).
   - [x] Xác minh lệnh `dotnet publish -c Release -r linux-x64` sinh thành công file `.so` (export `bmk_version`).
 
-- [ ] **M1.2 — Thiết kế Đối Tượng Context (`EngineContext`)**
-  - [ ] Định nghĩa class `EngineContext` đại diện cho 1 phiên gõ độc lập.
-  - [ ] Lưu trữ trường `Types.WordState` của F# bên trong context.
-  - [ ] Lưu trữ trường `EngineConfig.EngineConfig` cấu hình gõ của context.
-  - [ ] Khởi tạo bộ đệm UTF-8 nội bộ (`PreeditBuffer`, `CommitBuffer`) để cấp phát chuỗi an toàn, không bị giải phóng ngoài ý muốn.
-  - [ ] Cơ chế Thread-Safety (lock nhẹ per-context).
+- [x] **M1.2 — Thiết kế Đối Tượng Context (`EngineContext`)**
+  - [x] Định nghĩa class `EngineContext` đại diện cho 1 phiên gõ độc lập.
+  - [x] Lưu trữ trường `Types.WordState` của F# bên trong context.
+  - [x] Lưu trữ trường `EngineConfig.EngineConfig` cấu hình gõ của context.
+  - [x] Khởi tạo bộ đệm UTF-8 nội bộ (`PreeditBuffer`, `CommitBuffer`) để cấp phát chuỗi an toàn, không bị giải phóng ngoài ý muốn.
+  - [x] Cơ chế Thread-Safety (lock nhẹ per-context).
 
-- [ ] **M1.3 — Triển khai C-ABI Vòng Đời Context (Lifecycle)**
-  - [ ] `bmk_context_create()`: Cấp phát mới một `EngineContext`, pin đối tượng và trả về con trỏ `IntPtr`.
-  - [ ] `bmk_context_free(IntPtr handle)`: Giải phóng tài nguyên và unpin `EngineContext`.
-  - [ ] `bmk_context_reset(IntPtr handle)`: Đặt lại `WordState` về rỗng (khi chuyển focus hoặc hủy gõ).
+- [x] **M1.3 — Triển khai C-ABI Vòng Đời Context (Lifecycle)**
+  - [x] `bmk_context_create()`: Cấp phát mới một `EngineContext`, giữ alive qua GCHandle và trả về `IntPtr` handle.
+  - [x] `bmk_context_free(IntPtr handle)`: Giải phóng buffer unmanaged và thu hồi GCHandle.
+  - [x] `bmk_context_reset(IntPtr handle)`: Đặt lại `WordState` về rỗng và xóa buffer.
 
-- [ ] **M1.4 — Triển khai C-ABI Xử Lý Phím (Key Processing)**
-  - [ ] `bmk_process_key(IntPtr handle, uint keyval, uint state, char unicodeChar)`: Nhận ký tự, gọi `TelexEngine.processKey`, trả về mã action (`0: PassThrough`, `1: Consume`, `2: UpdatePreedit`, `3: CommitString`).
-  - [ ] `bmk_process_backspace(IntPtr handle)`: Nhận phím Backspace, cập nhật âm tiết lùi hoặc hoàn tác.
-  - [ ] `bmk_process_wordbreak(IntPtr handle, char breakChar)`: Nhận dấu cách, Enter, phím ngắt từ để commit từ hiện tại.
+- [x] **M1.4 — Triển khai C-ABI Xử Lý Phím (Key Processing)**
+  - [x] `bmk_process_key(IntPtr handle, uint unicodeChar)`: Nhận code point Unicode, gọi `TelexEngine.processKey`, trả về mã action (`0/1/2/3`).
+  - [x] `bmk_process_backspace(IntPtr handle)`: Nhận phím Backspace, cập nhật âm tiết lùi hoặc hoàn tác.
+  - [x] `bmk_process_wordbreak(IntPtr handle, uint breakChar)`: Nhận dấu cách/Enter/dấu câu để commit từ hiện tại.
 
-- [ ] **M1.5 — Triển khai C-ABI Trích Xuất Dữ Liệu UTF-8**
-  - [ ] `bmk_get_preedit_text(IntPtr handle)`: Trả về con trỏ `byte*` trỏ tới chuỗi UTF-8 preedit trong buffer nội bộ (caller không cần `free`).
-  - [ ] `bmk_get_commit_text(IntPtr handle)`: Trả về con trỏ `byte*` trỏ tới chuỗi UTF-8 commit đã chốt.
-  - [ ] `bmk_get_preedit_length(IntPtr handle)`: Trả về độ dài chuỗi preedit (số ký tự UTF-8).
+- [x] **M1.5 — Triển khai C-ABI Trích Xuất Dữ Liệu UTF-8**
+  - [x] `bmk_get_preedit_text(IntPtr handle)`: Trả về `byte*` trỏ tới chuỗi UTF-8 preedit (caller không `free`).
+  - [x] `bmk_get_commit_text(IntPtr handle)`: Trả về `byte*` trỏ tới chuỗi UTF-8 commit đã chốt.
+  - [x] `bmk_get_preedit_length(IntPtr handle)`: Trả về độ dài chuỗi preedit (số byte).
 
-- [ ] **M1.6 — Triển khai C-ABI Cấu Hình Runtime**
-  - [ ] `bmk_set_options(IntPtr handle, bool isEnabled, int toneStyle, bool autoRestore, bool allowRepeatUndo, bool allowLeadingW, bool freeTone)`: Cập nhật nhanh các tùy chọn gõ.
-  - [ ] `bmk_load_config_json(IntPtr handle, byte* jsonUtf8)`: Nạp cấu hình từ chuỗi JSON XDG.
+- [x] **M1.6 — Triển khai C-ABI Cấu Hình Runtime**
+  - [x] `bmk_set_options(IntPtr handle, int isEnabled, int toneStyle, int autoRestore, int allowRepeatUndo, int allowLeadingW, int freeTone)`: Cập nhật nhanh các tùy chọn gõ.
+  - [x] `bmk_load_config_json(IntPtr handle, byte* jsonUtf8)`: Nạp cấu hình từ chuỗi JSON XDG (0 thành công / -1 lỗi).
 
 - [ ] **M1.7 — Kiểm Thử Độc Lập Thư Viện C-ABI Theo Test Matrix `TC-CABI-01` -> `08`**
-  - [ ] Viết test runner console (C hoặc script Python `ctypes`) gọi trực tiếp `libBambooMintKeyCore.so`.
-  - [ ] Chạy và verify toàn bộ test case `TC-CABI-01` đến `TC-CABI-08`.
-  - [ ] Kiểm tra rò rỉ bộ nhớ (Memory Leak) qua 10.000 lượt tạo/hủy context.
+  - [x] Viết test runner console (script Python `ctypes`) gọi trực tiếp `BambooMintKeyCore.so`.
+  - [ ] Chạy và verify toàn bộ test case `TC-CABI-01` đến `TC-CABI-08` (chờ build + chạy).
+  - [ ] Kiểm tra rò rỉ bộ nhớ (Memory Leak) qua 10.000 lượt tạo/hủy context (chờ chạy).
 
 ---
 
@@ -223,7 +223,9 @@
 | 2026-09-26 | Phase 7 | Cập nhật kiến trúc D-Bus | Cập nhật cơ chế đồng bộ 3 kênh (D-Bus cho V/E real-time, inotify cho config ít đổi, JSON cho persistence) và bổ sung Milestone 0 (Design Specs & Test Matrix). | ✅ Hoàn thành |
 | 2026-09-26 | M0 | M0.1 - M0.4 | **Hoàn thành toàn bộ Milestone 0**: Soạn thảo 4 tài liệu thiết kế kỹ thuật chi tiết ([007_03](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/2.Design/Phase7/007_03_CoreNative_CABI_Design.md), [007_04](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/2.Design/Phase7/007_04_Fcitx5_Addon_Design.md), [007_05](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/2.Design/Phase7/007_05_UILinux_Design.md), [007_06](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/2.Design/Phase7/007_06_E2E_TestPlan_and_Delivery.md)) kèm đầy đủ ma trận kiểm thử và tiêu chuẩn Pass/Fail. | ✅ Hoàn thành |
 | 2026-09-26 | M1 | M1.1 | Khởi tạo project `src/BambooMintKey.Core.Native` (C# NativeAOT): tạo `BambooMintKey.Core.Native.csproj` (`net10.0`, `PublishAot`, `NativeLib=Shared`, `AllowUnsafeBlocks`), tham chiếu F# Core, cờ `StripSymbols`/`InvariantGlobalization`, thêm `Exports.cs` (export `bmk_version`). Đã publish thành công `BambooMintKeyCore.so` và xác minh symbol `bmk_version@@V1.0`. | ✅ Hoàn thành |
-| | M1 | M1.2 - M1.7 | Triển khai Context Handle, xử lý phím, trích xuất buffer, cấu hình runtime và test matrix C-ABI. | ⏳ Tiếp theo |
+| 2026-09-26 | M1 | M1.2 | Định nghĩa `EngineContext` (`src/BambooMintKey.Core.Native/EngineContext.cs`): chứa `Types.WordState` + `EngineConfig.EngineConfig`, hai bộ đệm UTF-8 cố định 256 byte (`PreeditBuffer`/`CommitBuffer` kèm length), lock nhẹ per-context, và `Reset()`. | ✅ Hoàn thành |
+| 2026-09-26 | M1 | M1.3 - M1.6 | Hoàn thành toàn bộ giao diện C-ABI trong `Exports.cs` + `EngineContext.cs`: lifecycle (`bmk_context_create/free/reset` qua GCHandle), xử lý phím (`bmk_process_key/backspace/wordbreak`), trích xuất buffer UTF-8 (`bmk_get_preedit_text/commit_text/preedit_length`), cấu hình (`bmk_set_options` + `bmk_load_config_json` với JSON parser tối giản). Bộ đệm dùng `NativeMemory` để con trỏ `byte*` ổn định. | ✅ Hoàn thành |
+| 2026-09-26 | M1 | M1.7 | Viết test runner `scripts/test-cabi.py` (Python ctypes) chạy TC-CABI-01 -> 08 + bonus config test. | 🛠️ Chờ build + chạy |
 
 ---
 
