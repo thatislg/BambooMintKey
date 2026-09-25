@@ -1,0 +1,6 @@
+[InputMethod]
+Name=BambooMintKey
+Icon=fcitx_bamboomintkey
+LangCode=vi
+Addon=bamboomintkey
+Configurable=False

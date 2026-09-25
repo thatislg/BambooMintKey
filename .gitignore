@@ -2,6 +2,7 @@
 bin/
 obj/
 publish/
+build/
 *.aot.json
 
 ## NativeAOT Compilation Artifacts

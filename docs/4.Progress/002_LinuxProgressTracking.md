@@ -8,7 +8,7 @@
 
 **Cập nhật:** 2026-09-26  
 **Giai đoạn:** Phase 7 — Chuẩn bị & Triển khai nền tảng Linux / Fcitx5  
-**Trạng thái chung:** 🛠️ Bắt đầu triển khai Milestone 1 (M1: `BambooMintKey.Core.Native`)  
+**Trạng thái chung:** 🛠️ Hoàn thành Milestone 1 & Milestone 2, chuẩn bị triển khai Milestone 3 (M3: `BambooMintKey.UI.Linux`)  
 **Tài liệu tham chiếu:**
 - Điều tra khả thi: [007_01_InvestigationForLinux.md](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/2.Design/Phase7/007_01_InvestigationForLinux.md)
 - Lộ trình tổng thể: [007_002_Roadmap.md](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/2.Design/Phase7/007_002_Roadmap.md)
@@ -24,11 +24,11 @@
 | Milestone | Tên Hạng Mục | Trọng Số | Trạng Thái | Tiến Độ (%) | Ghi Chú |
 |:---:|---|:---:|:---:|:---:|---|
 | **M0** | **Tài Liệu Thiết Kế Kỹ Thuật & Test Matrix** | 15% | ✅ Hoàn thành | 100% | 4 tài liệu đặc tả: C-ABI, Addon & D-Bus, UI, E2E Test |
-| **M1** | **`BambooMintKey.Core.Native` (C# NativeAOT)** | 25% | 🛠️ Đang thực hiện | 86% | M1.1-M1.6 xong (full C-ABI), M1.7 chờ chạy test |
-| **M2** | **`BambooMintKey.Fcitx5` Addon (C++/D-Bus)** | 30% | ⏳ Chờ M1 | 0% | Addon Fcitx5, D-Bus V/E service, inotify watcher |
-| **M3** | **`BambooMintKey.UI.Linux` (Avalonia F#)** | 18% | ⏳ Chờ M1 | 0% | GUI cấu hình chuẩn XDG, D-Bus client, single instance |
-| **M4** | **Kiểm Thử E2E & Đóng Gói (Delivery)** | 12% | ⏳ Chờ M2, M3 | 0% | Test Wayland/X11, script cài đặt `install_linux.sh` |
-| **Tổng** | **Toàn bộ Phase 7 (Linux / Fcitx5)** | **100%** | 🛠️ **Đang triển khai** | **37%** | |
+| **M1** | **`BambooMintKey.Core.Native` (C# NativeAOT)** | 25% | ✅ Hoàn thành | 100% | M1.1-M1.7 hoàn thành (full C-ABI + test matrix 9/9 PASS) |
+| **M2** | **`BambooMintKey.Fcitx5` Addon (C++/D-Bus)** | 30% | ✅ Hoàn thành | 100% | M2.1-M2.8 hoàn thành (C++ Addon, D-Bus, file watcher, build & test) |
+| **M3** | **`BambooMintKey.UI.Linux` (Avalonia F#)** | 18% | ⏳ Chuẩn bị triển khai | 0% | GUI cấu hình chuẩn XDG, D-Bus client, single instance |
+| **M4** | **Kiểm Thử E2E & Đóng Gói (Delivery)** | 12% | ⏳ Chờ M3 | 0% | Test Wayland/X11, script cài đặt `install_linux.sh` |
+| **Tổng** | **Toàn bộ Phase 7 (Linux / Fcitx5)** | **100%** | 🛠️ **Đang triển khai** | **70%** | |
 
 ---
 
@@ -103,56 +103,56 @@
   - [x] `bmk_set_options(IntPtr handle, int isEnabled, int toneStyle, int autoRestore, int allowRepeatUndo, int allowLeadingW, int freeTone)`: Cập nhật nhanh các tùy chọn gõ.
   - [x] `bmk_load_config_json(IntPtr handle, byte* jsonUtf8)`: Nạp cấu hình từ chuỗi JSON XDG (0 thành công / -1 lỗi).
 
-- [ ] **M1.7 — Kiểm Thử Độc Lập Thư Viện C-ABI Theo Test Matrix `TC-CABI-01` -> `08`**
+- [x] **M1.7 — Kiểm Thử Độc Lập Thư Viện C-ABI Theo Test Matrix `TC-CABI-01` -> `08`**
   - [x] Viết test runner console (script Python `ctypes`) gọi trực tiếp `BambooMintKeyCore.so`.
-  - [ ] Chạy và verify toàn bộ test case `TC-CABI-01` đến `TC-CABI-08` (chờ build + chạy).
-  - [ ] Kiểm tra rò rỉ bộ nhớ (Memory Leak) qua 10.000 lượt tạo/hủy context (chờ chạy).
+  - [x] Chạy và verify toàn bộ test case `TC-CABI-01` đến `TC-CABI-08` (đã build + chạy thành công 9/9 PASS).
+  - [x] Kiểm tra rò rỉ bộ nhớ (Memory Leak) qua 10.000 lượt tạo/hủy context (đã xác minh 0 context tồn dư).
 
 ---
 
 ### 🎯 Milestone 2: Phát Triển `BambooMintKey.Fcitx5` Addon (C++/CMake/D-Bus)
 > **Mục tiêu:** Xây dựng plugin Fcitx5 đón sự kiện bàn phím từ hệ điều hành, gắn kết với `libBambooMintKeyCore.so`, triển khai D-Bus service điều khiển V/E và file watcher.
 
-- [ ] **M2.1 — Cấu Trúc Dự Án CMake & Khai Báo Addon**
-  - [ ] Tạo thư mục `src/BambooMintKey.Fcitx5/`.
-  - [ ] Tạo `CMakeLists.txt` tìm kiếm các package Fcitx5 (`Fcitx5Core`, `Fcitx5Config`, `Fcitx5Utils`).
-  - [ ] Cấu hình link `libBambooMintKeyCore.so` qua `target_link_libraries` và thiết lập `rpath`.
-  - [ ] Tạo `bamboomintkey-addon.conf.in` và `bamboomintkey.conf.in`.
+- [x] **M2.1 — Cấu Trúc Dự Án CMake & Khai Báo Addon**
+  - [x] Tạo thư mục `src/BambooMintKey.Fcitx5/`.
+  - [x] Tạo `CMakeLists.txt` tìm kiếm các package Fcitx5 (`Fcitx5Core`, `Fcitx5Config`, `Fcitx5Utils`).
+  - [x] Cấu hình link `BambooMintKeyCore.so` qua `target_link_libraries` và thiết lập `rpath`.
+  - [x] Tạo `bamboomintkey-addon.conf.in` và `bamboomintkey.conf.in`.
 
-- [ ] **M2.2 — Quản Lý State Theo Context (`BambooMintKeyState`)**
-  - [ ] Định nghĩa class `BambooMintKeyState : public fcitx::InputContextProperty`.
-  - [ ] Constructor: gọi `bmk_context_create()` lưu `handle` riêng cho mỗi `InputContext`.
-  - [ ] Destructor: gọi `bmk_context_free(handle)` để giải phóng bộ nhớ context khi ứng dụng đóng.
-  - [ ] Triển khai phương thức `reset()`: gọi `bmk_context_reset(handle)` và xóa preedit panel.
+- [x] **M2.2 — Quản Lý State Theo Context (`BambooMintKeyState`)**
+  - [x] Định nghĩa class `BambooMintKeyState : public fcitx::InputContextProperty`.
+  - [x] Constructor: gọi `bmk_context_create()` lưu `handle` riêng cho mỗi `InputContext`.
+  - [x] Destructor: gọi `bmk_context_free(handle)` để giải phóng bộ nhớ context khi ứng dụng đóng.
+  - [x] Triển khai phương thức `reset()`: gọi `bmk_context_reset(handle)` và xóa preedit panel.
 
-- [ ] **M2.3 — Triển Khai Engine Lõi (`BambooMintKeyEngine`)**
-  - [ ] Kế thừa `fcitx::InputMethodEngine` và `fcitx::AddonInstance`.
-  - [ ] Quản lý trạng thái V/E tập trung (Single-owner).
-  - [ ] Triển khai các hàm `activate()`, `deactivate()`, `reset()`.
+- [x] **M2.3 — Triển Khai Engine Lõi (`BambooMintKeyEngine`)**
+  - [x] Kế thừa `fcitx::InputMethodEngine` và `fcitx::AddonInstance`.
+  - [x] Quản lý trạng thái V/E tập trung (Single-owner).
+  - [x] Triển khai các hàm `activate()`, `deactivate()`, `reset()`.
 
-- [ ] **M2.4 — Xử Lý Luồng Sự Kiện Bàn Phím (`keyEvent`)**
-  - [ ] Bỏ qua sự kiện nhả phím (`keyEvent.isRelease()`).
-  - [ ] Kiểm tra các modifier hệ thống (`Ctrl`, `Alt`, `Super`): Cho qua (`PassThrough`).
-  - [ ] Phân loại phím sang `bmk_process_backspace`, `bmk_process_wordbreak` hoặc `bmk_process_key`.
-  - [ ] Cập nhật giao diện: `filterAndAccept()`, `setPreedit()`, `commitString()`.
+- [x] **M2.4 — Xử Lý Luồng Sự Kiện Bàn Phím (`keyEvent`)**
+  - [x] Bỏ qua sự kiện nhả phím (`keyEvent.isRelease()`).
+  - [x] Kiểm tra các modifier hệ thống (`Ctrl`, `Alt`, `Super`): Cho qua (`PassThrough`).
+  - [x] Phân loại phím sang `bmk_process_backspace`, `bmk_process_wordbreak` hoặc `bmk_process_key`.
+  - [x] Cập nhật giao diện: `filterAndAccept()`, `setPreedit()`, `commitString()`.
 
-- [ ] **M2.5 — Định Dạng Hiển Thị Preedit UI**
-  - [ ] Thiết lập gạch chân (Underline format) cho vùng đang composition.
-  - [ ] Hỗ trợ chế độ client preedit và cập nhật vị trí con trỏ chuột.
+- [x] **M2.5 — Định Dạng Hiển Thị Preedit UI**
+  - [x] Thiết lập gạch chân (Underline format) cho vùng đang composition.
+  - [x] Hỗ trợ chế độ client preedit và cập nhật vị trí con trỏ chuột.
 
-- [ ] **M2.6 — Triển Khai D-Bus Service Cho Trạng Thái V/E**
-  - [ ] Đăng ký D-Bus Service `org.fcitx.Fcitx5.BambooMintKey` trên Session Bus.
-  - [ ] Triển khai D-Bus Method `SetVietnameseMode(bool)`.
-  - [ ] Triển khai D-Bus Method `GetVietnameseMode() -> bool`.
-  - [ ] Triển khai D-Bus Signal `ModeChanged(bool)`.
-  - [ ] Khi phím tắt hoặc UI chuyển mode: cập nhật state nội bộ và phát signal `ModeChanged` tức thì.
+- [x] **M2.6 — Triển Khai D-Bus Service Cho Trạng Thái V/E**
+  - [x] Đăng ký D-Bus Service `org.fcitx.Fcitx5.BambooMintKey` trên Session Bus.
+  - [x] Triển khai D-Bus Method `SetVietnameseMode(bool)`.
+  - [x] Triển khai D-Bus Method `GetVietnameseMode() -> bool`.
+  - [x] Triển khai D-Bus Signal `ModeChanged(bool)`.
+  - [x] Khi phím tắt hoặc UI chuyển mode: cập nhật state nội bộ và phát signal `ModeChanged` tức thì.
 
-- [ ] **M2.7 — Đồng Bộ Cấu Hình Ít Đổi Qua File Watcher (`inotify`)**
-  - [ ] Theo dõi thư mục `$XDG_CONFIG_HOME/bamboomintkey/`.
-  - [ ] Bắt sự kiện `IN_CLOSE_WRITE` trên `config.json` để reload các cấu hình (toneStyle, charset, autoRestore...).
+- [x] **M2.7 — Đồng Bộ Cấu Hình Ít Đổi Qua File Watcher (`inotify`)**
+  - [x] Theo dõi thư mục `$XDG_CONFIG_HOME/bamboomintkey/`.
+  - [x] Bắt sự kiện `IN_CLOSE_WRITE` trên `config.json` để reload các cấu hình (toneStyle, charset, autoRestore...).
 
-- [ ] **M2.8 — Kiểm Thử Addon Theo Test Matrix `TC-FCITX-01` -> `07`**
-  - [ ] Kiểm tra hoạt động gõ, phím tắt, chuyển đổi focus, D-Bus sync và config reload.
+- [x] **M2.8 — Kiểm Thử Addon Theo Test Matrix `TC-FCITX-01` -> `07`**
+  - [x] Kiểm tra hoạt động gõ, phím tắt, chuyển đổi focus, D-Bus sync và config reload.
 
 ---
 
@@ -225,7 +225,8 @@
 | 2026-09-26 | M1 | M1.1 | Khởi tạo project `src/BambooMintKey.Core.Native` (C# NativeAOT): tạo `BambooMintKey.Core.Native.csproj` (`net10.0`, `PublishAot`, `NativeLib=Shared`, `AllowUnsafeBlocks`), tham chiếu F# Core, cờ `StripSymbols`/`InvariantGlobalization`, thêm `Exports.cs` (export `bmk_version`). Đã publish thành công `BambooMintKeyCore.so` và xác minh symbol `bmk_version@@V1.0`. | ✅ Hoàn thành |
 | 2026-09-26 | M1 | M1.2 | Định nghĩa `EngineContext` (`src/BambooMintKey.Core.Native/EngineContext.cs`): chứa `Types.WordState` + `EngineConfig.EngineConfig`, hai bộ đệm UTF-8 cố định 256 byte (`PreeditBuffer`/`CommitBuffer` kèm length), lock nhẹ per-context, và `Reset()`. | ✅ Hoàn thành |
 | 2026-09-26 | M1 | M1.3 - M1.6 | Hoàn thành toàn bộ giao diện C-ABI trong `Exports.cs` + `EngineContext.cs`: lifecycle (`bmk_context_create/free/reset` qua GCHandle), xử lý phím (`bmk_process_key/backspace/wordbreak`), trích xuất buffer UTF-8 (`bmk_get_preedit_text/commit_text/preedit_length`), cấu hình (`bmk_set_options` + `bmk_load_config_json` với JSON parser tối giản). Bộ đệm dùng `NativeMemory` để con trỏ `byte*` ổn định. | ✅ Hoàn thành |
-| 2026-09-26 | M1 | M1.7 | Viết test runner `scripts/test-cabi.py` (Python ctypes) chạy TC-CABI-01 -> 08 + bonus config test. | 🛠️ Chờ build + chạy |
+| 2026-09-26 | M1 | M1.7 | Viết test runner `scripts/test-cabi.py` (Python ctypes) chạy TC-CABI-01 -> 08 + bonus config test. Đã build + chạy thành công **9/9 PASS** (kèm thêm `bmk_gc_collect` + `bmk_get_live_context_count` để đo rò rỉ context chính xác). | ✅ Hoàn thành |
+| 2026-09-26 | M2 | M2.1 - M2.8 | Hoàn thành toàn bộ Milestone 2: Xây dựng addon Fcitx5 C++, CMake build, C-ABI bridge, context state, D-Bus service (V/E mode toggle + signals), inotify file watcher. Đã build, cài đặt addon vào Fcitx5 và kiểm thử thành công (TC-FCITX-01 -> 07). | ✅ Hoàn thành |
 
 ---
 
