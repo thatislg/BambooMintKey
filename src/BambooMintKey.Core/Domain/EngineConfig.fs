@@ -19,6 +19,10 @@ type EngineConfig = {
     ToneStyle: TonePlacementStyle
     // Cho phép bỏ dấu tự do ở bất kỳ vị trí nào trong từ (Ví dụ: phari -> phải, hoacs -> hoác)
     AllowFreeTonePlacement: bool
+    // Bật/tắt thẩm định âm tiết tiếng Việt On-the-fly qua từ điển (FrozenSet). Mặc định: true.
+    EnableVietnameseDictionary: bool
+    // Bật/tắt tự động hoàn tác từ tiếng Anh On-the-fly (English Backtracking). Mặc định: true.
+    EnableEnglishBacktracking: bool
 }
 with
     // Cấu hình mặc định của BambooMintKey
@@ -29,4 +33,6 @@ with
         AllowLeadingWAsU = true
         ToneStyle = TonePlacementStyle.Modern
         AllowFreeTonePlacement = true
+        EnableVietnameseDictionary = true
+        EnableEnglishBacktracking = true
     }

@@ -9,7 +9,7 @@
 **Cập nhật:** 2026-09-26  
 **Giai đoạn:** Phase 8 — Tích hợp Từ Điển MIT, Engine Thẩm Định Âm Tiết On-The-Fly & Sửa Lỗi Ngữ Âm  
 **Thuộc module:** `BambooMintKey.Core` (Triển khai dùng chung độc lập cho cả Windows & Linux)  
-**Trạng thái chung:** 🛠️ Đang triển khai — Đã hoàn thiện M0–M3 (thiết kế, dữ liệu MIT, sửa quy tắc, DictionaryService), tiếp tục M4  
+**Trạng thái chung:** 🛠️ Đang triển khai — Đã hoàn thiện M0–M4 (thiết kế, dữ liệu, sửa quy tắc, DictionaryService, On-The-Fly Validation), tiếp tục M5  
 **Tài liệu tham chiếu:**
 - Điều tra kiến trúc: [008_01_InvestigationForDictionary.md](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/2.Design/Phase8/008_01_InvestigationForDictionary.md)
 - Thiết kế dữ liệu MIT: [008_02_MIT_Dictionary_And_Corpus_Design.md](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/2.Design/Phase8/008_02_MIT_Dictionary_And_Corpus_Design.md)
@@ -29,10 +29,10 @@
 | **M1** | **Xây Dựng & Chuẩn Hóa Nguồn Dữ Liệu Từ Điển MIT** | 15% | ✅ Hoàn thành | 100% | Corpus Wikipedia thực -> 8.1k âm tiết tiếng Việt + 20k từ tiếng Anh (MIT/CC0) |
 | **M2** | **Sửa Dứt Điểm Quy Tắc Ngữ Âm & Đặt Dấu Biên** | 15% | ✅ Hoàn thành | 100% | Sửa `ua+w → ưa`, thêm cụm `ưi`, sửa `c+ua`, `ToneRules`, ngoại lệ `gì` |
 | **M3** | **Module `DictionaryService` & Nhúng Resource Core** | 20% | ✅ Hoàn thành | 100% | `FrozenSet` O(1) nạp qua Embedded Resource, zero-path |
-| **M4** | **Tích Hợp On-The-Fly Validation & Backtracking** | 20% | ⏳ Chờ bắt đầu | 0% | Per-keystroke inline composition, tự hoàn tác từ tiếng Anh |
+| **M4** | **Tích Hợp On-The-Fly Validation & Backtracking** | 20% | ✅ Hoàn thành | 100% | Per-keystroke inline composition, tự hoàn tác từ tiếng Anh |
 | **M5** | **Đồng Bộ & Kiểm Thử Độc Lập (Windows TSF & Linux Fcitx5)** | 10% | ⏳ Chờ bắt đầu | 0% | Bảo toàn C-ABI Linux, kiểm tra TSF Windows |
 | **M6** | **Kiểm Thử E2E, Đo Benchmark & Đóng Gói (Delivery)** | 10% | ⏳ Chờ bắt đầu | 0% | Benchmark độ trễ gõ < 1ms, test matrix hồi quy |
-| **Tổng** | **Toàn bộ Phase 8 (Predict Engine & Dictionary)** | **100%** | 🛠️ **Đang triển khai** | **60%** | |
+| **Tổng** | **Toàn bộ Phase 8 (Predict Engine & Dictionary)** | **100%** | 🛠️ **Đang triển khai** | **80%** | |
 
 ---
 
@@ -137,25 +137,25 @@
 ### 🎯 Milestone 4: Tích Hợp On-The-Fly Validation & Backtracking vào Pipeline Telex
 > **Mục tiêu:** Chuyển đổi toàn bộ cơ chế thẩm định sang Inline On-the-fly trên từng phím bấm trong `TelexEngine`.
 
-- [ ] **M4.1 — Cập nhật cấu hình `EngineConfig.fs`**
-  - [ ] Bổ sung cờ:
+- [x] **M4.1 — Cập nhật cấu hình `EngineConfig.fs`**
+  - [x] Bổ sung cờ:
     - `EnableVietnameseDictionary : bool` (mặc định: `true`)
     - `EnableEnglishBacktracking : bool` (mặc định: `true`)
-  - [ ] Giữ nguyên tương thích ngược với các trường cấu hình cũ.
-- [ ] **M4.2 — Tái cấu trúc pipeline `handleCharInput` trong `TelexEngine.fs`**
-  - [ ] Cơ chế sinh giả thuyết biến đổi (Hypothesis Engine) trên từng phím bấm.
-  - [ ] Xác thực On-the-fly qua `IDictionaryService`: Nếu âm tiết biến đổi hợp lệ trong tiếng Việt $\rightarrow$ xuất kết quả `UpdateComposition`.
-- [ ] **M4.3 — Hiện thực hóa On-the-fly English Backtracking**
-  - [ ] Khi phím mới biến từ thành âm tiết không hợp lệ trong tiếng Việt:
+  - [x] Giữ nguyên tương thích ngược với các trường cấu hình cũ.
+- [x] **M4.2 — Tái cấu trúc pipeline `handleCharInput` trong `TelexEngine.fs`**
+  - [x] Cơ chế sinh giả thuyết biến đổi (Hypothesis Engine) trên từng phím bấm.
+  - [x] Xác thực On-the-fly qua `IDictionaryService`: Nếu âm tiết biến đổi hợp lệ trong tiếng Việt $\rightarrow$ xuất kết quả `UpdateComposition`.
+- [x] **M4.3 — Hiện thực hóa On-the-fly English Backtracking**
+  - [x] Khi phím mới biến từ thành âm tiết không hợp lệ trong tiếng Việt:
     - Kiểm tra nếu chuỗi thô thuộc `english-20k.dict` hoặc có đuôi phụ âm tiếng Anh (`-st`, `-rm`, `-rt`, `-ct`, `-ft`...).
     - Lập tức hoàn tác về chuỗi thô tiếng Anh ngay trên phím đó.
-    - Test case mẫu: `pó + t → post`, `fỏ + m → form`, `cơ + e → core`.
-- [ ] **M4.4 — Bảo toàn các tính năng cốt lõi đã có**
-  - [ ] Đảm bảo cơ chế Repeat-Key Undo (lặp phím xóa dấu) không bị ảnh hưởng.
-  - [ ] Đảm bảo Free Tone Placement (bỏ dấu tự do) phối hợp hài hòa với bộ thẩm định âm tiết.
-  - [ ] Đảm bảo cơ chế Preedit / Underline không bị nhấp nháy (flicker).
-- [ ] **M4.5 — Bộ Unit Tests toàn diện cho On-the-fly Telex Engine**
-  - [ ] Viết test case chuỗi phím bấm liên tục giả lập hành vi người dùng gõ văn bản thực tế.
+  - [x] Thêm `EnglishProtection.isKnownEnglishWord` (20k dict) + guard `viText.Length >= 3` tránh false positive.
+- [x] **M4.4 — Bảo toàn các tính năng cốt lõi đã có**
+  - [x] Đảm bảo cơ chế Repeat-Key Undo (lặp phím xóa dấu) không bị ảnh hưởng.
+  - [x] Đảm bảo Free Tone Placement (bỏ dấu tự do) phối hợp hài hòa với bộ thẩm định âm tiết.
+  - [x] Đảm bảo cơ chế Preedit / Underline không bị nhấp nháy (flicker).
+- [x] **M4.5 — Bộ Unit Tests toàn diện cho On-the-fly Telex Engine**
+  - [x] Viết test case chuỗi phím bấm liên tục giả lập hành vi người dùng gõ văn bản thực tế (12 test case).
 
 ---
 
@@ -229,6 +229,7 @@ Chi tiết kịch bản, đầu vào, đầu ra của từng ca được đặc 
 
 | Ngày | Milestone / Task | Mô Tả Công Việc Thực Hiện | Người Thực Hiện |
 |:---:|:---:|---|:---:|
+| 2026-09-26 | **M4.1–M4.5** | Tích hợp On-the-fly Validation + English Backtracking vào `TelexEngine` (cờ `EnableVietnameseDictionary`/`EnableEnglishBacktracking`, `isKnownEnglishWord` 20k, guard `Length >= 3`), 12 test case (389/389 pass). | Long & LMO Team |
 | 2026-09-26 | **M3.1–M3.5** | Xây `IDictionaryService` + `FrozenDictionaryService` (FrozenSet O(1)), nhúng 2 dict MIT qua EmbeddedResource, `MergeCustomWords`, 22 test case (377/377 pass). | Long & LMO Team |
 | 2026-09-26 | **M2.5** | Xử lý ngoại lệ `gif → gì` (gi + dấu thanh → g + ì) trong `TelexEngine`, bảo toàn phụ âm `gi`. | Long & LMO Team |
 | 2026-09-26 | **M2.1** | Sửa `ModifierRules.fs`: ưu tiên cụm `ua + w → ưa` (fix `vuawf → vừa`), không còn sinh `uă`. | Long & LMO Team |

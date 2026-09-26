@@ -67,7 +67,9 @@ type MainWindow() as this =
           AllowRepeatKeyUndo = if chkRepeatUndo <> null then chkRepeatUndo.IsChecked.GetValueOrDefault(true) else true
           AllowLeadingWAsU = if chkLeadingW <> null then chkLeadingW.IsChecked.GetValueOrDefault(false) else false
           ToneStyle = toneStyle
-          AllowFreeTonePlacement = if chkFreeTone <> null then chkFreeTone.IsChecked.GetValueOrDefault(true) else true }
+          AllowFreeTonePlacement = if chkFreeTone <> null then chkFreeTone.IsChecked.GetValueOrDefault(true) else true
+          EnableVietnameseDictionary = true
+          EnableEnglishBacktracking = true }
 
     member private this.BindControls() =
         chkVietnameseMode <- this.FindControl<CheckBox>("ChkVietnameseMode")

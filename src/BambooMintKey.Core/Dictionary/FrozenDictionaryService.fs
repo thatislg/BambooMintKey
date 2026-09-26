@@ -76,3 +76,10 @@ type FrozenDictionaryService() =
         member this.IsValidVietnameseSyllable word = this.IsValidVietnameseSyllable word
         member this.IsLikelyEnglishWord word = this.IsLikelyEnglishWord word
         member this.MergeCustomWords words = this.MergeCustomWords words
+
+/// <summary>
+/// Singleton từ điển mặc định dùng chung trong engine, nạp từ EmbeddedResource.
+/// Tầng ngoài (Windows/Linux) có thể thay thế bằng instance khác nếu cần.
+/// </summary>
+module DictionaryProvider =
+    let mutable Default : IDictionaryService = FrozenDictionaryService() :> IDictionaryService

@@ -84,7 +84,9 @@ public sealed unsafe class EngineContext
             allowRepeatUndo,
             allowLeadingW,
             tone,
-            allowFreeTone);
+            allowFreeTone,
+            true,   // enableVietnameseDictionary (M4)
+            true);  // enableEnglishBacktracking (M4)
     }
 
     /// <summary>Ghi chuỗi <paramref name="text"/> dưới dạng UTF-8 vào bộ đệm preedit và cập nhật độ dài.</summary>

@@ -50,7 +50,9 @@ public static class BridgeStateManager
                     repeatUndo,
                     leadingW,
                     toneStyle,
-                    freeTone
+                    freeTone,
+                    true,   // enableVietnameseDictionary (M4)
+                    true    // enableEnglishBacktracking (M4)
                 );
             }
             return _currentConfig;

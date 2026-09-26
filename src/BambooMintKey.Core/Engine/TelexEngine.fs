@@ -6,12 +6,48 @@ namespace BambooMintKey.Core.Engine
 open System
 open BambooMintKey.Core.Domain.EngineConfig
 open BambooMintKey.Core.Domain.Types
+open BambooMintKey.Core.Dictionary
 
 module TelexEngine =
 
     let private reconstructSyllableText (s: Syllable) : string =
         let normVowel = ToneRules.normalizeVowels s.VowelNucleus s.InitialConsonant s.FinalConsonant
         s.InitialConsonant + normVowel + s.FinalConsonant
+
+    /// Quyết định có hoàn tác về chuỗi thô tiếng Anh hay không:
+    /// chỉ khi âm tiết đã đủ dài (hoàn chỉnh), KHÔNG hợp lệ tiếng Việt, VÀ chuỗi thô là từ tiếng Anh.
+    let private shouldBacktrackEnglish (viText: string) (rawString: string) (config: EngineConfig) : bool =
+        viText.Length >= 3 &&
+        config.EnableVietnameseDictionary && config.EnableEnglishBacktracking &&
+        not (DictionaryProvider.Default.IsValidVietnameseSyllable (viText.ToLowerInvariant())) &&
+        EnglishProtection.isKnownEnglishWord (rawString.ToLowerInvariant())
+
+    /// Tạo kết quả composition từ một âm tiết, kèm thẩm định On-the-fly & backtrack tiếng Anh.
+    let private makeComposition (syllable: Syllable option) (case: LetterCase) (rawKeys: char list) (rawString: string) (config: EngineConfig) : WordState * EngineAction =
+        match syllable with
+        | Some syl ->
+            let reconstructed = reconstructSyllableText syl
+            let backtrack = shouldBacktrackEnglish reconstructed rawString config
+            let finalText = if backtrack then rawString else reconstructed
+            let formatted = WordBuffer.applyCase case finalText
+            let newState = {
+                RawKeys = rawKeys
+                TransformedText = formatted
+                Syllable = if backtrack then None else Some syl
+                Case = case
+                IsInvalidVietnamese = backtrack
+            }
+            (newState, EngineAction.UpdateComposition formatted)
+        | None ->
+            let fallbackText = WordBuffer.applyCase case rawString
+            let newState = {
+                RawKeys = rawKeys
+                TransformedText = fallbackText
+                Syllable = None
+                Case = case
+                IsInvalidVietnamese = true
+            }
+            (newState, EngineAction.UpdateComposition fallbackText)
 
     let private handleCharInput (c: char) (state: WordState) (config: EngineConfig) : WordState * EngineAction =
         let lowerChar = Char.ToLowerInvariant c
@@ -115,17 +151,8 @@ module TelexEngine =
 
                 match freeToneOpt with
                 | Some (normalizedSyllable, wordCase) ->
-                    // Bỏ dấu tự do thành công: tái tạo chuỗi âm tiết và áp dụng định dạng hoa/thường chính xác
-                    let reconstructed = reconstructSyllableText normalizedSyllable
-                    let formatted = WordBuffer.applyCase wordCase reconstructed
-                    let newState = {
-                        RawKeys = newRaw
-                        TransformedText = formatted
-                        Syllable = Some normalizedSyllable
-                        Case = wordCase
-                        IsInvalidVietnamese = false
-                    }
-                    (newState, EngineAction.UpdateComposition formatted)
+                    // Bỏ dấu tự do thành công: tái tạo chuỗi âm tiết + thẩm định On-the-fly + backtrack English
+                    makeComposition (Some normalizedSyllable) wordCase newRaw rawString config
 
                 | None ->
                     // 4. Thử áp dụng biến đổi lên State Syllable hiện có (Luồng gia tăng Telex chuẩn)
@@ -172,42 +199,16 @@ module TelexEngine =
 
                     match modifiedSyllableOpt with
                     | Some updatedSyllable ->
-                        let reconstructed = reconstructSyllableText updatedSyllable
-                        let formatted = WordBuffer.applyCase detectedCase reconstructed
-                        let newState = {
-                            RawKeys = newRaw
-                            TransformedText = formatted
-                            Syllable = Some updatedSyllable
-                            Case = detectedCase
-                            IsInvalidVietnamese = false
-                        }
-                        (newState, EngineAction.UpdateComposition formatted)
+                        makeComposition (Some updatedSyllable) detectedCase newRaw rawString config
 
                     | None ->
                         // 5. Parse chuỗi thô để xây dựng âm tiết mới (Luồng toàn chuỗi)
                         match SyllableParser.parse rawString with
                         | Some parsedSyllable ->
-                            let reconstructed = reconstructSyllableText parsedSyllable
-                            let formatted = WordBuffer.applyCase detectedCase reconstructed
-                            let newState = {
-                                RawKeys = newRaw
-                                TransformedText = formatted
-                                Syllable = Some parsedSyllable
-                                Case = detectedCase
-                                IsInvalidVietnamese = false
-                            }
-                            (newState, EngineAction.UpdateComposition formatted)
+                            makeComposition (Some parsedSyllable) detectedCase newRaw rawString config
                         | None ->
                             // 6. Fallback tiếng Anh (Không nhận diện được âm tiết tiếng Việt -> giữ nguyên chuỗi phím thô)
-                            let fallbackText = WordBuffer.applyCase detectedCase rawString
-                            let newState = {
-                                RawKeys = newRaw
-                                TransformedText = fallbackText
-                                Syllable = None
-                                Case = detectedCase
-                                IsInvalidVietnamese = true
-                            }
-                            (newState, EngineAction.UpdateComposition fallbackText)
+                            makeComposition None detectedCase newRaw rawString config
 
     let processKey (state: WordState) (input: KeyInput) (config: EngineConfig) : WordState * EngineAction =
         if not config.IsEnabled then

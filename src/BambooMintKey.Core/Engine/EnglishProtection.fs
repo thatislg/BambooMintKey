@@ -6,6 +6,7 @@ namespace BambooMintKey.Core.Engine
 open System
 open BambooMintKey.Core.Domain.Types
 open BambooMintKey.Core.Domain.UnicodeTables
+open BambooMintKey.Core.Dictionary
 
 /// <summary>
 /// Module chuyên trách nhận diện và bảo vệ từ tiếng Anh trong chế độ gõ Telex.
@@ -143,6 +144,10 @@ module EnglishProtection =
         else
             true
 
+    /// Kiểm tra từ có nằm trong từ điển tiếng Anh 20.000 từ (DictionaryProvider) hoặc danh sách hardcode cũ.
+    let isKnownEnglishWord (lower: string) : bool =
+        DictionaryProvider.Default.IsLikelyEnglishWord lower || CommonEnglishWords.Contains lower
+
     /// Đánh giá xem một chuỗi phím thô có xác suất cao là từ tiếng Anh cần bảo vệ hay không
     let isLikelyEnglishWord (rawKeys: char list) : bool =
         if rawKeys.IsEmpty then false
@@ -150,7 +155,7 @@ module EnglishProtection =
             let rawStr = String(Array.ofList rawKeys)
             let lower = rawStr.ToLowerInvariant()
 
-            // 1. Tra cứu trực tiếp trong danh sách từ tiếng Anh thông dụng
+            // 1. Tra cứu trực tiếp trong danh sách từ tiếng Anh thông dụng (hardcode cũ)
             if CommonEnglishWords.Contains lower then true
             // 2. Kiểm tra đuôi nguyên âm câm -re sau nguyên âm (core, more, care, share...)
             elif hasSilentREnding lower then true
