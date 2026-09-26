@@ -17,10 +17,10 @@
     <Copyright>Copyright © 2026</Copyright>
 
     <!-- Quản lý phiên bản tập trung (Single Source of Truth) -->
-    <VersionPrefix>1.0.1</VersionPrefix>
-    <Version>1.0.1</Version>
-    <AssemblyVersion>1.0.1.0</AssemblyVersion>
-    <FileVersion>1.0.1.0</FileVersion>
-    <InformationalVersion>1.0.1</InformationalVersion>
+    <VersionPrefix>1.1.0</VersionPrefix>
+    <Version>1.1.0</Version>
+    <AssemblyVersion>1.1.0.0</AssemblyVersion>
+    <FileVersion>1.1.0.0</FileVersion>
+    <InformationalVersion>1.1.0</InformationalVersion>
   </PropertyGroup>
 </Project>

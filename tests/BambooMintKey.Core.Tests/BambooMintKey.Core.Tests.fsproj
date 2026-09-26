@@ -38,6 +38,7 @@
     <Compile Include="RuleTests.fs" />
     <Compile Include="DictionaryServiceTests.fs" />
     <Compile Include="OnTheFlyBacktrackingTests.fs" />
+    <Compile Include="BenchmarkTests.fs" />
     <Compile Include="HotkeyFormatterTests.fs" />
     <Compile Include="AutoCapitalizationTests.fs" />
   </ItemGroup>
