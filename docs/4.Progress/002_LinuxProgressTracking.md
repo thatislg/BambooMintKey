@@ -226,7 +226,7 @@
 | 2026-09-26 | M1 | M1.2 | Định nghĩa `EngineContext` (`src/BambooMintKey.Core.Native/EngineContext.cs`): chứa `Types.WordState` + `EngineConfig.EngineConfig`, hai bộ đệm UTF-8 cố định 256 byte (`PreeditBuffer`/`CommitBuffer` kèm length), lock nhẹ per-context, và `Reset()`. | ✅ Hoàn thành |
 | 2026-09-26 | M1 | M1.3 - M1.6 | Hoàn thành toàn bộ giao diện C-ABI trong `Exports.cs` + `EngineContext.cs`: lifecycle (`bmk_context_create/free/reset` qua GCHandle), xử lý phím (`bmk_process_key/backspace/wordbreak`), trích xuất buffer UTF-8 (`bmk_get_preedit_text/commit_text/preedit_length`), cấu hình (`bmk_set_options` + `bmk_load_config_json` với JSON parser tối giản). Bộ đệm dùng `NativeMemory` để con trỏ `byte*` ổn định. | ✅ Hoàn thành |
 | 2026-09-26 | M1 | M1.7 | Viết test runner `scripts/test-cabi.py` (Python ctypes) chạy TC-CABI-01 -> 08 + bonus config test. Đã build + chạy thành công **9/9 PASS** (kèm thêm `bmk_gc_collect` + `bmk_get_live_context_count` để đo rò rỉ context chính xác). | ✅ Hoàn thành |
-| 2026-09-26 | M2 | M2.1 - M2.8 | Hoàn thành toàn bộ Milestone 2: Xây dựng addon Fcitx5 C++, CMake build, C-ABI bridge, context state, D-Bus service (V/E mode toggle + signals), inotify file watcher. Đã build, cài đặt addon vào Fcitx5 và kiểm thử thành công (TC-FCITX-01 -> 07). | ✅ Hoàn thành |
+| 2026-09-26 | M2 | M2.1 - M2.8 | **Hoàn thành Milestone 2 (Fcitx5 addon C++)**: viết `cabibridge.h` (khai báo C-ABI), `state.h` (`BambooMintKeyState` per-context), `engine.h`/`engine.cpp` (`BambooMintKeyEngine` + `BambooMintKeyDBus`), `CMakeLists.txt` + 2 file conf, cài icon V/E. Đã build + cài vào Fcitx5, gõ Telex thành công, D-Bus V/E hoạt động. Quyết định chốt: dùng preedit `NoFlag` (ẩn gạch chân phía IME), hotkey cứng `` ` `` đổi V/E, icon động qua `overrideIcon`. Direct commit (Level 2) đã thử nhưng **tắt** vì bug Zed. Hướng dẫn build tại [BUILD_LINUX.md](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/BUILD_LINUX.md). | ✅ Hoàn thành |
 
 ---
 
@@ -234,4 +234,7 @@
 
 | Issue # | Mô Tả Vấn Đề | Module | Mức Độ | Trạng Thái | Giải Pháp / File Liên Quan |
 |:---:|---|:---:|:---:|:---:|---|
-| *Chưa có* | — | — | — | — | — |
+| L001 | **Không chọn được input method** do file addon trùng lặp (addon cũ `bamboomint` + `bamboomintkey` cài ở cả `/usr` lẫn `/usr/local`), khiến Fcitx5 bị rối. | Fcitx5 Addon | Cao | ✅ Đã xử lý | Dọn sạch file trùng, chỉ giữ 1 bản ở `/usr` |
+| L002 | **Zed tự vẽ gạch chân preedit** dù IME đã đặt `NoFlag` — Zed bỏ qua cờ `TextFormatFlag` và render composition theo kiểu riêng. | Preedit UI | Trung bình | ⏳ Chấp nhận (giới hạn app) | Dùng `NoFlag`; hướng khác cần nghĩ sau |
+| L003 | **Direct commit (Level 2) hỏng trên Zed** (nhân x2/x3 nội dung): Zed báo hỗ trợ `SurroundingText` nhưng không thực thi `deleteSurroundingText`. | keyEvent / Direct commit | Cao | ⏳ Tạm tắt direct commit | Dùng preedit `NoFlag`; cần nhận diện app để bật lại sau |
+| L004 | **`UserInterfaceManager::update(StatusArea, nullptr)` gây crash**, làm hỏng input method (hotkey V/E không đổi liên tục). | Icon refresh | Trung bình | ✅ Đã sửa | Dùng `inputContext()->updateUserInterface(...)` với context thật |
