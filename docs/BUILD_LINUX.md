@@ -4,11 +4,19 @@
   SPDX-License-Identifier: MIT
 -->
 
-# Hướng Dẫn Build BambooMintKey trên Linux (Fcitx5)
+# Hướng Dẫn Cài Đặt & Build BambooMintKey trên Linux (Fcitx5)
 
-Tài liệu hướng dẫn build và cài đặt bộ gõ BambooMintKey trên Linux, sử dụng Fcitx5 làm input method framework.
+Tài liệu hướng dẫn cài đặt và build bộ gõ BambooMintKey trên Linux (Fcitx5), hỗ trợ **Ubuntu/Debian** và **Fedora**. Cách nhanh nhất là dùng script 1 lệnh; các mục bên dưới mô tả chi tiết từng bước build thủ công.
 
 > Các đường dẫn trong tài liệu dùng ký hiệu chung: `~` = thư mục home của người dùng, `$HOME` tương đương, `$XDG_CONFIG_HOME` = thư mục config XDG (mặc định `~/.config`).
+
+> **⚡ Cài đặt nhanh bằng 1 lệnh:**
+> ```bash
+> cd /đường/dẫn/tới/BambooMintKey
+> ./scripts/install_linux.sh      # build + cài toàn bộ vào /usr (cần sudo)
+> ./scripts/uninstall_linux.sh    # gỡ sạch
+> ```
+> Cài vào hệ thống `/usr` (phù hợp apt/rpm cho Ubuntu/Debian & Fedora). Các mục bên dưới mô tả chi tiết từng bước nếu bạn muốn build thủ công.
 
 ---
 
@@ -22,19 +30,27 @@ Tài liệu hướng dẫn build và cài đặt bộ gõ BambooMintKey trên Li
 | g++ (GCC) | C++17 | Compiler C++ |
 | clang + lld | — | Bắt buộc cho NativeAOT |
 
-**Cài dependencies (Ubuntu/Debian/Linux Mint):**
+**Ubuntu / Debian / Linux Mint:**
 
 ```bash
 sudo apt update
 sudo apt install -y \
-    fcitx5 \
+    fcitx5 fcitx5-frontend-all \
     libfcitx5core-dev \
     libfcitx5config-dev \
     libfcitx5utils-dev \
     cmake g++ clang lld
 ```
 
-> Fedora/RHEL dùng `dnf install fcitx5-devel clang lld` (tên gói có thể khác).
+**Fedora / RHEL:**
+
+```bash
+sudo dnf install -y \
+    fcitx5 fcitx5-devel fcitx5-qt fcitx5-gtk2 fcitx5-gtk3 \
+    cmake gcc-c++ clang lld
+```
+
+> `fcitx5-frontend-all` (Ubuntu) và `fcitx5-qt`/`fcitx5-gtk*` (Fedora) là các IM module để ứng dụng GTK/Qt kết nối được với Fcitx5 — bắt buộc để gõ tiếng Việt trong app.
 
 ---
 
@@ -112,8 +128,8 @@ Script thực hiện:
 
 1. `dotnet publish` ứng dụng ra `publish/ui-linux/`.
 2. Tạo launcher `bamboomintkey-ui` trên PATH (trỏ tới apphost đã publish).
-3. Cài desktop entry `bamboomintkey-settings.desktop` vào `~/.local/share/applications/`.
-4. Cài icon `bamboomintkey.svg` vào `~/.local/share/icons/hicolor/scalable/apps/`.
+3. Cài desktop entry `bamboomintkey-settings.desktop` vào `/usr/share/applications/` (cài user: `~/.local/share/applications/`).
+4. Cài icon `bamboomintkey.svg` vào `/usr/share/icons/hicolor/scalable/apps/` (cài user: `~/.local/share/icons/hicolor/scalable/apps/`).
 5. Làm mới cache icon / desktop database.
 
 **Mở giao diện cài đặt bằng các cách:**
@@ -124,7 +140,25 @@ Script thực hiện:
 
 ---
 
-## 6. Kích hoạt bộ gõ
+## 6. Kích hoạt Fcitx5 & thêm bộ gõ
+
+### 6.1. Đặt Fcitx5 làm bộ gõ hệ thống
+
+Để ứng dụng (GTK/Qt) dùng Fcitx5, cần đặt biến môi trường IM module. Thêm vào `~/.profile` (hoặc `~/.bash_profile`):
+
+```bash
+export GTK_IM_MODULE=fcitx
+export QT_IM_MODULE=fcitx
+export XMODIFIERS=@im=fcitx
+```
+
+Hoặc dùng công cụ có sẵn:
+- **Ubuntu/Debian**: `im-config -n fcitx5` rồi đăng xuất/đăng nhập lại.
+- **KDE Plasma**: System Settings → Input Devices → Virtual Keyboard → chọn **Fcitx 5**.
+
+> Lưu ý: giá trị module là `fcitx` (không phải `fcitx5`) để tương thích ngược với các app.
+
+### 6.2. Nạp addon & thêm bộ gõ
 
 ```bash
 # Restart Fcitx5 để nạp addon mới
@@ -136,7 +170,7 @@ Sau đó mở **Fcitx5 Configuration** → tab **Input Method**:
 1. Tìm **BambooMintKey** (mục tiếng Việt, `LangCode=vi`) trong danh sách bên phải.
 2. Thêm vào nhóm input method hiện tại của bạn.
 
-> Nếu icon chưa hiện, chạy `gtk-update-icon-cache /usr/share/icons/hicolor` (hoặc `~/.local/share/icons/hicolor` nếu cài user).
+> Nếu icon chưa hiện, chạy `gtk-update-icon-cache /usr/share/icons/hicolor`.
 
 ---
 
@@ -172,6 +206,14 @@ Thay đổi file này sẽ được addon tự nạp lại qua cơ chế `inotif
 
 ## 9. Gỡ cài đặt
 
+Cách đơn giản nhất:
+
+```bash
+./scripts/uninstall_linux.sh
+```
+
+Script tự dọn cả `/usr` lẫn `~/.local` rồi restart Fcitx5. Nếu muốn gỡ thủ công:
+
 ```bash
 sudo rm -f /usr/lib/*/fcitx5/libbamboomintkey.so \
            /usr/lib/*/fcitx5/BambooMintKeyCore.so \
@@ -180,9 +222,11 @@ sudo rm -f /usr/lib/*/fcitx5/libbamboomintkey.so \
            /usr/share/icons/hicolor/scalable/apps/fcitx_bamboomintkey*.svg
 
 # Gỡ giao diện Cài đặt (UI)
-rm -f ~/.local/share/applications/bamboomintkey-settings.desktop \
-      ~/.local/share/icons/hicolor/scalable/apps/bamboomintkey.svg \
+rm -f /usr/share/applications/bamboomintkey-settings.desktop \
+      /usr/share/icons/hicolor/scalable/apps/bamboomintkey.svg \
       /usr/local/bin/bamboomintkey-ui \
+      ~/.local/share/applications/bamboomintkey-settings.desktop \
+      ~/.local/share/icons/hicolor/scalable/apps/bamboomintkey.svg \
       ~/.local/bin/bamboomintkey-ui
 ```
 

@@ -8,13 +8,13 @@
 # Thực hiện:
 #   1. dotnet publish ứng dụng Avalonia (framework-dependent).
 #   2. Tạo launcher `bamboomintkey-ui` trên PATH (để Fcitx5 addon gọi được).
-#   3. Cài desktop entry vào ~/.local/share/applications/.
-#   4. Cài icon ứng dụng vào ~/.local/share/icons/hicolor/.
+#   3. Cài desktop entry.
+#   4. Cài icon ứng dụng.
 #   5. Làm mới cache icon / desktop database.
 #
 # Cách dùng:
-#   ./scripts/install-ui-linux.sh          # launcher vào /usr/local/bin (cần sudo)
-#   ./scripts/install-ui-linux.sh --user   # launcher vào ~/.local/bin (không cần sudo)
+#   ./scripts/install-ui-linux.sh          # launcher /usr/local/bin, desktop+icon /usr/share (cần sudo)
+#   ./scripts/install-ui-linux.sh --user   # launcher+desktop+icon vào ~/.local (không cần sudo)
 
 set -euo pipefail
 
@@ -71,27 +71,36 @@ fi
 # ---------------------------------------------------------------------------
 # 3. Desktop entry
 # ---------------------------------------------------------------------------
-APPS_DIR="$HOME/.local/share/applications"
-mkdir -p "$APPS_DIR"
-cp "$DESKTOP_SRC" "$APPS_DIR/$APP_ID.desktop"
-echo "==> Desktop entry: $APPS_DIR/$APP_ID.desktop"
+if [ "$USER_INSTALL" -eq 1 ]; then
+    APPS_DIR="$HOME/.local/share/applications"
+    ICONS_DIR="$HOME/.local/share/icons/hicolor/scalable/apps"
+    ICON_THEME_DIR="$HOME/.local/share/icons/hicolor"
+    SUDO=""
+else
+    APPS_DIR="/usr/share/applications"
+    ICONS_DIR="/usr/share/icons/hicolor/scalable/apps"
+    ICON_THEME_DIR="/usr/share/icons/hicolor"
+    if [ "$(id -u)" -eq 0 ]; then
+        SUDO=""
+    else
+        SUDO="sudo"
+    fi
+fi
 
-# ---------------------------------------------------------------------------
-# 4. Icon
-# ---------------------------------------------------------------------------
-ICONS_DIR="$HOME/.local/share/icons/hicolor/scalable/apps"
-mkdir -p "$ICONS_DIR"
-cp "$ICON_SRC" "$ICONS_DIR/bamboomintkey.svg"
+$SUDO mkdir -p "$APPS_DIR" "$ICONS_DIR"
+$SUDO cp "$DESKTOP_SRC" "$APPS_DIR/$APP_ID.desktop"
+$SUDO cp "$ICON_SRC" "$ICONS_DIR/bamboomintkey.svg"
+echo "==> Desktop entry: $APPS_DIR/$APP_ID.desktop"
 echo "==> Icon: $ICONS_DIR/bamboomintkey.svg"
 
 # ---------------------------------------------------------------------------
 # 5. Làm mới cache
 # ---------------------------------------------------------------------------
 if command -v gtk-update-icon-cache >/dev/null 2>&1; then
-    gtk-update-icon-cache "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
+    $SUDO gtk-update-icon-cache "$ICON_THEME_DIR" 2>/dev/null || true
 fi
 if command -v update-desktop-database >/dev/null 2>&1; then
-    update-desktop-database "$APPS_DIR" 2>/dev/null || true
+    $SUDO update-desktop-database "$APPS_DIR" 2>/dev/null || true
 fi
 
 echo "==> Xong. Chạy 'bamboomintkey-ui' hoặc tìm 'BambooMintKey Settings' trong menu ứng dụng."

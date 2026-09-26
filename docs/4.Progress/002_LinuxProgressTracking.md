@@ -205,13 +205,13 @@
 - [ ] **M4.3 — Kiểm Thử Ngữ Pháp Tiếng Việt Nâng Cao**
   - [ ] Kiểm thử từ ghép, bỏ dấu tự do, khôi phục từ tiếng Anh, xóa lùi Backspace.
 
-- [ ] **M4.4 — Xây Dựng Script Cài Đặt Tự Động (`scripts/install_linux.sh`)**
-  - [ ] Tự động build NativeAOT -> Fcitx5 addon -> UI Linux.
-  - [ ] Cài đặt vào `~/.local/` và restart Fcitx5 daemon (`fcitx5 -r -d`).
+- [x] **M4.4 — Xây Dựng Script Cài Đặt Tự Động (`scripts/install_linux.sh`)**
+  - [x] Tự động build NativeAOT -> Fcitx5 addon -> UI Linux.
+  - [x] Cài đặt vào `/usr/` (multiarch tự động) và restart Fcitx5 daemon (`fcitx5 -r -d`).
 
-- [ ] **M4.5 — Tạo Script Gỡ Cài Đặt (`scripts/uninstall_linux.sh`) & Đóng Gói Phân Phối**
-  - [ ] Script dọn dẹp sạch sẽ tài nguyên đã cài đặt.
-  - [ ] Tạo file nén portable `.tar.gz` hoặc kịch bản đóng gói `.deb`.
+- [x] **M4.5 — Tạo Script Gỡ Cài Đặt (`scripts/uninstall_linux.sh`)**
+  - [x] Script dọn dẹp sạch sẽ tài nguyên đã cài đặt (cả `~/.local` lẫn `/usr`).
+  - [ ] Đóng gói phân phối: tạo file nén portable `.tar.gz` hoặc kịch bản `.deb`.
 
 ---
 

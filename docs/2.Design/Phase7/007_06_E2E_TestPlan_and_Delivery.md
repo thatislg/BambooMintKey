@@ -18,7 +18,7 @@
 
 1. **Xác Minh Chất Lượng Toàn Diện (End-to-End)**: Đảm bảo bộ gõ BambooMintKey hoạt động mượt mà, chính xác, không giật lag trên các môi trường hiển thị Linux phổ biến (**Wayland** và **X11**) và các toolkit giao diện khác nhau (GTK, Qt, Chromium/Electron, Terminal).
 2. **Kiểm Chứng Ngữ Pháp Tiếng Việt**: Đảm bảo toàn bộ các tính năng gõ Telex, dấu thanh, âm đệm, từ vay mượn tiếng Anh hoạt động đồng nhất với bản Windows.
-3. **Quy Trình Cài Đặt "Một Lệnh" (One-Command Deployment)**: Cung cấp kịch bản tự động biên dịch và cài đặt hoàn chỉnh vào không gian người dùng (`~/.local/`), không đòi hỏi quyền `root` hay can thiệp vào tệp hệ thống `/usr/`.
+3. **Quy Trình Cài Đặt "Một Lệnh" (One-Command Deployment)**: Cung cấp kịch bản tự động biên dịch và cài đặt hoàn chỉnh vào hệ thống (`/usr/`), phù hợp đóng gói apt/rpm cho **Ubuntu/Debian** và **Fedora KDE Plasma**. Thư viện addon đặt vào đường dẫn multiarch chuẩn (`lib/x86_64-linux-gnu` trên Debian/Ubuntu, `lib64` trên Fedora) qua CMake `GNUInstallDirs`, yêu cầu quyền `root` (sudo).
 4. **Cơ Chế Gỡ Cài Đặt Sạch Sẽ (Clean Uninstallation)**: Xóa sạch toàn bộ các thư viện và cấu hình khi người dùng muốn gỡ cài đặt.
 
 ---
@@ -52,14 +52,14 @@
 
 ## 4. Đặc Tả Kịch Bản Cài Đặt Tự Động (`scripts/install_linux.sh`)
 
-Script cài đặt được thiết kế để chạy hoàn toàn trong không gian người dùng thông thường (`non-root`), ghi dữ liệu vào thư mục tiêu chuẩn `~/.local`.
+Script cài đặt biên dịch và cài đặt vào hệ thống (`/usr/`), yêu cầu quyền `root` (sudo). Đường dẫn thư viện được xác định tự động theo nền tảng: `/usr/lib/<multiarch>/fcitx5/` trên Ubuntu/Debian và `/usr/lib64/fcitx5/` trên Fedora (qua CMake `GNUInstallDirs`).
 
 ```mermaid
 flowchart TD
     A[Bắt Đầu Cài Đặt] --> B[Kiểm Tra Môi Trường:<br/>dotnet 10, cmake, fcitx5]
     B -->|Đủ Công Cụ| C[Biên Dịch Core.Native<br/>dotnet publish NativeAOT Shared]
     B -->|Thiếu Công Cụ| Err[Báo Lỗi & Hướng Dẫn Cài]
-    C --> D[Biên Dịch Addon Fcitx5<br/>CMake & Make install vào ~/.local]
+    C --> D[Biên Dịch Addon Fcitx5<br/>CMake & Make install vào /usr]
     D --> E[Biên Dịch UI.Linux<br/>Avalonia Settings GUI]
     E --> F[Triển Khai Tài Nguyên:<br/>Binary, Desktop Entry, Icon SVG]
     F --> G[Khởi Động Lại Fcitx5 Daemon<br/>fcitx5 -r -d]
@@ -83,7 +83,7 @@ THUẬT TOÁN KịchBảnCàiĐặt():
 
     // Bước 3: Biên dịch plugin C++ Fcitx5 Addon
     InThôngBáo("[2/3] Đang biên dịch Fcitx5 Addon (C++/CMake)...")
-    CấuHìnhCMake(ĐườngDẫn="src/BambooMintKey.Fcitx5", TiềnTốCàiĐặt="~/.local")
+    CấuHìnhCMake(ĐườngDẫn="src/BambooMintKey.Fcitx5", TiềnTốCàiĐặt="/usr")
     ThựcThiBiênDịchVàCàiĐặt(make install)
 
     // Bước 4: Biên dịch ứng dụng Cài đặt Avalonia
@@ -91,9 +91,9 @@ THUẬT TOÁN KịchBảnCàiĐặt():
     ChạyLệnh(dotnet publish, ĐườngDẫn="src/BambooMintKey.UI.Linux", CấuHình=Release)
 
     // Bước 5: Sao chép tệp thực thi và tích hợp desktop
-    SaoChépTệp(TệpThựcThiUI -> "~/.local/bin/bamboomintkey-ui")
-    SaoChépTệp(TệpDesktopEntry -> "~/.local/share/applications/")
-    SaoChépTệp(BiểuTượngSVG -> "~/.local/share/icons/hicolor/scalable/apps/")
+    SaoChépTệp(TệpThựcThiUI -> "/usr/local/bin/bamboomintkey-ui")
+    SaoChépTệp(TệpDesktopEntry -> "/usr/share/applications/")
+    SaoChépTệp(BiểuTượngSVG -> "/usr/share/icons/hicolor/scalable/apps/")
 
     // Bước 6: Khởi động lại daemon Fcitx5 để nạp bộ gõ mới
     KhởiĐộngLạiDaemon("fcitx5 -r -d")
@@ -108,13 +108,13 @@ HẾT THUẬT TOÁN
 Kịch bản gỡ bỏ thu hồi triệt để mọi tệp tin đã tạo ra trên hệ thống mà không làm ảnh hưởng đến các cấu hình khác của Fcitx5.
 
 ### Danh mục các tệp tin được thu hồi:
-1. Thư viện lõi: `~/.local/lib/libBambooMintKeyCore.so`.
-2. Plugin Fcitx5: `~/.local/lib/fcitx5/bamboomintkey-fcitx5.so`.
-3. Tệp định nghĩa bộ gõ: `~/.local/share/fcitx5/inputmethod/bamboomintkey.conf`.
-4. Tệp metadata addon: `~/.local/share/fcitx5/addon/bamboomintkey-addon.conf`.
-5. Tệp thực thi giao diện: `~/.local/bin/bamboomintkey-ui`.
-6. Lối tắt ứng dụng: `~/.local/share/applications/bamboomintkey-settings.desktop`.
-7. Biểu tượng SVG: `~/.local/share/icons/hicolor/scalable/apps/bamboomintkey.svg`.
+1. Thư viện lõi: `/usr/lib/<multiarch>/fcitx5/BambooMintKeyCore.so` (Fedora: `/usr/lib64/fcitx5/`).
+2. Plugin Fcitx5: `/usr/lib/<multiarch>/fcitx5/libbamboomintkey.so`.
+3. Tệp định nghĩa bộ gõ: `/usr/share/fcitx5/inputmethod/bamboomintkey.conf`.
+4. Tệp metadata addon: `/usr/share/fcitx5/addon/bamboomintkey.conf`.
+5. Tệp thực thi giao diện: `/usr/local/bin/bamboomintkey-ui`.
+6. Lối tắt ứng dụng: `/usr/share/applications/bamboomintkey-settings.desktop`.
+7. Biểu tượng SVG: `/usr/share/icons/hicolor/scalable/apps/bamboomintkey.svg`.
 
 ### Thuật toán Kịch bản Gỡ cài đặt (Mã giả):
 
