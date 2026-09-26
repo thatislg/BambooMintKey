@@ -34,7 +34,8 @@ int bmk_get_preedit_length(void *handle);
 // Cấu hình runtime.
 void bmk_set_options(void *handle, int isEnabled, int toneStyle,
                      int autoRestoreEnglish, int allowRepeatUndo,
-                     int allowLeadingW, int allowFreeTone);
+                     int allowLeadingW, int allowFreeTone,
+                     int enableVietnameseDictionary, int enableEnglishBacktracking);
 int bmk_load_config_json(void *handle, const char *jsonUtf8);
 }
 

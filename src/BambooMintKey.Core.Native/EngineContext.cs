@@ -75,7 +75,7 @@ public sealed unsafe class EngineContext
     /// Cập nhật cấu hình gõ từ các cờ nguyên thủy (không cần xử lý chuỗi).
     /// Thứ tự tham số khớp với constructor của <c>EngineConfig.EngineConfig</c>.
     /// </summary>
-    public void SetOptions(bool isEnabled, int toneStyle, bool autoRestoreEnglish, bool allowRepeatUndo, bool allowLeadingW, bool allowFreeTone)
+    public void SetOptions(bool isEnabled, int toneStyle, bool autoRestoreEnglish, bool allowRepeatUndo, bool allowLeadingW, bool allowFreeTone, bool enableVietnameseDictionary, bool enableEnglishBacktracking)
     {
         var tone = toneStyle == 1 ? Types.TonePlacementStyle.Traditional : Types.TonePlacementStyle.Modern;
         Config = new EngineConfig.EngineConfig(
@@ -85,8 +85,8 @@ public sealed unsafe class EngineContext
             allowLeadingW,
             tone,
             allowFreeTone,
-            true,   // enableVietnameseDictionary (M4)
-            true);  // enableEnglishBacktracking (M4)
+            enableVietnameseDictionary,
+            enableEnglishBacktracking);
     }
 
     /// <summary>Ghi chuỗi <paramref name="text"/> dưới dạng UTF-8 vào bộ đệm preedit và cập nhật độ dài.</summary>

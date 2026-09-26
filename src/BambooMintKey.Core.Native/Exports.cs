@@ -202,7 +202,9 @@ public static unsafe class Exports
         int autoRestoreEnglish,
         int allowRepeatUndo,
         int allowLeadingW,
-        int allowFreeTone)
+        int allowFreeTone,
+        int enableVietnameseDictionary,
+        int enableEnglishBacktracking)
     {
         var context = GetContext(handle);
         if (context == null)
@@ -216,7 +218,9 @@ public static unsafe class Exports
             autoRestoreEnglish != 0,
             allowRepeatUndo != 0,
             allowLeadingW != 0,
-            allowFreeTone != 0);
+            allowFreeTone != 0,
+            enableVietnameseDictionary != 0,
+            enableEnglishBacktracking != 0);
     }
 
     /// <summary>
@@ -243,8 +247,10 @@ public static unsafe class Exports
         bool repeatUndo = JsonGetBool(json, "allowRepeatKeyUndo", true);
         bool leadingW = JsonGetBool(json, "allowLeadingWAsU", false);
         bool freeTone = JsonGetBool(json, "allowFreeTonePlacement", true);
+        bool enableDict = JsonGetBool(json, "enableVietnameseDictionary", true);
+        bool enableBacktrack = JsonGetBool(json, "enableEnglishBacktracking", true);
 
-        context.SetOptions(isEnabled, toneStyle, autoRestore, repeatUndo, leadingW, freeTone);
+        context.SetOptions(isEnabled, toneStyle, autoRestore, repeatUndo, leadingW, freeTone, enableDict, enableBacktrack);
         return 0;
     }
 

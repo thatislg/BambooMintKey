@@ -30,6 +30,8 @@ FCITX_CONFIGURATION(
     fcitx::Option<bool> allowRepeatKeyUndo{this, "AllowRepeatKeyUndo", "Gõ lặp dấu để undo", true};
     fcitx::Option<bool> allowLeadingWAsU{this, "AllowLeadingWAsU", "w đầu từ thành ư", false};
     fcitx::Option<bool> allowFreeTonePlacement{this, "AllowFreeTonePlacement", "Bỏ dấu tự do", true};
+    fcitx::Option<bool> enableVietnameseDictionary{this, "EnableVietnameseDictionary", "Thẩm định âm tiết qua từ điển", true};
+    fcitx::Option<bool> enableEnglishBacktracking{this, "EnableEnglishBacktracking", "Tự hoàn tác từ tiếng Anh", true};
 );
 
 class BambooMintKeyEngine;
@@ -121,6 +123,8 @@ private:
     bool allowRepeatUndo_ = true;
     bool allowLeadingW_ = false;
     bool allowFreeTone_ = true;
+    bool enableVietnameseDictionary_ = true;
+    bool enableEnglishBacktracking_ = true;
 
     std::unique_ptr<fcitx::dbus::Bus> dbusBus_;
     std::unique_ptr<BambooMintKeyDBus> dbusObject_;

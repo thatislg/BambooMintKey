@@ -17,6 +17,8 @@ type AppConfig = {
     mutable AllowRepeatKeyUndo: bool
     mutable AllowLeadingWAsU: bool
     mutable AllowFreeTonePlacement: bool
+    mutable EnableVietnameseDictionary: bool
+    mutable EnableEnglishBacktracking: bool
     mutable InputMethod: byte          // 0 = Telex, 1 = VNI, 2 = Simple Telex
     mutable Charset: byte              // 0 = Unicode dựng sẵn, 1 = Unicode tổ hợp, 2 = TCVN3
     mutable ToggleHotkey: byte         // 0 = Ctrl+Shift, 1 = Alt+Z, 2 = Ctrl+Space, 3 = None, 4 = Custom
@@ -36,6 +38,8 @@ type AppConfig = {
         AllowRepeatKeyUndo = true
         AllowLeadingWAsU = false
         AllowFreeTonePlacement = true
+        EnableVietnameseDictionary = true
+        EnableEnglishBacktracking = true
         InputMethod = 0uy
         Charset = 0uy
         ToggleHotkey = 0uy

@@ -56,6 +56,7 @@ def load_library(path: str) -> ctypes.CDLL:
         ctypes.c_void_p,
         ctypes.c_int, ctypes.c_int, ctypes.c_int,
         ctypes.c_int, ctypes.c_int, ctypes.c_int,
+        ctypes.c_int, ctypes.c_int,
     ]
     lib.bmk_load_config_json.restype = ctypes.c_int
     lib.bmk_load_config_json.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
@@ -208,7 +209,7 @@ def tc_cabi_09_config_bonus(lib):
     h = lib.bmk_context_create()
 
     # Tắt chế độ V -> phím phải PassThrough
-    lib.bmk_set_options(h, 0, 0, 1, 1, 0, 1)
+    lib.bmk_set_options(h, 0, 0, 1, 1, 0, 1, 1, 1)
     if lib.bmk_process_key(h, ord("a")) != ACTION_PASS_THROUGH:
         lib.bmk_context_free(h)
         return False, "chế độ tắt (isEnabled=0) phải trả PassThrough"

@@ -29,6 +29,8 @@ type MainWindow() as this =
     let mutable chkAutoRestore : CheckBox = null
     let mutable chkRepeatUndo : CheckBox = null
     let mutable chkLeadingW : CheckBox = null
+    let mutable chkEnableDict : CheckBox = null
+    let mutable chkEnableBacktrack : CheckBox = null
     let mutable txtMacroKey : TextBox = null
     let mutable txtMacroValue : TextBox = null
     let mutable lstMacros : ListBox = null
@@ -68,8 +70,8 @@ type MainWindow() as this =
           AllowLeadingWAsU = if chkLeadingW <> null then chkLeadingW.IsChecked.GetValueOrDefault(false) else false
           ToneStyle = toneStyle
           AllowFreeTonePlacement = if chkFreeTone <> null then chkFreeTone.IsChecked.GetValueOrDefault(true) else true
-          EnableVietnameseDictionary = true
-          EnableEnglishBacktracking = true }
+          EnableVietnameseDictionary = if chkEnableDict <> null then chkEnableDict.IsChecked.GetValueOrDefault(true) else true
+          EnableEnglishBacktracking = if chkEnableBacktrack <> null then chkEnableBacktrack.IsChecked.GetValueOrDefault(true) else true }
 
     member private this.BindControls() =
         chkVietnameseMode <- this.FindControl<CheckBox>("ChkVietnameseMode")
@@ -83,6 +85,8 @@ type MainWindow() as this =
         chkAutoRestore <- this.FindControl<CheckBox>("ChkAutoRestore")
         chkRepeatUndo <- this.FindControl<CheckBox>("ChkRepeatUndo")
         chkLeadingW <- this.FindControl<CheckBox>("ChkLeadingW")
+        chkEnableDict <- this.FindControl<CheckBox>("ChkEnableDictionary")
+        chkEnableBacktrack <- this.FindControl<CheckBox>("ChkEnableBacktracking")
         txtMacroKey <- this.FindControl<TextBox>("TxtMacroKey")
         txtMacroValue <- this.FindControl<TextBox>("TxtMacroValue")
         lstMacros <- this.FindControl<ListBox>("LstMacros")
@@ -113,6 +117,8 @@ type MainWindow() as this =
         if chkAutoRestore <> null then chkAutoRestore.IsCheckedChanged.Add(fun _ -> this.MarkDirty())
         if chkRepeatUndo <> null then chkRepeatUndo.IsCheckedChanged.Add(fun _ -> this.MarkDirty())
         if chkLeadingW <> null then chkLeadingW.IsCheckedChanged.Add(fun _ -> this.MarkDirty())
+        if chkEnableDict <> null then chkEnableDict.IsCheckedChanged.Add(fun _ -> this.MarkDirty())
+        if chkEnableBacktrack <> null then chkEnableBacktrack.IsCheckedChanged.Add(fun _ -> this.MarkDirty())
 
         if btnClearSandbox <> null then
             btnClearSandbox.Click.Add(fun _ ->
@@ -163,6 +169,8 @@ type MainWindow() as this =
             if chkAutoRestore <> null then chkAutoRestore.IsChecked <- Nullable cfg.AutoRestoreEnglishWords
             if chkRepeatUndo <> null then chkRepeatUndo.IsChecked <- Nullable cfg.AllowRepeatKeyUndo
             if chkLeadingW <> null then chkLeadingW.IsChecked <- Nullable cfg.AllowLeadingWAsU
+            if chkEnableDict <> null then chkEnableDict.IsChecked <- Nullable cfg.EnableVietnameseDictionary
+            if chkEnableBacktrack <> null then chkEnableBacktrack.IsChecked <- Nullable cfg.EnableEnglishBacktracking
             this.UpdateModeBadge(cfg.IsVietnameseMode)
             this.RefreshMacroList()
         finally
@@ -259,6 +267,8 @@ type MainWindow() as this =
         if chkAutoRestore <> null then cfg.AutoRestoreEnglishWords <- chkAutoRestore.IsChecked.GetValueOrDefault(true)
         if chkRepeatUndo <> null then cfg.AllowRepeatKeyUndo <- chkRepeatUndo.IsChecked.GetValueOrDefault(true)
         if chkLeadingW <> null then cfg.AllowLeadingWAsU <- chkLeadingW.IsChecked.GetValueOrDefault(false)
+        if chkEnableDict <> null then cfg.EnableVietnameseDictionary <- chkEnableDict.IsChecked.GetValueOrDefault(true)
+        if chkEnableBacktrack <> null then cfg.EnableEnglishBacktracking <- chkEnableBacktrack.IsChecked.GetValueOrDefault(true)
 
         ConfigStore.saveConfig(cfg)
         this.Close()

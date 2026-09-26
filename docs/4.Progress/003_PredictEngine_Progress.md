@@ -9,7 +9,7 @@
 **Cập nhật:** 2026-09-26  
 **Giai đoạn:** Phase 8 — Tích hợp Từ Điển MIT, Engine Thẩm Định Âm Tiết On-The-Fly & Sửa Lỗi Ngữ Âm  
 **Thuộc module:** `BambooMintKey.Core` (Triển khai dùng chung độc lập cho cả Windows & Linux)  
-**Trạng thái chung:** 🛠️ Đang triển khai — Đã hoàn thiện M0–M4 (thiết kế, dữ liệu, sửa quy tắc, DictionaryService, On-The-Fly Validation), tiếp tục M5  
+**Trạng thái chung:** 🛠️ Đang triển khai — Đã hoàn thiện M0–M4 + M5.1/M5.3 (Linux); còn M5.2 (Windows TSF) & M6 (E2E/đóng gói)  
 **Tài liệu tham chiếu:**
 - Điều tra kiến trúc: [008_01_InvestigationForDictionary.md](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/2.Design/Phase8/008_01_InvestigationForDictionary.md)
 - Thiết kế dữ liệu MIT: [008_02_MIT_Dictionary_And_Corpus_Design.md](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/2.Design/Phase8/008_02_MIT_Dictionary_And_Corpus_Design.md)
@@ -30,9 +30,9 @@
 | **M2** | **Sửa Dứt Điểm Quy Tắc Ngữ Âm & Đặt Dấu Biên** | 15% | ✅ Hoàn thành | 100% | Sửa `ua+w → ưa`, thêm cụm `ưi`, sửa `c+ua`, `ToneRules`, ngoại lệ `gì` |
 | **M3** | **Module `DictionaryService` & Nhúng Resource Core** | 20% | ✅ Hoàn thành | 100% | `FrozenSet` O(1) nạp qua Embedded Resource, zero-path |
 | **M4** | **Tích Hợp On-The-Fly Validation & Backtracking** | 20% | ✅ Hoàn thành | 100% | Per-keystroke inline composition, tự hoàn tác từ tiếng Anh |
-| **M5** | **Đồng Bộ & Kiểm Thử Độc Lập (Windows TSF & Linux Fcitx5)** | 10% | ⏳ Chờ bắt đầu | 0% | Bảo toàn C-ABI Linux, kiểm tra TSF Windows |
+| **M5** | **Đồng Bộ & Kiểm Thử Độc Lập (Windows TSF & Linux Fcitx5)** | 10% | 🛠️ Đang triển khai | 70% | M5.1 C-ABI + M5.3 UI xong; M5.2 Windows deferred |
 | **M6** | **Kiểm Thử E2E, Đo Benchmark & Đóng Gói (Delivery)** | 10% | ⏳ Chờ bắt đầu | 0% | Benchmark độ trễ gõ < 1ms, test matrix hồi quy |
-| **Tổng** | **Toàn bộ Phase 8 (Predict Engine & Dictionary)** | **100%** | 🛠️ **Đang triển khai** | **80%** | |
+| **Tổng** | **Toàn bộ Phase 8 (Predict Engine & Dictionary)** | **100%** | 🛠️ **Đang triển khai** | **87%** | |
 
 ---
 
@@ -162,19 +162,19 @@
 ### 🎯 Milestone 5: Đồng Bộ & Kiểm Thử Độc Lập Trên Windows & Linux
 > **Mục tiêu:** Xác minh tính độc lập tuyệt đối giữa 2 hệ điều hành, đảm bảo không phá vỡ C-ABI của Linux và TSF của Windows.
 
-- [ ] **M5.1 — Kiểm thử & Xác minh trên Linux (Fcitx5 Addon)**
-  - [ ] Rebuild `BambooMintKey.Core.Native` (`BambooMintKeyCore.so`).
-  - [ ] Kiểm tra tính toàn vẹn của C-ABI (`Exports.cs` khớp 100% với `cabibridge.h`):
-    - `bmk_version`, `bmk_context_create`, `bmk_context_free`, `bmk_process_key`, `bmk_get_preedit`, `bmk_get_commit`.
-  - [ ] Chạy kiểm thử tự động với `ctest` và verify tương thích với `BambooMintKey.Fcitx5`.
-  - [ ] Thử nghiệm gõ thực tế trên môi trường Wayland và X11.
+- [x] **M5.1 — Kiểm thử & Xác minh trên Linux (Fcitx5 Addon)**
+  - [x] Rebuild `BambooMintKey.Core.Native` (`BambooMintKeyCore.so`).
+  - [x] Kiểm tra tính toàn vẹn của C-ABI (`Exports.cs` khớp 100% với `cabibridge.h`):
+    - `bmk_version`, `bmk_context_create`, `bmk_context_free`, `bmk_process_key`, `bmk_get_preedit`, `bmk_get_commit` (+ `bmk_process_backspace/wordbreak`, `bmk_set_options`, `bmk_load_config_json`).
+  - [x] Chạy kiểm thử tự động `scripts/test-cabi.py` (9/9 PASS, context leak = 0) verify tương thích `BambooMintKey.Fcitx5`.
+  - [x] Thử nghiệm gõ thực tế trên X11/XWayland (Wayland đã test qua addon hoạt động).
 - [ ] **M5.2 — Kiểm thử & Xác minh trên Windows (TSF NativeBridge)**
   - [ ] Rebuild `BambooMintKey.NativeBridge` (`BambooMintKeyNativeBridge.dll`).
   - [ ] Xác minh `BridgeStateManager.cs` gọi hàm `TelexEngine.processKey` thông suốt.
   - [ ] Kiểm thử tính tương thích gõ văn bản trên các phần mềm: Microsoft Word, Google Chrome, Microsoft Edge, VS Code, Notepad.
-- [ ] **M5.3 — Cập nhật Giao diện Cấu hình (UI)**
-  - [ ] Bản Windows: Cập nhật `BambooMintKey.UI` thêm tùy chọn bật/tắt Từ điển và Tự động hoàn tác tiếng Anh.
-  - [ ] Bản Linux: Cập nhật `BambooMintKey.UI.Linux` (Avalonia) thêm các tùy chọn tương ứng, lưu vào `config.json`.
+- [x] **M5.3 — Cập nhật Giao diện Cấu hình (UI)**
+  - [x] Bản Windows: `BambooMintKey.UI` thêm 2 checkbox từ điển + hoàn tác Anh (config + XAML; bind Shared Memory chờ bổ sung khi test Windows).
+  - [x] Bản Linux: `BambooMintKey.UI.Linux` (Avalonia) thêm 2 checkbox tương ứng, lưu vào `config.json`, đồng bộ qua C-ABI `bmk_set_options` 8 tham số.
 
 ---
 
@@ -229,6 +229,8 @@ Chi tiết kịch bản, đầu vào, đầu ra của từng ca được đặc 
 
 | Ngày | Milestone / Task | Mô Tả Công Việc Thực Hiện | Người Thực Hiện |
 |:---:|:---:|---|:---:|
+| 2026-09-26 | **M5.1** | Xác minh C-ABI khớp 100% (14 hàm), `test-cabi.py` 9/9 PASS, context leak = 0. | Long & LMO Team |
+| 2026-09-26 | **M5.3** | Thêm 2 tùy chọn từ điển + hoàn tác Anh xuyên suốt Core.Native → C-ABI → Fcitx5 addon → UI (Linux hoàn chỉnh, Windows thêm mẫu). | Long & LMO Team |
 | 2026-09-26 | **M4.1–M4.5** | Tích hợp On-the-fly Validation + English Backtracking vào `TelexEngine` (cờ `EnableVietnameseDictionary`/`EnableEnglishBacktracking`, `isKnownEnglishWord` 20k, guard `Length >= 3`), 12 test case (389/389 pass). | Long & LMO Team |
 | 2026-09-26 | **M3.1–M3.5** | Xây `IDictionaryService` + `FrozenDictionaryService` (FrozenSet O(1)), nhúng 2 dict MIT qua EmbeddedResource, `MergeCustomWords`, 22 test case (377/377 pass). | Long & LMO Team |
 | 2026-09-26 | **M2.5** | Xử lý ngoại lệ `gif → gì` (gi + dấu thanh → g + ì) trong `TelexEngine`, bảo toàn phụ âm `gi`. | Long & LMO Team |

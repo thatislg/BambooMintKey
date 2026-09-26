@@ -162,6 +162,8 @@
                                 <CheckBox Name="ChkAutoRestore" Content="Tự động khôi phục từ tiếng Anh (start, word, ...)"/>
                                 <CheckBox Name="ChkRepeatUndo" Content="Gõ lặp dấu để khôi phục ký tự thô (ss → s)"/>
                                 <CheckBox Name="ChkLeadingW" Content="Phím 'w' đầu từ biến thành 'ư' (w → ư)"/>
+                                <CheckBox Name="ChkEnableDictionary" Content="Thẩm định âm tiết qua từ điển (sửa lỗi đặt dấu)"/>
+                                <CheckBox Name="ChkEnableBacktracking" Content="Tự động hoàn tác từ tiếng Anh (post, test, ...)"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
