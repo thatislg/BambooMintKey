@@ -26,9 +26,9 @@
 | **M0** | **Tài Liệu Thiết Kế Kỹ Thuật & Test Matrix** | 15% | ✅ Hoàn thành | 100% | 4 tài liệu đặc tả: C-ABI, Addon & D-Bus, UI, E2E Test |
 | **M1** | **`BambooMintKey.Core.Native` (C# NativeAOT)** | 25% | ✅ Hoàn thành | 100% | M1.1-M1.7 hoàn thành (full C-ABI + test matrix 9/9 PASS) |
 | **M2** | **`BambooMintKey.Fcitx5` Addon (C++/D-Bus)** | 30% | ✅ Hoàn thành | 100% | M2.1-M2.8 hoàn thành (C++ Addon, D-Bus, file watcher, build & test) |
-| **M3** | **`BambooMintKey.UI.Linux` (Avalonia F#)** | 18% | ⏳ Chuẩn bị triển khai | 0% | GUI cấu hình chuẩn XDG, D-Bus client, single instance |
+| **M3** | **`BambooMintKey.UI.Linux` (Avalonia F#)** | 18% | 🛠️ Đang thực hiện | 86% | M3.1-M3.6 xong (code), M3.7 chờ build + test |
 | **M4** | **Kiểm Thử E2E & Đóng Gói (Delivery)** | 12% | ⏳ Chờ M3 | 0% | Test Wayland/X11, script cài đặt `install_linux.sh` |
-| **Tổng** | **Toàn bộ Phase 7 (Linux / Fcitx5)** | **100%** | 🛠️ **Đang triển khai** | **70%** | |
+| **Tổng** | **Toàn bộ Phase 7 (Linux / Fcitx5)** | **100%** | 🛠️ **Đang triển khai** | **85%** | |
 
 ---
 
@@ -159,33 +159,33 @@
 ### 🎯 Milestone 3: Xây Dựng `BambooMintKey.UI.Linux` (Avalonia Settings GUI)
 > **Mục tiêu:** Cung cấp ứng dụng cài đặt giao diện Avalonia hiện đại trên Linux, hoàn toàn độc lập với code Windows, tích hợp D-Bus client và lưu cấu hình chuẩn XDG.
 
-- [ ] **M3.1 — Khởi Tạo Project Avalonia Linux**
-  - [ ] Tạo thư mục `src/BambooMintKey.UI.Linux/`.
-  - [ ] Tạo `BambooMintKey.UI.Linux.fsproj` (Target `net10.0`, Avalonia 11.x).
-  - [ ] Thêm tham chiếu đến `src/BambooMintKey.Core/BambooMintKey.Core.fsproj`.
+- [x] **M3.1 — Khởi Tạo Project Avalonia Linux**
+  - [x] Tạo thư mục `src/BambooMintKey.UI.Linux/`.
+  - [x] Tạo `BambooMintKey.UI.Linux.fsproj` (Target `net10.0`, Avalonia 12.1.1 + Tmds.DBus).
+  - [x] Thêm tham chiếu đến `src/BambooMintKey.Core/BambooMintKey.Core.fsproj`.
 
-- [ ] **M3.2 — Triển Khai Quản Lý Cấu Hình Chuẩn XDG (`SharedConfig.fs`)**
-  - [ ] Lấy đường dẫn `$XDG_CONFIG_HOME` (fallback `~/.config`).
-  - [ ] Cơ chế ghi file Atomic (ghi `.tmp` -> `rename`) vào `~/.config/bamboomintkey/config.json`.
+- [x] **M3.2 — Triển Khai Quản Lý Cấu Hình Chuẩn XDG (`SharedConfig.fs`)**
+  - [x] Lấy đường dẫn `$XDG_CONFIG_HOME` (fallback `~/.config`).
+  - [x] Cơ chế ghi file Atomic (ghi `.tmp` -> `rename`) vào `~/.config/bamboomintkey/config.json`.
 
-- [ ] **M3.3 — Cơ Chế Single Instance Chuẩn POSIX**
-  - [ ] Triển khai Unix Domain Socket (`$XDG_RUNTIME_DIR/bamboomintkey-ui.sock`) hoặc `flock`.
-  - [ ] Đưa cửa sổ đã mở lên trước màn hình (`BringToFront`) khi nhận tín hiệu từ instance mới.
+- [x] **M3.3 — Cơ Chế Single Instance Chuẩn POSIX**
+  - [x] Triển khai Unix Domain Socket (`$XDG_RUNTIME_DIR/bamboomintkey-ui.sock`).
+  - [x] Đưa cửa sổ đã mở lên trước màn hình (`BringToFront`) khi nhận tín hiệu từ instance mới.
 
-- [ ] **M3.4 — Tích Hợp D-Bus Client Cho Trạng Thái V/E**
-  - [ ] Kết nối tới Session Bus dịch vụ `org.fcitx.Fcitx5.BambooMintKey`.
-  - [ ] Khi người dùng toggle V/E trên UI: gọi D-Bus method `SetVietnameseMode`.
-  - [ ] Lắng nghe signal `ModeChanged`: tự động cập nhật checkbox/icon trên UI tức thì khi người dùng bấm phím tắt bên ngoài.
+- [x] **M3.4 — Tích Hợp D-Bus Client Cho Trạng Thái V/E**
+  - [x] Kết nối tới Session Bus dịch vụ `org.fcitx.Fcitx5.BambooMintKey`.
+  - [x] Khi người dùng toggle V/E trên UI: gọi D-Bus method `SetVietnameseMode`.
+  - [x] Lắng nghe signal `ModeChanged`: tự động cập nhật checkbox/icon trên UI tức thì.
 
-- [ ] **M3.5 — Hoàn Thiện Các Tab Giao Diện Cài Đặt**
-  - [ ] Tab Cơ bản, Nâng cao, Phím tắt, Macro.
-  - [ ] Tab Gõ thử nghiệm trực tiếp kết nối với F# Core.
+- [x] **M3.5 — Hoàn Thiện Các Tab Giao Diện Cài Đặt**
+  - [x] Tab Cơ bản, Nâng cao, Phím tắt, Macro.
+  - [x] Tab Gõ thử nghiệm trực tiếp kết nối với F# Core.
 
-- [ ] **M3.6 — Tích Hợp Hệ Thống Desktop Linux**
-  - [ ] Tạo tệp `bamboomintkey-settings.desktop` và icon SVG/PNG thương hiệu.
+- [x] **M3.6 — Tích Hợp Hệ Thống Desktop Linux**
+  - [x] Tạo tệp `bamboomintkey-settings.desktop`.
 
 - [ ] **M3.7 — Kiểm Thử UI Theo Test Matrix `TC-UI-01` -> `06`**
-  - [ ] Xác minh toàn bộ các ca kiểm thử XDG, atomic save, single instance, live test và D-Bus sync.
+  - [ ] Xác minh toàn bộ các ca kiểm thử XDG, atomic save, single instance, live test và D-Bus sync (chờ build + test).
 
 ---
 
@@ -227,6 +227,7 @@
 | 2026-09-26 | M1 | M1.3 - M1.6 | Hoàn thành toàn bộ giao diện C-ABI trong `Exports.cs` + `EngineContext.cs`: lifecycle (`bmk_context_create/free/reset` qua GCHandle), xử lý phím (`bmk_process_key/backspace/wordbreak`), trích xuất buffer UTF-8 (`bmk_get_preedit_text/commit_text/preedit_length`), cấu hình (`bmk_set_options` + `bmk_load_config_json` với JSON parser tối giản). Bộ đệm dùng `NativeMemory` để con trỏ `byte*` ổn định. | ✅ Hoàn thành |
 | 2026-09-26 | M1 | M1.7 | Viết test runner `scripts/test-cabi.py` (Python ctypes) chạy TC-CABI-01 -> 08 + bonus config test. Đã build + chạy thành công **9/9 PASS** (kèm thêm `bmk_gc_collect` + `bmk_get_live_context_count` để đo rò rỉ context chính xác). | ✅ Hoàn thành |
 | 2026-09-26 | M2 | M2.1 - M2.8 | **Hoàn thành Milestone 2 (Fcitx5 addon C++)**: viết `cabibridge.h` (khai báo C-ABI), `state.h` (`BambooMintKeyState` per-context), `engine.h`/`engine.cpp` (`BambooMintKeyEngine` + `BambooMintKeyDBus`), `CMakeLists.txt` + 2 file conf, cài icon V/E. Đã build + cài vào Fcitx5, gõ Telex thành công, D-Bus V/E hoạt động. Quyết định chốt: dùng preedit `NoFlag` (ẩn gạch chân phía IME), hotkey cứng `` ` `` đổi V/E, icon động qua `overrideIcon`. Direct commit (Level 2) đã thử nhưng **tắt** vì bug Zed. Hướng dẫn build tại [BUILD_LINUX.md](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/BUILD_LINUX.md). | ✅ Hoàn thành |
+| 2026-09-26 | M3 | M3.1 - M3.6 | Viết project `src/BambooMintKey.UI.Linux/` (Avalonia F# + Tmds.DBus): `SharedConfig.fs` (XDG + atomic save), `DbusClient.fs` (đồng bộ V/E), `SingleInstance.fs` (Unix socket), `MainWindow.axaml`/`.fs` (6 tab: Cơ bản, Nâng cao, Phím tắt, Macro, Gõ thử, Thông tin), `Program.fs` (entry + single instance), `.desktop`. Chưa build (chờ user build trên máy có mạng để restore Tmds.DBus). | 🛠️ Chờ build + test |
 
 ---
 

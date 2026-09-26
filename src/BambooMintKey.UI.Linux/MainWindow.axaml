@@ -1,0 +1,222 @@
+<!--
+  BambooMintKey - Vietnamese Telex Input Method Editor
+  Copyright (c) 2026 Dương Gia Long and LMO contributors
+  SPDX-License-Identifier: MIT
+-->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        x:Class="BambooMintKey.UI.Linux.MainWindow"
+        Title="BambooMintKey — Bảng Điều Khiển Cài Đặt"
+        Width="580" Height="560"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        Background="#f8fafc"
+        Foreground="#0f172a"
+        FontFamily="sans-serif">
+
+    <Window.Styles>
+        <Style Selector="TabItem">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="14,10"/>
+            <Setter Property="Foreground" Value="#64748b"/>
+        </Style>
+        <Style Selector="TabItem:selected">
+            <Setter Property="Foreground" Value="#16a34a"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="#ffffff"/>
+            <Setter Property="BorderBrush" Value="#e2e8f0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="14"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="#16a34a"/>
+            <Setter Property="Foreground" Value="#ffffff"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="Button.primary:pointerover">
+            <Setter Property="Background" Value="#15803d"/>
+        </Style>
+        <Style Selector="Button.secondary">
+            <Setter Property="Background" Value="#f1f5f9"/>
+            <Setter Property="BorderBrush" Value="#cbd5e1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="#0f172a"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="RadioButton">
+            <Setter Property="Foreground" Value="#1e293b"/>
+        </Style>
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="#1e293b"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto, *, Auto" Margin="18">
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto, *, Auto" Margin="0,0,0,12">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <TextBlock Text="🎍" FontSize="28" VerticalAlignment="Center"/>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="BambooMintKey" FontSize="19" FontWeight="Bold" Foreground="#16a34a"/>
+                    <TextBlock Text="Bộ Gõ Tiếng Việt cho Linux (Fcitx5)" FontSize="11" Foreground="#64748b"/>
+                </StackPanel>
+            </StackPanel>
+            <Border Grid.Column="2" Name="StatusBadge" Background="#16a34a15" BorderBrush="#16a34a40" BorderThickness="1" CornerRadius="12" Padding="12,5" VerticalAlignment="Center">
+                <TextBlock Name="TxtMode" Text="● V" FontSize="11" FontWeight="Bold" Foreground="#16a34a"/>
+            </Border>
+        </Grid>
+
+        <!-- Tabs -->
+        <TabControl Grid.Row="1" Name="MainTabs">
+            <!-- TAB 1: CƠ BẢN -->
+            <TabItem Header="Cơ bản">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="6" Margin="0,8,0,0">
+                        <Border Classes="card">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Chế độ gõ tiếng Việt:" FontWeight="Bold" FontSize="13" Foreground="#16a34a"/>
+                                <CheckBox Name="ChkVietnameseMode" Content="Bật gõ tiếng Việt (V) — tắt để gõ tiếng Anh (E)"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Classes="card">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Kiểu gõ chính:" FontWeight="Bold" FontSize="13" Foreground="#16a34a"/>
+                                <StackPanel Orientation="Horizontal" Spacing="24">
+                                    <RadioButton Name="RbTelex" Content="Telex" GroupName="InputMethod" IsChecked="True"/>
+                                    <RadioButton Name="RbVni" Content="VNI" GroupName="InputMethod"/>
+                                    <RadioButton Name="RbSimpleTelex" Content="Simple Telex" GroupName="InputMethod"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Classes="card">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Bảng mã đầu ra:" FontWeight="Bold" FontSize="13" Foreground="#16a34a"/>
+                                <ComboBox Name="CbCharset" HorizontalAlignment="Stretch" SelectedIndex="0" Background="#ffffff" Foreground="#0f172a" BorderBrush="#cbd5e1">
+                                    <ComboBoxItem Content="Unicode dựng sẵn (Mặc định)"/>
+                                    <ComboBoxItem Content="Unicode tổ hợp (Decomposed)"/>
+                                    <ComboBoxItem Content="TCVN3 (ABC)"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- TAB 2: NÂNG CAO -->
+            <TabItem Header="Nâng cao">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="6" Margin="0,8,0,0">
+                        <Border Classes="card">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Quy chuẩn đặt dấu thanh:" FontWeight="Bold" FontSize="13" Foreground="#16a34a"/>
+                                <RadioButton Name="RbToneModern" Content="Kiểu mới: hòa, thủy, xòe" GroupName="ToneStyle" IsChecked="True"/>
+                                <RadioButton Name="RbToneClassic" Content="Kiểu cũ: hoà, thuỷ, xoè" GroupName="ToneStyle"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Classes="card">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Tính năng thông minh:" FontWeight="Bold" FontSize="13" Foreground="#16a34a"/>
+                                <CheckBox Name="ChkFreeTone" Content="Cho phép bỏ dấu tự do ở bất kỳ vị trí (phari → phải)"/>
+                                <CheckBox Name="ChkAutoRestore" Content="Tự động khôi phục từ tiếng Anh (start, word, ...)"/>
+                                <CheckBox Name="ChkRepeatUndo" Content="Gõ lặp dấu để khôi phục ký tự thô (ss → s)"/>
+                                <CheckBox Name="ChkLeadingW" Content="Phím 'w' đầu từ biến thành 'ư' (w → ư)"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- TAB 3: PHÍM TẮT -->
+            <TabItem Header="Phím tắt">
+                <StackPanel Spacing="6" Margin="0,8,0,0">
+                    <Border Classes="card">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Phím tắt chuyển chế độ (Việt / Anh):" FontWeight="Bold" FontSize="13" Foreground="#16a34a"/>
+                            <Border Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="6" Padding="12,10">
+                                <StackPanel Spacing="6">
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <Border Background="#16a34a15" BorderBrush="#16a34a" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                            <TextBlock Text="MẶC ĐỊNH CỐ ĐỊNH" FontSize="10" FontWeight="Bold" Foreground="#16a34a"/>
+                                        </Border>
+                                        <TextBlock Text="Phím dưới Esc (` / ~)" FontSize="13" FontWeight="Bold" Foreground="#0f172a" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <TextBlock Text="• Nhấn phím `/~ dưới Esc để lật chế độ V ↔ E." FontSize="11" Foreground="#475569"/>
+                                    <TextBlock Text="• Phím tắt được quản lý bởi Fcitx5 Addon — không bị xung đột." FontSize="11" Foreground="#64748b" FontStyle="Italic"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </TabItem>
+
+            <!-- TAB 4: MACRO -->
+            <TabItem Header="Macro">
+                <StackPanel Spacing="10" Margin="0,8,0,0">
+                    <TextBlock Text="Bảng gõ tắt (Macro):" FontWeight="Bold" FontSize="13" Foreground="#16a34a"/>
+                    <TextBox Name="TxtMacroKey" PlaceholderText="Từ viết tắt (vd: vn)" FontSize="13"/>
+                    <TextBox Name="TxtMacroValue" PlaceholderText="Từ thay thế (vd: Việt Nam)" FontSize="13"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Name="BtnAddMacro" Classes="secondary" Content="Thêm"/>
+                        <Button Name="BtnRemoveMacro" Classes="secondary" Content="Xóa"/>
+                    </StackPanel>
+                    <ListBox Name="LstMacros" Height="150"/>
+                </StackPanel>
+            </TabItem>
+
+            <!-- TAB 5: GÕ THỬ NGHIỆM -->
+            <TabItem Header="Gõ thử nghiệm">
+                <StackPanel Spacing="10" Margin="0,8,0,0">
+                    <TextBlock Text="Khung gõ thử nghiệm trực tiếp:" FontWeight="Bold" FontSize="13" Foreground="#16a34a"/>
+                    <TextBlock Text="Gõ thử tiếng Việt với cấu hình vừa chọn (không phụ thuộc Fcitx5):" FontSize="12" Foreground="#64748b"/>
+                    <Border BorderBrush="#16a34a" BorderThickness="1.5" CornerRadius="8" Background="#ffffff">
+                        <TextBox Name="TxtSandbox" Height="180" AcceptsReturn="True" TextWrapping="Wrap"
+                                 Background="#ffffff" BorderThickness="0" Foreground="#0f172a"
+                                 FontSize="16" Padding="14"
+                                 PlaceholderText="Gõ thử tiếng Việt tại đây..."/>
+                    </Border>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Name="BtnClearSandbox" Classes="secondary" Content="Xóa trắng"/>
+                    </StackPanel>
+                </StackPanel>
+            </TabItem>
+
+            <!-- TAB 6: THÔNG TIN -->
+            <TabItem Name="TabAbout" Header="Thông tin">
+                <Border Classes="card" Margin="0,8,0,0" Padding="20">
+                    <StackPanel Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="🎍" FontSize="56" HorizontalAlignment="Center"/>
+                        <TextBlock Text="BambooMintKey" FontSize="22" FontWeight="Bold" Foreground="#16a34a" HorizontalAlignment="Center"/>
+                        <TextBlock Name="TxtVersionInfo" Text="Phiên bản 1.0.1 (Fcitx5 Addon + F# Core)" FontSize="12" Foreground="#64748b" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Bộ gõ tiếng Việt cho Linux, tích hợp Fcitx5." FontSize="11" TextWrapping="Wrap" TextAlignment="Center" Foreground="#334155" MaxWidth="400"/>
+                        <Separator Background="#e2e8f0" Margin="0,4"/>
+                        <TextBlock Text="Tác giả: Dương Gia Long &amp; LMO contributors" FontSize="12" Foreground="#0f172a" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Bản quyền: MIT License — Phần mềm Mã Nguồn Mở" FontSize="11" Foreground="#64748b" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+            </TabItem>
+        </TabControl>
+
+        <!-- Bottom bar -->
+        <Grid Grid.Row="2" ColumnDefinitions="*, Auto" Margin="0,14,0,0">
+            <TextBlock Grid.Column="0" Name="TxtStatus" Text="Sẵn sàng." VerticalAlignment="Center" FontSize="12" Foreground="#64748b"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                <Button Name="BtnDefault" Classes="secondary" Content="Mặc định"/>
+                <Button Name="BtnSave" Classes="primary" Content="Áp dụng &amp; Đóng"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

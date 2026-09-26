@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=BambooMintKey Settings
+Name[vi]=Cài Đặt BambooMintKey
+Comment=Vietnamese Telex Input Method Settings
+Comment[vi]=Cài đặt bộ gõ tiếng Việt Telex
+Exec=bamboomintkey-ui
+Icon=bamboomintkey
+Terminal=false
+Categories=Settings;Utility;
+StartupWMClass=BambooMintKey.UI.Linux

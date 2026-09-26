@@ -1,0 +1,32 @@
+<!--
+  BambooMintKey - Vietnamese Telex Input Method Editor
+  Copyright (c) 2026 Dương Gia Long and LMO contributors
+  SPDX-License-Identifier: MIT
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>BambooMintKey.UI.Linux</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="SharedConfig.fs" />
+    <Compile Include="DbusClient.fs" />
+    <Compile Include="SingleInstance.fs" />
+    <Compile Include="MainWindow.axaml.fs" />
+    <Compile Include="App.axaml.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BambooMintKey.Core\BambooMintKey.Core.fsproj" />
+  </ItemGroup>
+</Project>

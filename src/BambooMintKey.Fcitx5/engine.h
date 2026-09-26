@@ -4,6 +4,8 @@
 #pragma once
 
 #include <fcitx/inputmethodengine.h>
+#include <fcitx/action.h>
+#include <fcitx-config/configuration.h>
 #include <fcitx-utils/dbus/bus.h>
 #include <fcitx-utils/dbus/objectvtable.h>
 #include <fcitx-utils/event.h>
@@ -18,6 +20,17 @@ class Instance;
 }
 
 namespace bamboomintkey {
+
+// Cấu hình native hiển thị trong fcitx5-configtool (khi Configurable=True).
+FCITX_CONFIGURATION(
+    BambooMintKeyConfig,
+    fcitx::Option<bool> isVietnameseMode{this, "IsVietnameseMode", "Bật gõ tiếng Việt (V)", true};
+    fcitx::Option<int> toneStyle{this, "ToneStyle", "Kiểu đặt dấu: 0 = mới (hòa), 1 = cũ (hoà)", 0};
+    fcitx::Option<bool> autoRestoreEnglishWords{this, "AutoRestoreEnglishWords", "Tự khôi phục từ tiếng Anh", true};
+    fcitx::Option<bool> allowRepeatKeyUndo{this, "AllowRepeatKeyUndo", "Gõ lặp dấu để undo", true};
+    fcitx::Option<bool> allowLeadingWAsU{this, "AllowLeadingWAsU", "w đầu từ thành ư", false};
+    fcitx::Option<bool> allowFreeTonePlacement{this, "AllowFreeTonePlacement", "Bỏ dấu tự do", true};
+);
 
 class BambooMintKeyEngine;
 
@@ -65,6 +78,10 @@ public:
     bool vietnameseMode() const { return vietnameseMode_; }
     bool toggleVietnameseMode();
 
+    // Cấu hình native (Configurable=True).
+    const fcitx::Configuration *getConfig() const override;
+    void setConfig(const fcitx::RawConfig &config) override;
+
     // Nạp cấu hình từ file XDG và áp dụng cho một context mới.
     void reloadConfigFromFile();
     void applyConfigToState(BambooMintKeyState *state);
@@ -88,8 +105,14 @@ private:
     void setupConfigWatcher();
     void onConfigFileChanged();
 
+    // Mở Settings GUI (launch bamboomintkey-ui).
+    void launchSettingsApp();
+
     fcitx::Instance *instance_;
     fcitx::SimpleInputContextPropertyFactory<BambooMintKeyState> factory_;
+    BambooMintKeyConfig config_;
+
+    std::unique_ptr<fcitx::SimpleAction> settingsAction_;
 
     // Trạng thái V/E và tùy chọn engine (single-owner).
     bool vietnameseMode_ = true;

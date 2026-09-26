@@ -6,6 +6,7 @@
 #include <fcitx/inputcontext.h>
 #include <fcitx/inputpanel.h>
 #include <fcitx/instance.h>
+#include <fcitx/statusarea.h>
 #include <fcitx/text.h>
 #include <fcitx/userinterfacemanager.h>
 #include <fcitx/addonfactory.h>
@@ -13,6 +14,7 @@
 #include <fcitx-utils/keysym.h>
 #include <fcitx-utils/utf8.h>
 #include <fcitx-utils/capabilityflags.h>
+#include <fcitx-utils/log.h>
 
 #include <cctype>
 #include <cstdlib>
@@ -65,6 +67,22 @@ BambooMintKeyEngine::BambooMintKeyEngine(fcitx::Instance *instance)
 
     reloadConfigFromFile();
     setupConfigWatcher();
+
+    // Menu "Cài đặt..." trên status area (chuột phải Fcitx5) -> mở Settings GUI.
+    settingsAction_ = std::make_unique<fcitx::SimpleAction>();
+    settingsAction_->setShortText("Cài đặt...");
+    settingsAction_->setLongText("Cài đặt BambooMintKey");
+    settingsAction_->setIcon("fcitx_bamboomintkey");
+    settingsAction_->connect<fcitx::SimpleAction::Activated>(
+        [this](fcitx::InputContext *) { launchSettingsApp(); });
+    bool registered = instance_->userInterfaceManager().registerAction(
+        "bamboomintkey-settings", settingsAction_.get());
+    FCITX_INFO() << "BambooMintKey settings action registered: " << registered;
+}
+
+void BambooMintKeyEngine::launchSettingsApp() {
+    // Chạy Settings GUI ở nền (không chặn tiến trình Fcitx5).
+    std::system("bamboomintkey-ui >/dev/null 2>&1 &");
 }
 
 BambooMintKeyEngine::~BambooMintKeyEngine() {
@@ -80,6 +98,11 @@ void BambooMintKeyEngine::activate(const fcitx::InputMethodEntry &entry,
     auto *ic = event.inputContext();
     auto *state = ic->propertyFor(&factory_);
     applyConfigToState(state);
+
+    // Hiển thị mục "Cài đặt..." trong menu chuột phải / status area của
+    // Fcitx5 (giống fcitx5-bamboo): thêm action vào nhóm InputMethod.
+    ic->statusArea().addAction(fcitx::StatusGroup::InputMethod,
+                               settingsAction_.get());
 }
 
 void BambooMintKeyEngine::reset(const fcitx::InputMethodEntry &entry,
@@ -113,6 +136,21 @@ void BambooMintKeyEngine::setVietnameseMode(bool enabled) {
 bool BambooMintKeyEngine::toggleVietnameseMode() {
     setVietnameseMode(!vietnameseMode_);
     return vietnameseMode_;
+}
+
+const fcitx::Configuration *BambooMintKeyEngine::getConfig() const {
+    return &config_;
+}
+
+void BambooMintKeyEngine::setConfig(const fcitx::RawConfig &config) {
+    config_.load(config);
+    // Áp dụng cấu hình native vào engine.
+    toneStyle_ = *config_.toneStyle;
+    autoRestoreEnglish_ = *config_.autoRestoreEnglishWords;
+    allowRepeatUndo_ = *config_.allowRepeatKeyUndo;
+    allowLeadingW_ = *config_.allowLeadingWAsU;
+    allowFreeTone_ = *config_.allowFreeTonePlacement;
+    setVietnameseMode(*config_.isVietnameseMode);
 }
 
 // =========================================================================
