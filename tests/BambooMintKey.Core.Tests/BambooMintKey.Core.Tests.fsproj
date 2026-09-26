@@ -36,6 +36,7 @@
     <Compile Include="UppercaseModifierTests.fs" />
     <Compile Include="EnglishProtectionTests.fs" />
     <Compile Include="RuleTests.fs" />
+    <Compile Include="DictionaryServiceTests.fs" />
     <Compile Include="HotkeyFormatterTests.fs" />
     <Compile Include="AutoCapitalizationTests.fs" />
   </ItemGroup>

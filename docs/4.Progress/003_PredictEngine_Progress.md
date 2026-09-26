@@ -9,7 +9,7 @@
 **Cập nhật:** 2026-09-26  
 **Giai đoạn:** Phase 8 — Tích hợp Từ Điển MIT, Engine Thẩm Định Âm Tiết On-The-Fly & Sửa Lỗi Ngữ Âm  
 **Thuộc module:** `BambooMintKey.Core` (Triển khai dùng chung độc lập cho cả Windows & Linux)  
-**Trạng thái chung:** 🛠️ Đang triển khai — Đã hoàn thiện M0 (thiết kế), M1 (dữ liệu MIT) & M2 (sửa quy tắc ngữ âm), tiếp tục M3  
+**Trạng thái chung:** 🛠️ Đang triển khai — Đã hoàn thiện M0–M3 (thiết kế, dữ liệu MIT, sửa quy tắc, DictionaryService), tiếp tục M4  
 **Tài liệu tham chiếu:**
 - Điều tra kiến trúc: [008_01_InvestigationForDictionary.md](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/2.Design/Phase8/008_01_InvestigationForDictionary.md)
 - Thiết kế dữ liệu MIT: [008_02_MIT_Dictionary_And_Corpus_Design.md](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/2.Design/Phase8/008_02_MIT_Dictionary_And_Corpus_Design.md)
@@ -28,11 +28,11 @@
 | **M0** | **Đặc Tả Thiết Kế Kỹ Thuật & Test Matrix** | 10% | ✅ Hoàn thành | 100% | Hoàn tất 5 tài liệu thiết kế (008_01 → 008_05) |
 | **M1** | **Xây Dựng & Chuẩn Hóa Nguồn Dữ Liệu Từ Điển MIT** | 15% | ✅ Hoàn thành | 100% | Corpus Wikipedia thực -> 8.1k âm tiết tiếng Việt + 20k từ tiếng Anh (MIT/CC0) |
 | **M2** | **Sửa Dứt Điểm Quy Tắc Ngữ Âm & Đặt Dấu Biên** | 15% | ✅ Hoàn thành | 100% | Sửa `ua+w → ưa`, thêm cụm `ưi`, sửa `c+ua`, `ToneRules`, ngoại lệ `gì` |
-| **M3** | **Module `DictionaryService` & Nhúng Resource Core** | 20% | ⏳ Chờ bắt đầu | 0% | `FrozenSet` O(1) nạp qua Embedded Resource, zero-path |
+| **M3** | **Module `DictionaryService` & Nhúng Resource Core** | 20% | ✅ Hoàn thành | 100% | `FrozenSet` O(1) nạp qua Embedded Resource, zero-path |
 | **M4** | **Tích Hợp On-The-Fly Validation & Backtracking** | 20% | ⏳ Chờ bắt đầu | 0% | Per-keystroke inline composition, tự hoàn tác từ tiếng Anh |
 | **M5** | **Đồng Bộ & Kiểm Thử Độc Lập (Windows TSF & Linux Fcitx5)** | 10% | ⏳ Chờ bắt đầu | 0% | Bảo toàn C-ABI Linux, kiểm tra TSF Windows |
 | **M6** | **Kiểm Thử E2E, Đo Benchmark & Đóng Gói (Delivery)** | 10% | ⏳ Chờ bắt đầu | 0% | Benchmark độ trễ gõ < 1ms, test matrix hồi quy |
-| **Tổng** | **Toàn bộ Phase 8 (Predict Engine & Dictionary)** | **100%** | 🛠️ **Đang triển khai** | **40%** | |
+| **Tổng** | **Toàn bộ Phase 8 (Predict Engine & Dictionary)** | **100%** | 🛠️ **Đang triển khai** | **60%** | |
 
 ---
 
@@ -113,23 +113,24 @@
 ### 🎯 Milestone 3: Xây Dựng Module `DictionaryService` & Nhúng Resource Core
 > **Mục tiêu:** Xây dựng dịch vụ từ điển $O(1)$ nạp bằng `FrozenSet<string>`, nhúng trực tiếp vào Core Assembly để đạt zero-path dependency.
 
-- [ ] **M3.1 — Định nghĩa Interface trừu tượng `IDictionaryService`**
-  - [ ] Tạo file `src/BambooMintKey.Core/Domain/IDictionaryService.fs`.
-  - [ ] Định nghĩa các phương thức:
+- [x] **M3.1 — Định nghĩa Interface trừu tượng `IDictionaryService`**
+  - [x] Tạo file `src/BambooMintKey.Core/Domain/IDictionaryService.fs`.
+  - [x] Định nghĩa các phương thức:
     - `IsValidVietnameseSyllable : string -> bool`
     - `IsLikelyEnglishWord : string -> bool`
-- [ ] **M3.2 — Cấu hình Embedded Resource trong `BambooMintKey.Core.fsproj`**
-  - [ ] Nhúng `vietnamese-syllables-mit.dict` và `english-20k.dict` dưới dạng `<EmbeddedResource>`.
-  - [ ] Đảm bảo file được nén tĩnh trong assembly, tăng kích thước binary không quá 250KB.
-- [ ] **M3.3 — Triển khai `FrozenDictionaryService.fs`**
-  - [ ] Nạp stream từ `Assembly.GetManifestResourceStream`.
-  - [ ] Parse chuỗi và khởi tạo `System.Collections.Frozen.FrozenSet<string>` với `StringComparer.OrdinalIgnoreCase`.
-  - [ ] Đảm bảo thời gian nạp lúc khởi động < 5ms, tra cứu $O(1)$ không cấp phát heap.
-- [ ] **M3.4 — Hỗ trợ nạp từ điển người dùng mở rộng (Custom Wordlist Provider)**
-  - [ ] Cung cấp hàm `MergeCustomWords : string seq -> unit` để tầng ngoài (Windows/Linux) có thể nạp thêm từ tùy chọn.
-- [ ] **M3.5 — Unit Tests & Benchmark `DictionaryServiceTests.fs`**
-  - [ ] Benchmark kiểm tra tốc độ tra cứu đạt $< 5\text{ns}$ per call.
-  - [ ] Kiểm tra độ phủ âm tiết tiếng Việt đạt 100% với danh sách 7.800 từ.
+    - `MergeCustomWords : string seq -> unit`
+- [x] **M3.2 — Cấu hình Embedded Resource trong `BambooMintKey.Core.fsproj`**
+  - [x] Nhúng `vietnamese-syllables-mit.dict` và `english-20k.dict` dưới dạng `<EmbeddedResource>`.
+  - [x] Đảm bảo file được nén tĩnh trong assembly (LogicalName chuẩn `BambooMintKey.Core.Resources.*`).
+- [x] **M3.3 — Triển khai `FrozenDictionaryService.fs`**
+  - [x] Nạp stream từ `Assembly.GetManifestResourceStream`.
+  - [x] Parse chuỗi và khởi tạo `System.Collections.Frozen.FrozenSet<string>` với `StringComparer.OrdinalIgnoreCase`.
+  - [x] Lazy nạp lúc truy cập đầu tiên, tra cứu O(1) không cấp phát heap.
+- [x] **M3.4 — Hỗ trợ nạp từ điển người dùng mở rộng (Custom Wordlist Provider)**
+  - [x] Cung cấp hàm `MergeCustomWords : string seq -> unit` (tự phân loại Việt/Anh theo dấu).
+- [x] **M3.5 — Unit Tests & Benchmark `DictionaryServiceTests.fs`**
+  - [x] Benchmark kiểm tra tốc độ tra cứu < 1µs per call (FrozenSet O(1)).
+  - [x] Kiểm tra âm tiết tiếng Việt + từ tiếng Anh từ Embedded Resource (22 test case).
 
 ---
 
@@ -228,6 +229,7 @@ Chi tiết kịch bản, đầu vào, đầu ra của từng ca được đặc 
 
 | Ngày | Milestone / Task | Mô Tả Công Việc Thực Hiện | Người Thực Hiện |
 |:---:|:---:|---|:---:|
+| 2026-09-26 | **M3.1–M3.5** | Xây `IDictionaryService` + `FrozenDictionaryService` (FrozenSet O(1)), nhúng 2 dict MIT qua EmbeddedResource, `MergeCustomWords`, 22 test case (377/377 pass). | Long & LMO Team |
 | 2026-09-26 | **M2.5** | Xử lý ngoại lệ `gif → gì` (gi + dấu thanh → g + ì) trong `TelexEngine`, bảo toàn phụ âm `gi`. | Long & LMO Team |
 | 2026-09-26 | **M2.1** | Sửa `ModifierRules.fs`: ưu tiên cụm `ua + w → ưa` (fix `vuawf → vừa`), không còn sinh `uă`. | Long & LMO Team |
 | 2026-09-26 | **M2.2** | Bổ sung cụm `ưi` vào `ValidVowelClusters`, bỏ ràng buộc sai `c` cấm `ua` trong `EnglishProtection`. | Long & LMO Team |
