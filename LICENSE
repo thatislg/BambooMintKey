@@ -19,3 +19,40 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+================================================================================
+THIRD-PARTY DATA AND SOFTWARE NOTICES
+================================================================================
+
+Dictionary data distributed with BambooMintKey (`dicts/vietnamese-syllables-mit.dict`,
+`dicts/english-20k.dict`) is generated and cleaned within this project from a
+phonotactic matrix and an open corpus, and is released under the MIT License /
+Creative Commons Zero (CC0). See `scripts/generate_mit_dict.py` and
+`docs/2.Design/Phase8/008_02_MIT_Dictionary_And_Corpus_Design.md`.
+
+The following sources are used ONLY as corpus reference during data
+generation/filtering and are NOT embedded or redistributed in the binary.
+
+1. IBus-Bamboo (Vietnamese Syllable Dictionary)
+   - Source: https://github.com/BambooEngine/ibus-bamboo
+   - Author: Luong Thanh Lam and IBus-Bamboo contributors
+   - Data File: vietnamese.cm.dict
+   - License: GNU General Public License v3.0 (GPL-3.0)
+
+2. Vietnamese Wordlist - Viet74K (Vietnamese Compound Words)
+   - Source: https://github.com/duyet/vietnamese-wordlist
+   - Author / Compiler: Ho Ngoc Duc, Tran Huu Duyet
+   - Data File: Viet74K.txt
+   - Original URL: http://www.informatik.uni-leipzig.de/~duc/software/misc/wordlist.html
+   - License: GNU General Public License (GPL)
+
+3. Google 20,000 English Words (English Frequency Wordlist)
+   - Source: https://github.com/first20hours/google-10000-english
+   - Derived from: Google Web Trillion Word Corpus (Peter Norvig)
+   - Author / Maintainer: Josh Kaufman (first20hours)
+   - Data File: 20k.txt
+   - License: MIT License / Public Domain (Open Data)
+
+4. Vietnamese Wikipedia (Open Corpus)
+   - Source: https://dumps.wikimedia.org/viwiki/
+   - License: CC BY-SA 3.0 / CC0 (text corpus for syllable frequency filtering)

@@ -36,3 +36,7 @@ _ReSharper*/
 ## Python
 __pycache__/
 *.pyc
+
+## Wikipedia Corpus Dump (tải về tạm, không commit)
+viwiki-latest-pages-articles.xml.bz2
+viwiki-latest-pages-articles.xml
