@@ -118,8 +118,8 @@ module UppercaseModifierTests =
 
     [<Theory>]
     [<InlineData("Uwe", "Uwe")>]         // Tên riêng tiếng Anh Uwe không bị biến đổi bừa bãi (ưe không hợp lệ)
-    [<InlineData("Uwi", "Uwi")>]         // Cụm ưi không tồn tại trong tiếng Việt -> giữ nguyên
-    [<InlineData("Ddx", "Ddx")>]         // Phụ âm bất quy tắc x đi sau Dd -> giữ nguyên
+    [<InlineData("Uwi", "Ưi")>]           // Cụm ưi hợp lệ (cửi, gửi, ngửi) -> Uwi biến thành Ưi
+    [<InlineData("Ddx", "Ddx")>]           // Phụ âm bất quy tắc x đi sau Dd -> giữ nguyên
     let ``6. Invalid Vietnamese vowel clusters should fall back to original text`` (input: string, expected: string) =
         let result = typeWord input EngineConfig.Default
         Assert.Equal(expected, result)

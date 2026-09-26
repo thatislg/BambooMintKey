@@ -51,9 +51,9 @@ module ToneRules =
                     match style with
                     | TonePlacementStyle.Modern -> 0       // Modern: dấu trên nguyên âm đầu - hóa, xòe, thúy (index 0)
                     | TonePlacementStyle.Traditional -> 1  // Traditional: dấu trên nguyên âm sau - hoá, xoè, thuý (index 1)
-                elif "êơưâă".Contains(string vLower[1]) then
+                elif "êơưâăô".Contains(string vLower[1]) then
                     1
-                elif "êơưâă".Contains(string vLower[0]) then
+                elif "êơưâăô".Contains(string vLower[0]) then
                     0
                 else
                     0
@@ -64,7 +64,7 @@ module ToneRules =
                 let idx = vLower.IndexOf "ơ"
                 if idx >= 0 then idx else 1
             else
-                let modIdx = vowels.ToCharArray() |> Array.tryFindIndex (fun c -> "êơâă".Contains(string (Char.ToLowerInvariant c)))
+                let modIdx = vowels.ToCharArray() |> Array.tryFindIndex (fun c -> "êơưâăô".Contains(string (Char.ToLowerInvariant c)))
                 match modIdx with
                 | Some idx -> idx
                 | None ->

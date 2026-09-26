@@ -35,6 +35,7 @@
     <Compile Include="FreeTonePlacementTests.fs" />
     <Compile Include="UppercaseModifierTests.fs" />
     <Compile Include="EnglishProtectionTests.fs" />
+    <Compile Include="RuleTests.fs" />
     <Compile Include="HotkeyFormatterTests.fs" />
     <Compile Include="AutoCapitalizationTests.fs" />
   </ItemGroup>

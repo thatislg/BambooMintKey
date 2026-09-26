@@ -56,7 +56,7 @@ module ModifierRules =
             "eo"; "êu"
             "ia"; "ie"; "iê"; "iu"
             "oa"; "oă"; "oe"; "oi"; "ôi"; "ơi"; "oo"
-            "ua"; "uâ"; "uo"; "uô"; "uê"; "ui"; "uy"; "uơ"; "ưa"; "ươ"; "ưu"
+            "ua"; "uâ"; "uo"; "uô"; "uê"; "ui"; "uy"; "uơ"; "ưa"; "ưi"; "ươ"; "ưu"
             "ye"; "yê"
             // Tam trùng âm
             "oai"; "oay"; "oao"; "oeo"
@@ -130,6 +130,10 @@ module ModifierRules =
                             .Replace("ưo", "ươ")
                             .Replace("uơ", "ươ")
                     Some replaced
+                | 'w' when vowels.Contains "ua" && not (vowels.Contains "ư") ->
+                    // Ưu tiên cụm "ua" -> "ưa" (vừa, mưa, chưa, cửa...).
+                    // Phải đặt TRƯỚC nhánh biến 'a' -> 'ă' để không sinh "uă" (lỗi vuawf -> vuằ).
+                    transformVowel 'u' Modifier.Horn
                 | 'a' when vowels.Contains "a" && not (vowels.Contains "â") && not (vowels.Contains "ă") ->
                     transformVowel 'a' Modifier.Hat
                 | 'w' when vowels.Contains "a" && not (vowels.Contains "ă") && not (vowels.Contains "â") ->

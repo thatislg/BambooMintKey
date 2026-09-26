@@ -123,8 +123,9 @@ module EnglishProtection =
         let cleanVowel = stripToneFromVowels syllable.VowelNucleus |> fun s -> s.ToLowerInvariant()
         let finalLower = syllable.FinalConsonant.ToLowerInvariant()
 
-        // 1. Phụ âm 'c' cấm đi với e, ê, i, y, oe, ua
-        if initLower = "c" && (cleanVowel.StartsWith "e" || cleanVowel.StartsWith "ê" || cleanVowel.StartsWith "i" || cleanVowel = "oe" || cleanVowel = "ua") then
+        // 1. Phụ âm 'c' cấm đi với e, ê, i, oe (ngăn core/more -> coe)
+        // Lưu ý: KHÔNG cấm 'ua' vì 'cua', 'của', 'cửa' là âm tiết hợp lệ.
+        if initLower = "c" && (cleanVowel.StartsWith "e" || cleanVowel.StartsWith "ê" || cleanVowel.StartsWith "i" || cleanVowel = "oe") then
             false
         // 2. Cụm 'oe' chỉ được đi với các phụ âm ch, h, kh, l, ng, nh, th, t, x (hoặc đứng đầu)
         // Cấm đi với: c, b, d, đ, m, p, r, s, v... (ngăn chặn core, more, bore, sore biến thành cỏe, mỏe, bỏe, sỏe)

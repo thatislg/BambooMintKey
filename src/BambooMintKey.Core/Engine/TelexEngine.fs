@@ -40,6 +40,12 @@ module TelexEngine =
                 (lowerChar = 'w' && not (state.TransformedText.ToLowerInvariant().Contains "o") && state.TransformedText.ToLowerInvariant().Contains "ư")
             )
 
+        // 2b. Ngoại lệ chính tả "gì": phụ âm "gi" + phím dấu thanh (f/s/r/x/j)
+        // -> "g" + "ì/í/ỉ/ĩ/ị". Đây là ngoại lệ duy nhất mà 'g' đi với 'i' (thay vì 'gh').
+        let isGiToneException =
+            isToneKey && newRaw.Length = 3 &&
+            Char.ToLowerInvariant newRaw[0] = 'g' && Char.ToLowerInvariant newRaw[1] = 'i'
+
         if isUndoTone then
             // Lặp lại phím dấu thanh -> Hủy dấu, khôi phục toàn bộ chuỗi phím thô
             let formatted = WordBuffer.applyCase detectedCase rawString
@@ -61,6 +67,24 @@ module TelexEngine =
                 Syllable = None
                 Case = detectedCase
                 IsInvalidVietnamese = true
+            }
+            (newState, EngineAction.UpdateComposition formatted)
+
+        elif isGiToneException then
+            // Ngoại lệ "gì": gif -> gì, gir -> gỉ, gis -> gí (g + nguyên âm i có dấu)
+            let tone = ToneRules.keyToTone c |> Option.defaultValue Tone.None
+            let init = if Char.IsUpper newRaw[0] then "G" else "g"
+            let vowel = if Char.IsUpper newRaw[1] then "I" else "i"
+            let syl = { InitialConsonant = init; VowelNucleus = vowel; FinalConsonant = ""; Tone = Tone.None; Modifiers = [] }
+            let toned = ToneRules.applyTone tone config.ToneStyle syl
+            let reconstructed = reconstructSyllableText toned
+            let formatted = WordBuffer.applyCase detectedCase reconstructed
+            let newState = {
+                RawKeys = newRaw
+                TransformedText = formatted
+                Syllable = Some toned
+                Case = detectedCase
+                IsInvalidVietnamese = false
             }
             (newState, EngineAction.UpdateComposition formatted)
 

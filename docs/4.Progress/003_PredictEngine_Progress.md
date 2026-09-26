@@ -9,7 +9,7 @@
 **Cập nhật:** 2026-09-26  
 **Giai đoạn:** Phase 8 — Tích hợp Từ Điển MIT, Engine Thẩm Định Âm Tiết On-The-Fly & Sửa Lỗi Ngữ Âm  
 **Thuộc module:** `BambooMintKey.Core` (Triển khai dùng chung độc lập cho cả Windows & Linux)  
-**Trạng thái chung:** 🛠️ Đang triển khai — Đã hoàn thiện M0 (thiết kế) & M1 (dữ liệu MIT), tiếp tục M2  
+**Trạng thái chung:** 🛠️ Đang triển khai — Đã hoàn thiện M0 (thiết kế), M1 (dữ liệu MIT) & M2 (sửa quy tắc ngữ âm), tiếp tục M3  
 **Tài liệu tham chiếu:**
 - Điều tra kiến trúc: [008_01_InvestigationForDictionary.md](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/2.Design/Phase8/008_01_InvestigationForDictionary.md)
 - Thiết kế dữ liệu MIT: [008_02_MIT_Dictionary_And_Corpus_Design.md](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/2.Design/Phase8/008_02_MIT_Dictionary_And_Corpus_Design.md)
@@ -27,12 +27,12 @@
 |:---:|---|:---:|:---:|:---:|---|
 | **M0** | **Đặc Tả Thiết Kế Kỹ Thuật & Test Matrix** | 10% | ✅ Hoàn thành | 100% | Hoàn tất 5 tài liệu thiết kế (008_01 → 008_05) |
 | **M1** | **Xây Dựng & Chuẩn Hóa Nguồn Dữ Liệu Từ Điển MIT** | 15% | ✅ Hoàn thành | 100% | Corpus Wikipedia thực -> 8.1k âm tiết tiếng Việt + 20k từ tiếng Anh (MIT/CC0) |
-| **M2** | **Sửa Dứt Điểm Quy Tắc Ngữ Âm & Đặt Dấu Biên** | 15% | ⏳ Chờ bắt đầu | 0% | Sửa cụm `ua+w → ưa` (`vuawf → vừa`) trong `ModifierRules` |
+| **M2** | **Sửa Dứt Điểm Quy Tắc Ngữ Âm & Đặt Dấu Biên** | 15% | ✅ Hoàn thành | 100% | Sửa `ua+w → ưa`, thêm cụm `ưi`, sửa `c+ua`, `ToneRules`, ngoại lệ `gì` |
 | **M3** | **Module `DictionaryService` & Nhúng Resource Core** | 20% | ⏳ Chờ bắt đầu | 0% | `FrozenSet` O(1) nạp qua Embedded Resource, zero-path |
 | **M4** | **Tích Hợp On-The-Fly Validation & Backtracking** | 20% | ⏳ Chờ bắt đầu | 0% | Per-keystroke inline composition, tự hoàn tác từ tiếng Anh |
 | **M5** | **Đồng Bộ & Kiểm Thử Độc Lập (Windows TSF & Linux Fcitx5)** | 10% | ⏳ Chờ bắt đầu | 0% | Bảo toàn C-ABI Linux, kiểm tra TSF Windows |
 | **M6** | **Kiểm Thử E2E, Đo Benchmark & Đóng Gói (Delivery)** | 10% | ⏳ Chờ bắt đầu | 0% | Benchmark độ trễ gõ < 1ms, test matrix hồi quy |
-| **Tổng** | **Toàn bộ Phase 8 (Predict Engine & Dictionary)** | **100%** | 🛠️ **Đang triển khai** | **25%** | |
+| **Tổng** | **Toàn bộ Phase 8 (Predict Engine & Dictionary)** | **100%** | 🛠️ **Đang triển khai** | **40%** | |
 
 ---
 
@@ -88,18 +88,25 @@
 ### 🎯 Milestone 2: Sửa Dứt Điểm Quy Tắc Ngữ Âm & Đặt Dấu Biên Trong Core (Rule Fixes)
 > **Mục tiêu:** Khắc phục triệt để lỗi gõ nhầm modifier và lỗi đặt dấu ở tầng quy tắc $O(1)$, không phụ thuộc vào từ điển.
 
-- [ ] **M2.1 — Khắc phục lỗi `ModifierRules.fs` dòng 135–144 (Cụm `ua + w → ưa`)**
-  - [ ] Bổ sung quy tắc nhận diện cụm `ua` khi gặp phím `w` để ưu tiên tạo thành `ưa` (thay vì `uă`).
-  - [ ] Đảm bảo gõ `v - u - a - w - f` sinh ra chính xác `vừa`.
-  - [ ] Đảm bảo các từ tương tự hoạt động đúng: `muaw → mưa`, `chuaw → chưa`, `cuawj → cựa`, `duawx → dữa`.
-- [ ] **M2.2 — Rà soát các cụm nguyên âm mở rộng khác**
-  - [ ] Kiểm tra các cụm nhị trùng âm/tam trùng âm: `uo + w → ươ`, `ia + w`, `uoi + w`.
-  - [ ] Bảo toàn tính năng lặp phím `w` để Undo (ví dụ gõ `w` lần nữa khôi phục chuỗi thô).
-- [ ] **M2.3 — Chuẩn hóa thuật toán đặt dấu thanh trong `ToneRules.fs`**
-  - [ ] Kiểm tra chỉ số nguyên âm đặt dấu (`getTargetVowelIndex`) cho các trường hợp: `oa`, `oe`, `uy`, `ưa`, `ươ`.
-  - [ ] Đảm bảo tuân thủ chuẩn xác theo cấu hình `TonePlacementStyle` (Modern vs Traditional).
-- [ ] **M2.4 — Bộ Unit Tests chuyên biệt cho Quy tắc Ngữ âm (`tests/.../RuleTests.fs`)**
-  - [ ] Viết test tự động cho 100% các ca gõ biên đã ghi nhận.
+- [x] **M2.1 — Khắc phục lỗi `ModifierRules.fs` dòng 135–144 (Cụm `ua + w → ưa`)**
+  - [x] Bổ sung quy tắc nhận diện cụm `ua` khi gặp phím `w` để ưu tiên tạo thành `ưa` (thay vì `uă`).
+  - [x] Đảm bảo gõ `v - u - a - w - f` sinh ra chính xác `vừa`.
+  - [x] Đảm bảo các từ tương tự hoạt động đúng: `muaw → mưa`, `chuaw → chưa`, `cuawj → cựa`, `duawx → dữa`.
+- [x] **M2.2 — Rà soát các cụm nguyên âm mở rộng khác**
+  - [x] Kiểm tra các cụm nhị trùng âm/tam trùng âm: `uo + w → ươ`, `ia + w`, `uoi + w`.
+  - [x] Bổ sung cụm `ưi` hợp lệ (`cửi`, `gửi`, `ngửi`) vào `ValidVowelClusters`.
+  - [x] Bỏ ràng buộc sai `c` cấm `ua` trong `EnglishProtection` (`cua`, `của`, `cửa` hợp lệ).
+  - [x] Bảo toàn tính năng lặp phím `w` để Undo (ví dụ gõ `w` lần nữa khôi phục chuỗi thô).
+- [x] **M2.3 — Chuẩn hóa thuật toán đặt dấu thanh trong `ToneRules.fs`**
+  - [x] Kiểm tra chỉ số nguyên âm đặt dấu (`getTargetVowelIndex`) cho các trường hợp: `oa`, `oe`, `uy`, `ưa`, `ươ`, `uôi`.
+  - [x] Bổ sung `ô` vào danh sách dấu phụ & thống nhất nhánh 2/3 nguyên âm.
+  - [x] Đảm bảo tuân thủ chuẩn xác theo cấu hình `TonePlacementStyle` (Modern vs Traditional).
+- [x] **M2.4 — Bộ Unit Tests chuyên biệt cho Quy tắc Ngữ âm (`tests/.../RuleTests.fs`)**
+  - [x] Viết test tự động cho 100% các ca gõ biên đã ghi nhận (31 test case mới).
+- [x] **M2.5 — Ngoại lệ chính tả "gì" (`gi` + phím dấu thanh → `g` + `ì/í/ỉ/ĩ/ị`)**
+  - [x] Xử lý `gif → gì`, `gir → gỉ`, `gis → gí`, `gix → gĩ`, `gij → gị` trong `TelexEngine.fs`.
+  - [x] Bảo toàn phụ âm `gi` (`giá`, `giỏ`, `giữ`) không bị phá.
+  - [x] Bảo toàn case (`Gif → Gì`).
 
 ---
 
@@ -221,6 +228,11 @@ Chi tiết kịch bản, đầu vào, đầu ra của từng ca được đặc 
 
 | Ngày | Milestone / Task | Mô Tả Công Việc Thực Hiện | Người Thực Hiện |
 |:---:|:---:|---|:---:|
+| 2026-09-26 | **M2.5** | Xử lý ngoại lệ `gif → gì` (gi + dấu thanh → g + ì) trong `TelexEngine`, bảo toàn phụ âm `gi`. | Long & LMO Team |
+| 2026-09-26 | **M2.1** | Sửa `ModifierRules.fs`: ưu tiên cụm `ua + w → ưa` (fix `vuawf → vừa`), không còn sinh `uă`. | Long & LMO Team |
+| 2026-09-26 | **M2.2** | Bổ sung cụm `ưi` vào `ValidVowelClusters`, bỏ ràng buộc sai `c` cấm `ua` trong `EnglishProtection`. | Long & LMO Team |
+| 2026-09-26 | **M2.3** | Chuẩn hóa `ToneRules.getTargetVowelIndex` (thêm `ô`, thống nhất danh sách dấu phụ). | Long & LMO Team |
+| 2026-09-26 | **M2.4** | Thêm `RuleTests.fs` (22 test case); toàn bộ 346 test pass. | Long & LMO Team |
 | 2026-09-26 | **M1.1** | Viết script `scripts/generate_mit_dict.py` sinh ma trận ngữ âm học tiếng Việt với đầy đủ ràng buộc chính tả Quốc ngữ. | Long & LMO Team |
 | 2026-09-26 | **M1.2** | Viết `scripts/fetch_vi_wikipedia.py` tải dump Wikipedia tiếng Việt (1.07GB, 734M token) để trích xuất & đếm tần suất âm tiết thực tế; sinh `dicts/vietnamese-syllables-mit.dict` (8.154 âm tiết, freq ≥ 10). | Long & LMO Team |
 | 2026-09-26 | **M1.3** | Chuẩn hóa danh mục 20k từ tiếng Anh -> `dicts/english-20k.dict` (19.976 từ). | Long & LMO Team |
