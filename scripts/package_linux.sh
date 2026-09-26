@@ -60,8 +60,10 @@ mkdir -p "$STAGE/usr/lib/$MULTIARCH/fcitx5" \
 # Cài các artifact vào staging (cmake --install với DESTDIR).
 DESTDIR="$STAGE" cmake --install "$PROJECT_ROOT/build-pkg"
 
-# UI: launcher + desktop entry + icon
-cp "$PROJECT_ROOT/publish/ui-linux/BambooMintKey.UI.Linux" "$STAGE/usr/local/bin/bamboomintkey-ui"
+# UI: toàn bộ publish output (framework-dependent) + launcher + desktop entry + icon
+mkdir -p "$STAGE/usr/lib/bamboomintkey/ui"
+cp -a "$PROJECT_ROOT/publish/ui-linux/." "$STAGE/usr/lib/bamboomintkey/ui/"
+ln -sf "/usr/lib/bamboomintkey/ui/BambooMintKey.UI.Linux" "$STAGE/usr/local/bin/bamboomintkey-ui"
 cp "$PROJECT_ROOT/src/BambooMintKey.UI.Linux/bamboomintkey-settings.desktop" "$STAGE/usr/share/applications/"
 cp "$PROJECT_ROOT/src/media/bamboo_mint_key_ico.svg" "$STAGE/usr/share/icons/hicolor/scalable/apps/bamboomintkey.svg"
 
