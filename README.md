@@ -1,20 +1,23 @@
 <!--
-  BambooMintKey - Vietnamese Telex Input Method Editor for Windows
+  BambooMintKey - Vietnamese Telex Input Method Editor for Windows & Linux
   Copyright (c) 2026 Dương Gia Long and LMO contributors
   SPDX-License-Identifier: MIT
 -->
 
 # BambooMintKey
 
-**Bộ gõ tiếng Việt Telex cho Windows, tích hợp sâu vào Text Services Framework (TSF).**
+**Bộ gõ tiếng Việt Telex cho Windows (TSF) và Linux (Fcitx5).**
 
-BambooMintKey là một Text Input Processor (TIP) viết bằng .NET 10 + NativeAOT, chạy như một In-Process COM Server bên trong tiến trình ứng dụng đích. Dự án kết hợp lõi xử lý ngôn ngữ thuần chức năng (F#) với lớp cầu nối hệ thống Windows (C# NativeAOT) để mang lại trải nghiệm gõ tiếng Việt nhẹ, nhanh và tương thích rộng.
+BambooMintKey là bộ gõ tiếng Việt với **lõi xử lý ngôn ngữ thuần chức năng (F#) dùng chung** cho cả hai nền tảng:
+
+- **Windows** — Text Input Processor (TIP) chạy như In-Process COM Server bên trong tiến trình ứng dụng, tích hợp sâu vào Text Services Framework (TSF).
+- **Linux** — Fcitx5 addon (C++) gọi engine qua C-ABI, kèm giao diện cài đặt Avalonia độc lập.
 
 ![Demo gõ tiếng Việt với BambooMintKey](screenshot/DemoBogo.gif)
 
 ---
 
-## Tính Năng
+## Tính Năng (Windows)
 
 - **Gõ Telex tiếng Việt chuẩn** (`aa` → `â`, `dd` → `đ`, `as` → `á`, v.v.).
 - **Tích hợp Windows TSF**: hiển thị trên Language Bar, chuyển đổi bằng `Win + Space`.
@@ -28,7 +31,38 @@ BambooMintKey là một Text Input Processor (TIP) viết bằng .NET 10 + Nativ
 
 ---
 
-## Trạng Thái Hiện Tại
+## Linux (Fcitx5)
+
+BambooMintKey chạy trên Linux qua **Fcitx5**, tái sử dụng nguyên lõi engine F# (không can thiệp code Windows). Gồm 3 thành phần:
+
+| Thành phần | Công nghệ | Vai trò |
+|---|---|---|
+| `BambooMintKey.Core.Native` | C# NativeAOT | Đóng gói engine F# thành C-ABI `BambooMintKeyCore.so` |
+| `BambooMintKey.Fcitx5` | C++ / CMake | Addon Fcitx5 `libbamboomintkey.so`, D-Bus V/E, icon động |
+| `BambooMintKey.UI.Linux` | Avalonia / F# | Giao diện cài đặt độc lập (6 tab) |
+
+### Tính năng chính
+
+- Gõ Telex chuẩn — dùng chung engine F# với Windows.
+- Chuyển V/E bằng phím `` ` `` (grave, dưới Esc), icon V/E động trên khay hệ thống.
+- Đồng bộ trạng thái V/E qua D-Bus (signal `ModeChanged`).
+- Cấu hình XDG `~/.config/bamboomintkey/config.json`, hot-reload qua `inotify`.
+- Cài đặt native trong `fcitx5-configtool` + GUI Avalonia.
+- Hỗ trợ **Ubuntu/Debian** và **Fedora** (apt/rpm).
+
+### Cài đặt nhanh
+
+```bash
+cd /đường/dẫn/tới/BambooMintKey
+./scripts/install_linux.sh      # build + cài vào /usr (cần sudo)
+./scripts/uninstall_linux.sh    # gỡ sạch
+```
+
+Hướng dẫn chi tiết: [`docs/BUILD_LINUX.md`](docs/BUILD_LINUX.md) · Thiết kế & tiến độ: [`docs/2.Design/Phase7/`](docs/2.Design/Phase7/).
+
+---
+
+## Trạng Thái Hiện Tại (Windows)
 
 Dự án đã hoàn thành **Phase 1** (nguyên cứu & thiết kế), **Phase 2** (core engine F# + TSF NativeAOT bridge) và **triển khai phần lớn Phase 3** (User Interface & Context Management).
 
@@ -63,6 +97,8 @@ Các tính năng còn lại của Phase 3 (nếu có) đang trong giai đoạn t
 
 ## Yêu Cầu
 
+### Windows
+
 | Thành phần | Phiên bản |
 |------------|-----------|
 | Windows | Windows 10/11 (64-bit) |
@@ -70,9 +106,20 @@ Các tính năng còn lại của Phase 3 (nếu có) đang trong giai đoạn t
 | Công cụ build | `dotnet` CLI |
 | Windows SDK | Được khuyến nghị để phát triển TSF |
 
+### Linux
+
+| Thành phần | Phiên bản |
+|------------|-----------|
+| Fcitx5 | 5.1.x |
+| .NET SDK | 10.0 |
+| CMake + g++ | 3.16+ / C++17 |
+| clang + lld | — (cho NativeAOT) |
+
+Chi tiết cài dependency: [`docs/BUILD_LINUX.md`](docs/BUILD_LINUX.md).
+
 ---
 
-## Bắt Đầu Nhanh
+## Bắt Đầu Nhanh (Windows)
 
 ### 1. Build
 
@@ -168,8 +215,11 @@ Chi tiết kiến trúc hệ thống toàn diện có sơ đồ xem tại [Tài 
 | `src/BambooMintKey.Shared` | Thư viện dùng chung giữa Core và NativeBridge. |
 | `src/BambooMintKey.UI` | Giao diện Avalonia độc lập: Settings, About và khung gõ thử nghiệm. |
 | `src/BambooMintKey.DevHarness` | Console harness kiểm thử COM/TSF nội bộ. |
+| `src/BambooMintKey.Core.Native` | C# NativeAOT: thư viện C-ABI `BambooMintKeyCore.so` cho Linux. |
+| `src/BambooMintKey.Fcitx5` | Addon Fcitx5 (C++/CMake): `libbamboomintkey.so`, D-Bus, icon. |
+| `src/BambooMintKey.UI.Linux` | Giao diện cài đặt Avalonia (F#) cho Linux. |
 | `tests/BambooMintKey.Core.Tests` | Unit tests cho Telex engine. |
-| `scripts/` | PowerShell scripts đăng ký, gỡ đăng ký, enable TIP. |
+| `scripts/` | Script đăng ký TIP (Windows) + cài đặt/gỡ bỏ Linux (`install_linux.sh`, `uninstall_linux.sh`). |
 | `docs/` | Tài liệu thiết kế và hướng dẫn. |
 | `docs/3.Issue/` | Template báo lỗi gõ tiếng Việt (issue templates). |
 
