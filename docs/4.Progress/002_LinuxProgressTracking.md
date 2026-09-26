@@ -27,8 +27,8 @@
 | **M1** | **`BambooMintKey.Core.Native` (C# NativeAOT)** | 25% | ✅ Hoàn thành | 100% | M1.1-M1.7 hoàn thành (full C-ABI + test matrix 9/9 PASS) |
 | **M2** | **`BambooMintKey.Fcitx5` Addon (C++/D-Bus)** | 30% | ✅ Hoàn thành | 100% | M2.1-M2.8 hoàn thành (C++ Addon, D-Bus, file watcher, build & test) |
 | **M3** | **`BambooMintKey.UI.Linux` (Avalonia F#)** | 18% | ✅ Hoàn thành | 100% | M3.1-M3.7 hoàn thành (code + test TC-UI-01→06, V/E sync qua signal D-Bus) |
-| **M4** | **Kiểm Thử E2E & Đóng Gói (Delivery)** | 12% | ⏳ Chờ thực hiện | 0% | Test Wayland/X11, script cài đặt 1 chạm, đóng gói |
-| **Tổng** | **Toàn bộ Phase 7 (Linux / Fcitx5)** | **100%** | 🛠️ **Đang triển khai** | **88%** | |
+| **M4** | **Kiểm Thử E2E & Đóng Gói (Delivery)** | 12% | 🛠️ Đang thực hiện | 30% | Script cài/gỡ (M4.4-M4.5) xong; test E2E (M4.1-M4.3) & đóng gói tiến hành dần |
+| **Tổng** | **Toàn bộ Phase 7 (Linux / Fcitx5)** | **100%** | 🛠️ **Đang triển khai** | **92%** | |
 
 ---
 
@@ -191,6 +191,8 @@
 
 ### 🎯 Milestone 4: Kiểm Thử E2E & Đóng Gói (Delivery)
 > **Mục tiêu:** Xác minh hoạt động ổn định trên các môi trường hiển thị Linux và cung cấp công cụ cài đặt một chạm.
+>
+> **Ghi chú:** M4.1-M4.3 (test E2E) và đóng gói phân phối sẽ được thực hiện **dần theo thời gian** trong quá trình sử dụng, không bắt buộc hoàn thành ngay. Đánh dấu checklist mỗi khi chạy thực tế.
 
 - [ ] **M4.1 — Kiểm Thử Gõ Thực Tế Trên Các Môi Trường Display Server**
   - [ ] Kiểm thử trên **Wayland** (GNOME Wayland, KDE Plasma Wayland).
@@ -229,6 +231,7 @@
 | 2026-09-26 | M2 | M2.1 - M2.8 | **Hoàn thành Milestone 2 (Fcitx5 addon C++)**: viết `cabibridge.h` (khai báo C-ABI), `state.h` (`BambooMintKeyState` per-context), `engine.h`/`engine.cpp` (`BambooMintKeyEngine` + `BambooMintKeyDBus`), `CMakeLists.txt` + 2 file conf, cài icon V/E. Đã build + cài vào Fcitx5, gõ Telex thành công, D-Bus V/E hoạt động. Quyết định chốt: dùng preedit `NoFlag` (ẩn gạch chân phía IME), hotkey cứng `` ` `` đổi V/E, icon động qua `overrideIcon`. Direct commit (Level 2) đã thử nhưng **tắt** vì bug Zed. Hướng dẫn build tại [BUILD_LINUX.md](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/BUILD_LINUX.md). | ✅ Hoàn thành |
 | 2026-09-26 | M3 | M3.1 - M3.6 | Viết project `src/BambooMintKey.UI.Linux/` (Avalonia F#): `SharedConfig.fs` (XDG + atomic save), `DbusClient.fs` (đồng bộ V/E qua `dbus-send`), `SingleInstance.fs` (Unix socket), `MainWindow.axaml`/`.fs` (6 tab: Cơ bản, Nâng cao, Phím tắt, Macro, Gõ thử, Thông tin), `Program.fs` (entry + single instance), `.desktop`. | ✅ Hoàn thành |
 | 2026-09-26 | M3 | M3.7 | Kiểm thử UI TC-UI-01→06 toàn bộ PASS. Sửa lỗi chữ trắng xóa trên KDE dark (chốt `RequestedThemeVariant=Light` + khóa foreground mọi trạng thái). Chuyển đồng bộ V/E từ polling sang signal `ModeChanged` qua `dbus-monitor`. Thêm nút "Cài đặt..." vào status area Fcitx5. Tạo `scripts/install-ui-linux.sh` + bổ sung mục UI trong `BUILD_LINUX.md`. | ✅ Hoàn thành |
+| 2026-09-26 | M4 | M4.4 - M4.5 | Chuyển chiến lược cài đặt sang hệ thống `/usr` (apt/rpm cho Ubuntu/Debian & Fedora). Tạo `scripts/install_linux.sh` (cài 1 lệnh) + `scripts/uninstall_linux.sh` (gỡ sạch), cập nhật `install-ui-linux.sh` cài desktop/icon vào `/usr/share`. Hoàn thiện hướng dẫn cài đặt `BUILD_LINUX.md` (deps Fedora, kích hoạt Fcitx5). Đã test gỡ + cài thành công. | ✅ Hoàn thành |
 
 ---
 
