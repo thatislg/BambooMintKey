@@ -44,7 +44,23 @@ module OnTheFlyBacktrackingTests =
     [<InlineData("form", "form")>]     // đuôi -rm
     [<InlineData("core", "core")>]     // đuôi -re
     [<InlineData("start", "start")>]   // đuôi -rt
+    [<InlineData("turn", "turn")>]     // đuôi -rn (qua hardcode, vì "rn" bị loại khỏi cluster)
+    [<InlineData("learn", "learn")>]   // đuôi -rn (hardcode)
     let ``M4.3 - từ tiếng Anh được hoàn tác đúng`` (input: string, expected: string) =
+        let result = typeWord input EngineConfig.Default
+        Assert.Equal(expected, result)
+
+    // =========================================================================
+    // M4.6: Free tone dấu hỏi (r) + phụ âm cuối n — không bị nhận nhầm là English cluster "rn"
+    // =========================================================================
+
+    [<Theory>]
+    [<InlineData("chuaarn", "chuẩn")>]  // dấu hỏi r giữa từ (fix: loại "rn" khỏi English cluster)
+    [<InlineData("chuaanr", "chuẩn")>]  // dấu hỏi cuối
+    [<InlineData("chuaafn", "chuần")>]  // dấu huyền (không bị, kiểm chứng các dấu khác)
+    [<InlineData("chuaaxn", "chuẫn")>]  // dấu ngã
+    [<InlineData("chuaasn", "chuấn")>]  // dấu sắc
+    let ``M4.6 - free tone dấu hỏi + phụ âm cuối n không bị backtrack`` (input: string, expected: string) =
         let result = typeWord input EngineConfig.Default
         Assert.Equal(expected, result)
 
