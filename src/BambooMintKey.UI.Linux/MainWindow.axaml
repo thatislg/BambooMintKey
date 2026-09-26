@@ -9,6 +9,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         x:Class="BambooMintKey.UI.Linux.MainWindow"
+        RequestedThemeVariant="Light"
         Title="BambooMintKey — Bảng Điều Khiển Cài Đặt"
         Width="580" Height="560"
         CanResize="False"
@@ -57,7 +58,34 @@
         <Style Selector="RadioButton">
             <Setter Property="Foreground" Value="#1e293b"/>
         </Style>
+        <Style Selector="RadioButton:pointerover">
+            <Setter Property="Foreground" Value="#1e293b"/>
+        </Style>
+        <Style Selector="RadioButton:pressed">
+            <Setter Property="Foreground" Value="#1e293b"/>
+        </Style>
+        <Style Selector="RadioButton:checked">
+            <Setter Property="Foreground" Value="#1e293b"/>
+        </Style>
         <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="#1e293b"/>
+        </Style>
+        <Style Selector="CheckBox:pointerover">
+            <Setter Property="Foreground" Value="#1e293b"/>
+        </Style>
+        <Style Selector="CheckBox:pressed">
+            <Setter Property="Foreground" Value="#1e293b"/>
+        </Style>
+        <Style Selector="CheckBox:checked">
+            <Setter Property="Foreground" Value="#1e293b"/>
+        </Style>
+        <Style Selector="CheckBox:indeterminate">
+            <Setter Property="Foreground" Value="#1e293b"/>
+        </Style>
+        <Style Selector="RadioButton TextBlock">
+            <Setter Property="Foreground" Value="#1e293b"/>
+        </Style>
+        <Style Selector="CheckBox TextBlock">
             <Setter Property="Foreground" Value="#1e293b"/>
         </Style>
     </Window.Styles>

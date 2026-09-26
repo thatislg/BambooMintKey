@@ -42,13 +42,16 @@ type MainWindow() as this =
     let mutable isSyncing = false
     let mutable localState = WordState.Empty
     let mutable committedText = ""
-    let syncTimer = DispatcherTimer()
+    let mutable modeListener : IDisposable = null
 
     do
         this.InitializeComponent()
         this.BindControls()
         this.LoadSettings()
-        this.StartSyncTimer()
+        this.StartSignalListener()
+        this.SyncInitialMode()
+        this.Closed.Add(fun _ ->
+            if modeListener <> null then modeListener.Dispose())
 
     member private this.InitializeComponent() = AvaloniaXamlLoader.Load(this)
 
@@ -163,21 +166,27 @@ type MainWindow() as this =
         finally
             isSyncing <- false
 
-    /// Polling trạng thái V/E từ addon (thay cho lắng nghe signal D-Bus).
-    member private this.StartSyncTimer() =
-        syncTimer.Interval <- TimeSpan.FromMilliseconds(500.0)
-        syncTimer.Tick.Add(fun _ ->
-            Async.Start(async {
-                let v = DbusClient.getVietnameseMode()
-                Dispatcher.UIThread.Post(fun () ->
-                    if v <> cfg.IsVietnameseMode then
-                        cfg.IsVietnameseMode <- v
-                        isSyncing <- true
-                        if chkVietnameseMode <> null then chkVietnameseMode.IsChecked <- Nullable v
-                        this.UpdateModeBadge(v)
-                        isSyncing <- false)
-            }))
-        syncTimer.Start()
+    /// Lắng nghe signal `ModeChanged` từ addon (thay cho polling).
+    member private this.StartSignalListener() =
+        modeListener <- DbusClient.startModeChangedListener(fun enabled ->
+            Dispatcher.UIThread.Post(fun () -> this.ApplyExternalMode(enabled)))
+
+    /// Truy vấn trạng thái V/E thực tế lần đầu (config.json có thể lệch addon).
+    member private this.SyncInitialMode() =
+        Async.Start(async {
+            let v = DbusClient.getVietnameseMode()
+            Dispatcher.UIThread.Post(fun () -> this.ApplyExternalMode(v))
+        })
+
+    /// Áp dụng trạng thái V/E từ bên ngoài (signal D-Bus hoặc truy vấn đầu) lên UI.
+    member private this.ApplyExternalMode(enabled: bool) =
+        if enabled <> cfg.IsVietnameseMode then
+            cfg.IsVietnameseMode <- enabled
+            isSyncing <- true
+            if chkVietnameseMode <> null then
+                chkVietnameseMode.IsChecked <- Nullable enabled
+            this.UpdateModeBadge(enabled)
+            isSyncing <- false
 
     member private this.ApplyDefaults() =
         cfg <- AppConfig()

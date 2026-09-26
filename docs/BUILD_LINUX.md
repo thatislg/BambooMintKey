@@ -94,7 +94,37 @@ Việc cài đặt sẽ đặt các file vào đúng vị trí chuẩn của Fci
 
 ---
 
-## 5. Kích hoạt bộ gõ
+## 5. Build & cài đặt giao diện Cài đặt (`BambooMintKey.UI.Linux`)
+
+Giao diện cài đặt là ứng dụng Avalonia (F# / .NET 10), tách biệt khỏi addon Fcitx5. Dùng script cài đặt tự động:
+
+```bash
+cd /đường/dẫn/tới/BambooMintKey
+
+# Cài launcher vào /usr/local/bin (cần sudo) — khuyến nghị để Fcitx5 addon gọi được
+./scripts/install-ui-linux.sh
+
+# Hoặc cài user (không cần sudo), launcher vào ~/.local/bin
+./scripts/install-ui-linux.sh --user
+```
+
+Script thực hiện:
+
+1. `dotnet publish` ứng dụng ra `publish/ui-linux/`.
+2. Tạo launcher `bamboomintkey-ui` trên PATH (trỏ tới apphost đã publish).
+3. Cài desktop entry `bamboomintkey-settings.desktop` vào `~/.local/share/applications/`.
+4. Cài icon `bamboomintkey.svg` vào `~/.local/share/icons/hicolor/scalable/apps/`.
+5. Làm mới cache icon / desktop database.
+
+**Mở giao diện cài đặt bằng các cách:**
+
+- Menu ứng dụng → tìm "BambooMintKey Settings".
+- Lệnh terminal: `bamboomintkey-ui`.
+- Menu chuột phải Fcitx5 (mục "Cài đặt...") khi BambooMintKey đang là bộ gõ đang chọn.
+
+---
+
+## 6. Kích hoạt bộ gõ
 
 ```bash
 # Restart Fcitx5 để nạp addon mới
@@ -110,7 +140,7 @@ Sau đó mở **Fcitx5 Configuration** → tab **Input Method**:
 
 ---
 
-## 6. Kiểm tra
+## 7. Kiểm tra
 
 | Việc cần test | Thao tác | Kết quả mong đợi |
 |---|---|---|
@@ -121,7 +151,7 @@ Sau đó mở **Fcitx5 Configuration** → tab **Input Method**:
 
 ---
 
-## 7. Cấu hình
+## 8. Cấu hình
 
 File cấu hình đặt tại `~/.config/bamboomintkey/config.json` (theo chuẩn XDG).
 
@@ -140,7 +170,7 @@ Thay đổi file này sẽ được addon tự nạp lại qua cơ chế `inotif
 
 ---
 
-## 8. Gỡ cài đặt
+## 9. Gỡ cài đặt
 
 ```bash
 sudo rm -f /usr/lib/*/fcitx5/libbamboomintkey.so \
@@ -148,11 +178,17 @@ sudo rm -f /usr/lib/*/fcitx5/libbamboomintkey.so \
            /usr/share/fcitx5/addon/bamboomintkey.conf \
            /usr/share/fcitx5/inputmethod/bamboomintkey.conf \
            /usr/share/icons/hicolor/scalable/apps/fcitx_bamboomintkey*.svg
+
+# Gỡ giao diện Cài đặt (UI)
+rm -f ~/.local/share/applications/bamboomintkey-settings.desktop \
+      ~/.local/share/icons/hicolor/scalable/apps/bamboomintkey.svg \
+      /usr/local/bin/bamboomintkey-ui \
+      ~/.local/bin/bamboomintkey-ui
 ```
 
 ---
 
-## 9. Khắc phục sự cố thường gặp
+## 10. Khắc phục sự cố thường gặp
 
 | Vấn đề | Nguyên nhân / cách xử lý |
 |---|---|
@@ -164,7 +200,7 @@ sudo rm -f /usr/lib/*/fcitx5/libbamboomintkey.so \
 
 ---
 
-## 10. Kiến trúc tổng quan
+## 11. Kiến trúc tổng quan
 
 ```
 Ứng dụng (GTK/Qt/Zed...)
