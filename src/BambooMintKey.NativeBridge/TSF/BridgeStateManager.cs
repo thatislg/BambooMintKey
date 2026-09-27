@@ -35,6 +35,8 @@ public static class BridgeStateManager
             bool leadingW = SharedMemoryManager.AllowLeadingWAsU;
             byte toneStyleByte = SharedMemoryManager.ToneStyle;
             bool freeTone = SharedMemoryManager.AllowFreeTonePlacement;
+            bool enableDict = SharedMemoryManager.EnableVietnameseDictionary;
+            bool enableBacktrack = SharedMemoryManager.EnableEnglishBacktracking;
             var toneStyle = (toneStyleByte == 1) ? Types.TonePlacementStyle.Traditional : Types.TonePlacementStyle.Modern;
 
             if (_currentConfig.IsEnabled != isVn ||
@@ -42,7 +44,9 @@ public static class BridgeStateManager
                 _currentConfig.AllowRepeatKeyUndo != repeatUndo ||
                 _currentConfig.AllowLeadingWAsU != leadingW ||
                 _currentConfig.ToneStyle != toneStyle ||
-                _currentConfig.AllowFreeTonePlacement != freeTone)
+                _currentConfig.AllowFreeTonePlacement != freeTone ||
+                _currentConfig.EnableVietnameseDictionary != enableDict ||
+                _currentConfig.EnableEnglishBacktracking != enableBacktrack)
             {
                 _currentConfig = new EngineConfig.EngineConfig(
                     isVn,
@@ -51,8 +55,8 @@ public static class BridgeStateManager
                     leadingW,
                     toneStyle,
                     freeTone,
-                    true,   // enableVietnameseDictionary (M4)
-                    true    // enableEnglishBacktracking (M4)
+                    enableDict,
+                    enableBacktrack
                 );
             }
             return _currentConfig;

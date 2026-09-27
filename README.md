@@ -8,6 +8,10 @@
 
 **Bộ gõ tiếng Việt Telex cho Windows (TSF) và Linux (Fcitx5).**
 
+<a href="https://get.microsoft.com/installer/download/xpdp9v267ntq42?referrer=appbadge" target="_self" >
+	<img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200"/>
+</a>
+
 BambooMintKey là bộ gõ tiếng Việt với **lõi xử lý ngôn ngữ thuần chức năng (F#) dùng chung** cho cả hai nền tảng:
 
 - **Windows** — Text Input Processor (TIP) chạy như In-Process COM Server bên trong tiến trình ứng dụng, tích hợp sâu vào Text Services Framework (TSF).
@@ -121,7 +125,21 @@ Chi tiết cài dependency: [`docs/BUILD_LINUX.md`](docs/BUILD_LINUX.md).
 
 ## Bắt Đầu Nhanh (Windows)
 
-### 1. Build
+### Cài Đặt (Người dùng cuối)
+
+Tải và cài đặt trực tiếp từ Microsoft Store:
+
+<a href="https://get.microsoft.com/installer/download/xpdp9v267ntq42?referrer=appbadge" target="_self" >
+	<img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200"/>
+</a>
+
+Hoặc tải bộ cài đặt độc lập `BambooMintKey-Setup.exe` từ [GitHub Releases](https://github.com/thatislg/BambooMintKey/releases).
+
+---
+
+### Dành cho Lập trình viên & Tự Build
+
+#### 1. Build
 
 ```powershell
 # Build toàn bộ solution

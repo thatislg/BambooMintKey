@@ -412,6 +412,12 @@ public static unsafe class LangBarItemButton
         uint freeToneFlag = SharedMemoryManager.AllowFreeTonePlacement ? TsfMenuFlags.TfLbMenuFlagChecked : 0;
         AddMenuItemText(menuVTable, pMenu, MenuCommands.ToggleFreeTonePlacement, freeToneFlag, "Cho phép bỏ dấu tự do");
 
+        uint enableDictFlag = SharedMemoryManager.EnableVietnameseDictionary ? TsfMenuFlags.TfLbMenuFlagChecked : 0;
+        AddMenuItemText(menuVTable, pMenu, MenuCommands.ToggleEnableDictionary, enableDictFlag, "Thẩm định qua từ điển");
+
+        uint enableBacktrackFlag = SharedMemoryManager.EnableEnglishBacktracking ? TsfMenuFlags.TfLbMenuFlagChecked : 0;
+        AddMenuItemText(menuVTable, pMenu, MenuCommands.ToggleEnableBacktracking, enableBacktrackFlag, "Tự động hoàn tác tiếng Anh");
+
         AddMenuSeparator(menuVTable, pMenu);
 
         // 4. Submenu: Kiểu gõ
@@ -530,6 +536,12 @@ public static unsafe class LangBarItemButton
             uint freeTone = SharedMemoryManager.AllowFreeTonePlacement ? mfChecked : 0;
             AppendMenuW(hMenu, mfString | freeTone, MenuCommands.ToggleFreeTonePlacement, "Cho phép bỏ dấu tự do");
 
+            uint enableDict = SharedMemoryManager.EnableVietnameseDictionary ? mfChecked : 0;
+            AppendMenuW(hMenu, mfString | enableDict, MenuCommands.ToggleEnableDictionary, "Thẩm định qua từ điển");
+
+            uint enableBacktrack = SharedMemoryManager.EnableEnglishBacktracking ? mfChecked : 0;
+            AppendMenuW(hMenu, mfString | enableBacktrack, MenuCommands.ToggleEnableBacktracking, "Tự động hoàn tác tiếng Anh");
+
             AppendMenuW(hMenu, mfSeparator, 0, string.Empty);
 
             // 4. Submenu Kiểu gõ
@@ -604,6 +616,14 @@ public static unsafe class LangBarItemButton
 
             case MenuCommands.ToggleFreeTonePlacement:
                 SharedMemoryManager.AllowFreeTonePlacement = !SharedMemoryManager.AllowFreeTonePlacement;
+                break;
+
+            case MenuCommands.ToggleEnableDictionary:
+                SharedMemoryManager.EnableVietnameseDictionary = !SharedMemoryManager.EnableVietnameseDictionary;
+                break;
+
+            case MenuCommands.ToggleEnableBacktracking:
+                SharedMemoryManager.EnableEnglishBacktracking = !SharedMemoryManager.EnableEnglishBacktracking;
                 break;
 
             case MenuCommands.MethodTelex:

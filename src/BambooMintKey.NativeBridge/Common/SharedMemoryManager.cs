@@ -264,8 +264,10 @@ public static unsafe class SharedMemoryManager
             *(uint*)(pShared + 16) = mods;
             pShared[20] = (byte)(ParseBool("allowFreeTonePlacement", true) ? 1 : 0);
             pShared[21] = (byte)(ParseBool("enablePreedit", false) ? 1 : 0);
+            pShared[22] = (byte)(ParseBool("enableVietnameseDictionary", true) ? 1 : 0);
+            pShared[23] = (byte)(ParseBool("enableEnglishBacktracking", true) ? 1 : 0);
 
-            DebugLog.Write($"Loaded config from disk: hotkeyPreset={pShared[7]}, vKey=0x{vKey:X2}, mods=0x{mods:X4}, preedit={pShared[21]}");
+            DebugLog.Write($"Loaded config from disk: hotkeyPreset={pShared[7]}, vKey=0x{vKey:X2}, mods=0x{mods:X4}, preedit={pShared[21]}, dict={pShared[22]}, backtrack={pShared[23]}");
         }
         catch (Exception ex)
         {
@@ -674,6 +676,48 @@ public static unsafe class SharedMemoryManager
             if (_pShared != null)
             {
                 _pShared[21] = (byte)(value ? 1 : 0);
+                SignalStateChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Thẩm định âm tiết qua từ điển (sửa lỗi đặt dấu tiếng Việt). Mặc định: true.
+    /// </summary>
+    public static bool EnableVietnameseDictionary
+    {
+        get
+        {
+            EnsureInitialized();
+            return _pShared != null ? (_pShared[22] != 0) : true;
+        }
+        set
+        {
+            EnsureInitialized();
+            if (_pShared != null)
+            {
+                _pShared[22] = (byte)(value ? 1 : 0);
+                SignalStateChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tự động hoàn tác từ tiếng Anh qua từ điển (post, test, ...). Mặc định: true.
+    /// </summary>
+    public static bool EnableEnglishBacktracking
+    {
+        get
+        {
+            EnsureInitialized();
+            return _pShared != null ? (_pShared[23] != 0) : true;
+        }
+        set
+        {
+            EnsureInitialized();
+            if (_pShared != null)
+            {
+                _pShared[23] = (byte)(value ? 1 : 0);
                 SignalStateChanged();
             }
         }

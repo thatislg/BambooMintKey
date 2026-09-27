@@ -28,6 +28,8 @@ type MainWindow (args: string[]) as this =
     let mutable chkLeadingW: CheckBox = null
     let mutable chkFreeTone: CheckBox = null
     let mutable chkPreedit: CheckBox = null
+    let mutable chkEnableDict: CheckBox = null
+    let mutable chkEnableBacktrack: CheckBox = null
     let mutable txtSandbox: TextBox = null
     let mutable btnClearSandbox: Button = null
     let mutable btnGithub: Button = null
@@ -70,6 +72,8 @@ type MainWindow (args: string[]) as this =
         chkLeadingW <- this.FindControl<CheckBox>("ChkLeadingW")
         chkFreeTone <- this.FindControl<CheckBox>("ChkFreeTone")
         chkPreedit <- this.FindControl<CheckBox>("ChkPreedit")
+        chkEnableDict <- this.FindControl<CheckBox>("ChkEnableDictionary")
+        chkEnableBacktrack <- this.FindControl<CheckBox>("ChkEnableBacktracking")
         txtSandbox <- this.FindControl<TextBox>("TxtSandbox")
         btnClearSandbox <- this.FindControl<Button>("BtnClearSandbox")
         btnGithub <- this.FindControl<Button>("BtnGithub")
@@ -92,11 +96,11 @@ type MainWindow (args: string[]) as this =
                         if parts.Length >= 3 then sprintf "%s.%s.%s" parts.[0] parts.[1] parts.[2] else fvi.FileVersion
                     else
                         let ver = Assembly.GetExecutingAssembly().GetName().Version
-                        if ver <> null then sprintf "%d.%d.%d" ver.Major ver.Minor (max 0 ver.Build) else "1.0.1"
+                        if ver <> null then sprintf "%d.%d.%d" ver.Major ver.Minor (max 0 ver.Build) else "1.1.0"
                 else
                     let ver = Assembly.GetExecutingAssembly().GetName().Version
-                    if ver <> null then sprintf "%d.%d.%d" ver.Major ver.Minor (max 0 ver.Build) else "1.0.1"
-            with _ -> "1.0.1"
+                    if ver <> null then sprintf "%d.%d.%d" ver.Major ver.Minor (max 0 ver.Build) else "1.1.0"
+            with _ -> "1.1.0"
 
         if txtVersionInfo <> null then
             txtVersionInfo.Text <- sprintf "Phiên bản %s (NativeAOT & Pure F# Core)" currentVersionStr
@@ -131,6 +135,8 @@ type MainWindow (args: string[]) as this =
 
         if chkFreeTone <> null then chkFreeTone.IsCheckedChanged.Add(onSettingChanged)
         if chkPreedit <> null then chkPreedit.IsCheckedChanged.Add(onSettingChanged)
+        if chkEnableDict <> null then chkEnableDict.IsCheckedChanged.Add(onSettingChanged)
+        if chkEnableBacktrack <> null then chkEnableBacktrack.IsCheckedChanged.Add(onSettingChanged)
         if chkAutoRestore <> null then chkAutoRestore.IsCheckedChanged.Add(onSettingChanged)
         if chkRepeatUndo <> null then chkRepeatUndo.IsCheckedChanged.Add(onSettingChanged)
         if chkLeadingW <> null then chkLeadingW.IsCheckedChanged.Add(onSettingChanged)
@@ -173,6 +179,8 @@ type MainWindow (args: string[]) as this =
             if chkLeadingW <> null then cfg.AllowLeadingWAsU <- chkLeadingW.IsChecked.GetValueOrDefault(false)
             if chkFreeTone <> null then cfg.AllowFreeTonePlacement <- chkFreeTone.IsChecked.GetValueOrDefault(true)
             if chkPreedit <> null then cfg.EnablePreedit <- chkPreedit.IsChecked.GetValueOrDefault(false)
+            if chkEnableDict <> null then cfg.EnableVietnameseDictionary <- chkEnableDict.IsChecked.GetValueOrDefault(true)
+            if chkEnableBacktrack <> null then cfg.EnableEnglishBacktracking <- chkEnableBacktrack.IsChecked.GetValueOrDefault(true)
 
             cfg.HotkeyVKey <- fixedVKey
             cfg.HotkeyModifiers <- fixedModifiers
@@ -220,6 +228,12 @@ type MainWindow (args: string[]) as this =
             if chkPreedit <> null then
                 chkPreedit.IsChecked <- Nullable cfg.EnablePreedit
 
+            if chkEnableDict <> null then
+                chkEnableDict.IsChecked <- Nullable cfg.EnableVietnameseDictionary
+
+            if chkEnableBacktrack <> null then
+                chkEnableBacktrack.IsChecked <- Nullable cfg.EnableEnglishBacktracking
+
             lastKnownSeq <- ConfigStore.getStateSequence()
         finally
             isUpdatingFromSync <- false
@@ -235,6 +249,8 @@ type MainWindow (args: string[]) as this =
         if chkLeadingW <> null then chkLeadingW.IsChecked <- Nullable def.AllowLeadingWAsU
         if chkFreeTone <> null then chkFreeTone.IsChecked <- Nullable def.AllowFreeTonePlacement
         if chkPreedit <> null then chkPreedit.IsChecked <- Nullable def.EnablePreedit
+        if chkEnableDict <> null then chkEnableDict.IsChecked <- Nullable def.EnableVietnameseDictionary
+        if chkEnableBacktrack <> null then chkEnableBacktrack.IsChecked <- Nullable def.EnableEnglishBacktracking
         if txtStatus <> null then txtStatus.Text <- "Đã khôi phục thiết lập mặc định."
 
     member private this.HandleCommandLineArgs() =
@@ -285,6 +301,12 @@ type MainWindow (args: string[]) as this =
 
         if chkPreedit <> null then
             cfg.EnablePreedit <- chkPreedit.IsChecked.GetValueOrDefault(false)
+
+        if chkEnableDict <> null then
+            cfg.EnableVietnameseDictionary <- chkEnableDict.IsChecked.GetValueOrDefault(true)
+
+        if chkEnableBacktrack <> null then
+            cfg.EnableEnglishBacktracking <- chkEnableBacktrack.IsChecked.GetValueOrDefault(true)
 
         ConfigStore.saveConfig(cfg)
         this.Close()

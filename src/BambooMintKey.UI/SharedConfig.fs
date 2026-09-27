@@ -156,6 +156,8 @@ module ConfigStore =
                     cfg.AllowLeadingWAsU <- span[4] <> 0uy
                     cfg.AllowFreeTonePlacement <- if span.Length > 20 then span[20] <> 0uy else true
                     cfg.EnablePreedit <- if span.Length > 21 then span[21] <> 0uy else false
+                    cfg.EnableVietnameseDictionary <- if span.Length > 22 then span[22] <> 0uy else true
+                    cfg.EnableEnglishBacktracking <- if span.Length > 23 then span[23] <> 0uy else true
                     cfg.InputMethod <- span[5]
                     cfg.Charset <- span[6]
                     cfg.ToggleHotkey <- 0uy
@@ -203,6 +205,10 @@ module ConfigStore =
                     if has "allowFreeTonePlacement" "false" then cfg.AllowFreeTonePlacement <- false
                     if has "enablePreedit" "true" then cfg.EnablePreedit <- true
                     elif has "enablePreedit" "false" then cfg.EnablePreedit <- false
+                    if has "enableVietnameseDictionary" "false" then cfg.EnableVietnameseDictionary <- false
+                    elif has "enableVietnameseDictionary" "true" then cfg.EnableVietnameseDictionary <- true
+                    if has "enableEnglishBacktracking" "false" then cfg.EnableEnglishBacktracking <- false
+                    elif has "enableEnglishBacktracking" "true" then cfg.EnableEnglishBacktracking <- true
                     if has "inputMethod" "1" then cfg.InputMethod <- 1uy
                     elif has "inputMethod" "2" then cfg.InputMethod <- 2uy
                     if has "charset" "1" then cfg.Charset <- 1uy
@@ -255,7 +261,7 @@ module ConfigStore =
                 if String.IsNullOrWhiteSpace(macroEntries) then "  \"macros\": {}"
                 else sprintf "  \"macros\": {\n%s\n  }" macroEntries
 
-            let json = sprintf "{\n  \"version\": %d,\n  \"inputMethod\": %d,\n  \"charset\": %d,\n  \"toggleHotkey\": %d,\n  \"hotkeyVKey\": %u,\n  \"hotkeyModifiers\": %u,\n  \"toneStyle\": %d,\n  \"autoRestoreEnglishWords\": %b,\n  \"allowRepeatKeyUndo\": %b,\n  \"allowLeadingWAsU\": %b,\n  \"allowFreeTonePlacement\": %b,\n  \"enablePreedit\": %b,\n  \"startWithWindows\": %b,\n  \"macroEnabled\": %b,\n%s\n}"
+            let json = sprintf "{\n  \"version\": %d,\n  \"inputMethod\": %d,\n  \"charset\": %d,\n  \"toggleHotkey\": %d,\n  \"hotkeyVKey\": %u,\n  \"hotkeyModifiers\": %u,\n  \"toneStyle\": %d,\n  \"autoRestoreEnglishWords\": %b,\n  \"allowRepeatKeyUndo\": %b,\n  \"allowLeadingWAsU\": %b,\n  \"allowFreeTonePlacement\": %b,\n  \"enablePreedit\": %b,\n  \"enableVietnameseDictionary\": %b,\n  \"enableEnglishBacktracking\": %b,\n  \"startWithWindows\": %b,\n  \"macroEnabled\": %b,\n%s\n}"
                         cfg.Version
                         (int cfg.InputMethod)
                         (int cfg.Charset)
@@ -268,6 +274,8 @@ module ConfigStore =
                         cfg.AllowLeadingWAsU
                         cfg.AllowFreeTonePlacement
                         cfg.EnablePreedit
+                        cfg.EnableVietnameseDictionary
+                        cfg.EnableEnglishBacktracking
                         cfg.StartWithWindows
                         cfg.MacroEnabled
                         macrosBlock
@@ -293,6 +301,8 @@ module ConfigStore =
                     span[4] <- if cfg.AllowLeadingWAsU then 1uy else 0uy
                     if span.Length > 20 then span[20] <- if cfg.AllowFreeTonePlacement then 1uy else 0uy
                     if span.Length > 21 then span[21] <- if cfg.EnablePreedit then 1uy else 0uy
+                    if span.Length > 22 then span[22] <- if cfg.EnableVietnameseDictionary then 1uy else 0uy
+                    if span.Length > 23 then span[23] <- if cfg.EnableEnglishBacktracking then 1uy else 0uy
                     span[5] <- cfg.InputMethod
                     span[6] <- cfg.Charset
                     span[7] <- 0uy

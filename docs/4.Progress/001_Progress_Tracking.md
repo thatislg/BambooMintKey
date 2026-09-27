@@ -6,8 +6,8 @@
 
 # BambooMintKey Progress Tracking
 
-**Cập nhật:** 2026-09-18  
-**Phiên bản hiện tại:** 1.0.1  
+**Cập nhật:** 2026-09-27  
+**Phiên bản hiện tại:** 1.1.0  
 **Branch chính:** `main`
 
 ---

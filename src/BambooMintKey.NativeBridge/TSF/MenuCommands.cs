@@ -25,6 +25,8 @@ public static class MenuCommands
     public const uint ToggleRepeatKeyUndo        = Base + 21; // Gõ lặp để hoàn tác dấu
     public const uint ToggleLeadingWAsU          = Base + 22; // Phím 'w' đầu từ thành 'ư'
     public const uint ToggleFreeTonePlacement    = Base + 23; // Cho phép bỏ dấu tự do (phari -> phải)
+    public const uint ToggleEnableDictionary     = Base + 24; // Thẩm định qua từ điển
+    public const uint ToggleEnableBacktracking   = Base + 25; // Tự động hoàn tác tiếng Anh
 
     // 4. Kiểu gõ (Mở rộng)
     public const uint SubmenuInputMethod         = Base + 30;
