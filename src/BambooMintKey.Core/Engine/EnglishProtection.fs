@@ -58,11 +58,12 @@ module EnglishProtection =
         if lower.Length < 3 then false
         else
             let terminals = [
-                // Lưu ý: LOẠI bỏ "rn" vì 'r' là phím dấu hỏi Telex -> "r" + phụ âm cuối "n"
-                // tạo chuỗi "rn" trùng English cluster, gây backtrack sai từ tiếng Việt (vd "chuaarn" -> "chuẩn").
-                // Các từ "rn" phổ biến (turn, born, learn, return) đã nằm trong CommonEnglishWords hardcode,
-                // các từ còn lại (earn, warn, corn) được backtrack qua từ điển 20k (M4).
-                "rt"; "rd"; "rk"; "rm"; "rp"
+                // Lưu ý: LOẠI bỏ "rn" và "rm" vì 'r' là phím dấu hỏi Telex ->
+                // "r" + phụ âm cuối "n"/"m" tạo "rn"/"rm" trùng English cluster, gây backtrack sai
+                // từ tiếng Việt (vd "chuaarn" -> "chuẩn", "kharm" -> "khảm").
+                // Các từ "rn"/"rm" phổ biến (turn, born, form, term...) đã nằm trong CommonEnglishWords hardcode,
+                // các từ còn lại (earn, warn, alarm, firm...) được backtrack qua từ điển 20k (M4).
+                "rt"; "rd"; "rk"; "rp"
                 "st"; "sk"; "sp"
                 "ct"; "ft"; "lt"; "pt"; "nt"
                 "ld"; "nd"; "mp"; "nk"
