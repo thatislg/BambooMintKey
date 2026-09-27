@@ -23,4 +23,13 @@
     <FileVersion>1.1.0.0</FileVersion>
     <InformationalVersion>1.1.0</InformationalVersion>
   </PropertyGroup>
+
+  <!--
+    Cho phép build các project targeting Windows (net10.0-windows) trên Linux/macOS
+    khi build toàn solution bằng IDE (vd Rider). Tránh lỗi NETSDK1100.
+    Chỉ áp dụng trên non-Windows; trên Windows không cần thiết.
+  -->
+  <PropertyGroup Condition="'$(OS)' != 'Windows_NT'">
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
 </Project>

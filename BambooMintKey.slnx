@@ -2,10 +2,12 @@
   <Folder Name="/src/">
     <File Path="src/media/bamboo_mint_key_ico.svg" />
     <Project Path="src/BambooMintKey.Core/BambooMintKey.Core.fsproj" />
+    <Project Path="src/BambooMintKey.Core.Native/BambooMintKey.Core.Native.csproj" />
     <Project Path="src/BambooMintKey.DevHarness/BambooMintKey.DevHarness.csproj" />
     <Project Path="src/BambooMintKey.NativeBridge/BambooMintKey.NativeBridge.csproj" />
     <Project Path="src/BambooMintKey.Shared/BambooMintKey.Shared.fsproj" />
     <Project Path="src/BambooMintKey.UI/BambooMintKey.UI.fsproj" />
+    <Project Path="src/BambooMintKey.UI.Linux/BambooMintKey.UI.Linux.fsproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/BambooMintKey.Core.Tests/BambooMintKey.Core.Tests.fsproj" />
