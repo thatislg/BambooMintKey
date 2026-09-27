@@ -75,13 +75,21 @@ echo "[3/3] Biên dịch + cài giao diện Cài đặt (Avalonia UI)..."
 # ---------------------------------------------------------------------------
 echo "Khởi động lại Fcitx5..."
 if command -v fcitx5 >/dev/null 2>&1; then
-    fcitx5 -r -d 2>/dev/null || true
     pkill -f fcitx5 2>/dev/null || true
     sleep 1
-    fcitx5 -d 2>/dev/null || true
+    # Dùng nohup + & để fcitx5 chạy nền, không giữ Terminal (tránh treo).
+    nohup fcitx5 -d >/dev/null 2>&1 &
 fi
 
 echo ""
 echo "Cài đặt thành công! BambooMintKey đã sẵn sàng (cài vào $PREFIX)."
-echo "  - Thêm bộ gõ 'BambooMintKey' trong Fcitx5 Configuration."
-echo "  - Mở cài đặt: 'bamboomintkey-ui' hoặc menu 'BambooMintKey Settings'."
+echo ""
+echo "=== CÁC BƯỚC HOÀN TẤT (bắt buộc) ==="
+echo "  1. Mở Fcitx5 Configuration:  fcitx5-configtool"
+echo "  2. Thêm bộ gõ 'BambooMintKey' vào danh sách Input Method."
+echo "  3. Khởi động lại Fcitx5 hoặc đăng xuất/đăng nhập lại để kích hoạt."
+echo ""
+echo "  Lưu ý: bảng cài đặt (bamboomintkey-ui) cần .NET 10 runtime."
+echo "    Nếu chưa cài:  sudo apt install dotnet-runtime-10.0"
+echo ""
+echo "  - Mở cài đặt nâng cao: 'bamboomintkey-ui' hoặc menu 'BambooMintKey Settings'."

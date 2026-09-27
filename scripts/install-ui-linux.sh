@@ -38,7 +38,7 @@ fi
 # 1. Publish
 # ---------------------------------------------------------------------------
 echo "==> Publishing $PROJECT ..."
-dotnet publish "$PROJECT" -c Release -o "$PUBLISH_DIR"
+dotnet publish "$PROJECT" -c Release -r linux-x64 -o "$PUBLISH_DIR"
 
 if [ ! -x "$PUBLISH_DIR/$BIN_NAME" ]; then
     echo "Lỗi: không tìm thấy apphost $PUBLISH_DIR/$BIN_NAME sau khi publish." >&2

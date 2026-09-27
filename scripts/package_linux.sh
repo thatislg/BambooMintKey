@@ -43,7 +43,7 @@ cmake --build "$PROJECT_ROOT/build-pkg"
 
 # UI publish (dùng lại bước trong install-ui-linux.sh)
 dotnet publish "$PROJECT_ROOT/src/BambooMintKey.UI.Linux/BambooMintKey.UI.Linux.fsproj" \
-    -c Release -o "$PROJECT_ROOT/publish/ui-linux"
+    -c Release -r linux-x64 -o "$PROJECT_ROOT/publish/ui-linux"
 
 # ---------------------------------------------------------------------------
 # 2. Staging cấu trúc /usr
@@ -91,18 +91,66 @@ Section: utils
 Priority: optional
 Architecture: $ARCH
 Maintainer: Dương Gia Long & LMO contributors <thatislg@users.noreply.github.com>
-Depends: fcitx5, libc6
+Homepage: https://github.com/thatislg/BambooMintKey
+Depends: fcitx5, libc6, dotnet-runtime-10.0
 Description: Vietnamese Telex Input Method for Fcitx5
  BambooMintKey là bộ gõ tiếng Việt (Telex) hiện đại cho Fcitx5 trên Linux,
  tích hợp từ điển âm tiết MIT, thẩm định on-the-fly và tự hoàn tác tiếng Anh.
 EOF
 
     cp -a "$STAGE/usr" "$DEB_DIR/"
+
+    # Thông báo hướng dẫn sau khi cài (chạy khi dpkg -i)
+    cat > "$DEB_DIR/DEBIAN/postinst" <<'EOF'
+#!/bin/sh
+set -e
+echo ""
+echo "BambooMintKey đã được cài đặt thành công!"
+echo ""
+echo "=== CÁC BƯỚC HOÀN TẤT (bắt buộc) ==="
+echo "  1. Mở Fcitx5 Configuration:  fcitx5-configtool"
+echo "  2. Thêm bộ gõ 'BambooMintKey' vào danh sách Input Method."
+echo "  3. Khởi động lại Fcitx5 hoặc đăng xuất/đăng nhập lại để kích hoạt."
+echo ""
+echo "Lưu ý: bảng cài đặt (bamboomintkey-ui) cần .NET 10 runtime."
+echo "  Nếu chưa cài:  sudo apt install dotnet-runtime-10.0"
+echo ""
+exit 0
+EOF
+    chmod 755 "$DEB_DIR/DEBIAN/postinst"
+
     DEB_NAME="${PKG_NAME}_${VERSION}_${ARCH}.deb"
     dpkg-deb --build "$DEB_DIR" "$OUT_DIR/$DEB_NAME"
     echo "  -> $OUT_DIR/$DEB_NAME"
 else
     echo "[4/4] Bỏ qua .deb (không có dpkg-deb hoặc --no-deb)."
+fi
+
+# ---------------------------------------------------------------------------
+# 5. Đóng gói .rpm (Fedora — cần rpmbuild)
+# ---------------------------------------------------------------------------
+if command -v rpmbuild >/dev/null 2>&1; then
+    echo "[5/5] Đóng gói .rpm..."
+    RPM_ROOT="$OUT_DIR/rpmbuild"
+    rm -rf "$RPM_ROOT"
+    mkdir -p "$RPM_ROOT"/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+
+    # Tìm thư mục chứa addon .so trong staging (lib/lib64/... tùy distro)
+    LIB_DIR=$(dirname "$(find "$STAGE/usr" -name libbamboomintkey.so | head -1)")
+    cp "$LIB_DIR/libbamboomintkey.so" "$RPM_ROOT/SOURCES/"
+    cp "$LIB_DIR/BambooMintKeyCore.so" "$RPM_ROOT/SOURCES/"
+    cp "$STAGE/usr/share/fcitx5/addon/bamboomintkey.conf" "$RPM_ROOT/SOURCES/bamboomintkey-addon.conf"
+    cp "$STAGE/usr/share/fcitx5/inputmethod/bamboomintkey.conf" "$RPM_ROOT/SOURCES/bamboomintkey.conf"
+    cp "$STAGE/usr/share/icons/hicolor/scalable/apps/fcitx_bamboomintkey.svg" "$RPM_ROOT/SOURCES/"
+    cp "$STAGE/usr/share/icons/hicolor/scalable/apps/fcitx_bamboomintkey_e.svg" "$RPM_ROOT/SOURCES/"
+    cp -a "$STAGE/usr/lib/bamboomintkey/ui" "$RPM_ROOT/SOURCES/ui"
+    cp "$STAGE/usr/share/applications/bamboomintkey-settings.desktop" "$RPM_ROOT/SOURCES/"
+    cp "$SCRIPT_DIR/bamboomintkey.spec" "$RPM_ROOT/SPECS/"
+
+    rpmbuild -ba --define "_topdir $RPM_ROOT" "$RPM_ROOT/SPECS/bamboomintkey.spec"
+    echo "  -> $RPM_ROOT/RPMS/"
+else
+    echo "[5/5] Bỏ qua .rpm (không có rpmbuild — build trên Fedora bằng scripts/bamboomintkey.spec)."
 fi
 
 echo ""
