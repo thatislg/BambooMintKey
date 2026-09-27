@@ -98,13 +98,13 @@ sudo cmake --install build
 
 Việc cài đặt sẽ đặt các file vào đúng vị trí chuẩn của Fcitx5:
 
-| File | Đường dẫn |
-|---|---|
-| `libbamboomintkey.so` | `/usr/lib/<multiarch>/fcitx5/` |
-| `BambooMintKeyCore.so` | `/usr/lib/<multiarch>/fcitx5/` (cạnh addon, cho rpath `$ORIGIN`) |
-| `bamboomintkey.conf` (metadata addon) | `/usr/share/fcitx5/addon/` |
-| `bamboomintkey.conf` (input method) | `/usr/share/fcitx5/inputmethod/` |
-| `fcitx_bamboomintkey*.svg` (icon V/E) | `/usr/share/icons/hicolor/scalable/apps/` |
+| File | Đường dẫn Ubuntu / Debian | Đường dẫn Fedora / RHEL | Ghi chú |
+|---|---|---|---|
+| `libbamboomintkey.so` | `/usr/lib/<multiarch>/fcitx5/` | `/usr/lib64/fcitx5/` | Addon C++ của Fcitx5 |
+| `BambooMintKeyCore.so` | `/usr/lib/<multiarch>/fcitx5/` | `/usr/lib64/fcitx5/` | Đặt cạnh addon để `$ORIGIN` rpath tự tìm |
+| `bamboomintkey.conf` (addon) | `/usr/share/fcitx5/addon/` | `/usr/share/fcitx5/addon/` | Metadata khai báo addon |
+| `bamboomintkey.conf` (input method) | `/usr/share/fcitx5/inputmethod/` | `/usr/share/fcitx5/inputmethod/` | Hiển thị trong danh sách bộ gõ |
+| `fcitx_bamboomintkey*.svg` (icon V/E) | `/usr/share/icons/hicolor/scalable/apps/` | `/usr/share/icons/hicolor/scalable/apps/` | Icon trạng thái bộ gõ |
 
 > Nếu muốn cài vào thư mục user (không cần sudo), đổi `-DCMAKE_INSTALL_PREFIX=~/.local` và đặt file thủ công vào `~/.local/share/fcitx5/` + `~/.local/lib/fcitx5/`.
 
@@ -140,7 +140,28 @@ Script thực hiện:
 
 ---
 
-## 6. Kích hoạt Fcitx5 & thêm bộ gõ
+## 6. Đóng gói phân phối (.deb, .rpm, .tar.gz)
+
+Để đóng gói BambooMintKey thành các gói phân phối sẵn sàng cài đặt trên nhiều máy khác nhau mà không cần build từ mã nguồn:
+
+```bash
+cd /đường/dẫn/tới/BambooMintKey
+./scripts/package_linux.sh
+```
+
+Kết quả đóng gói nằm tại thư mục `delivery/linux/`:
+- **Gói `.deb`:** `delivery/linux/bamboomintkey_<ver>_<arch>.deb` (cho Ubuntu, Debian, Linux Mint, Pop!_OS)
+- **Gói `.rpm`:** `delivery/linux/rpmbuild/RPMS/<arch>/bamboomintkey-<ver>-1.<dist>.<arch>.rpm` (cho Fedora, RHEL, openSUSE)
+- **Gói `.tar.gz`:** `delivery/linux/bamboomintkey_<ver>_linux.tar.gz` (dùng giải nén thủ công vào `/`)
+
+### Các điểm kỹ thuật quan trọng trong quy trình đóng gói:
+* **Tính độc lập thư viện (Portable DT_NEEDED):** `BambooMintKey.Core.Native.csproj` được gán `-Wl,-soname,BambooMintKeyCore.so` và CMake khai báo `IMPORTED_SONAME "BambooMintKeyCore.so"`. Nhờ đó, file `libbamboomintkey.so` chỉ ghi nhận tên file thay vì đường dẫn tuyệt đối của máy host build, cho phép nạp thư viện trơn tru tại mọi máy đích thông qua `RPATH: $ORIGIN`. *(Xem chi tiết tại [docs/3.Issue/010_LinuxPackaging_NotAvailable_Fix.md](file:///home/lmo1720/Fcitx-Bamboo-Mint/BambooMintKey/docs/3.Issue/010_LinuxPackaging_NotAvailable_Fix.md))*.
+* **Chuẩn FHS Fedora 64-bit (`/usr/lib64`):** Khi gọi `rpmbuild`, script tự động áp dụng `--define "_lib lib64" --define "_libdir /usr/lib64"`, đảm bảo các file `.so` và ứng dụng UI được cài chính xác vào `/usr/lib64/fcitx5/` và launcher tại `/usr/bin/bamboomintkey-ui`.
+* **Tương thích Fcitx5 Core:** Metadata addon khai báo `0=core` (không gán cứng số phiên bản) giúp bộ gõ tương thích rộng rãi trên mọi phiên bản Fcitx5 của các bản phân phối Linux.
+
+---
+
+## 7. Kích hoạt Fcitx5 & thêm bộ gõ
 
 ### 6.1. Đặt Fcitx5 làm bộ gõ hệ thống
 
@@ -174,7 +195,7 @@ Sau đó mở **Fcitx5 Configuration** → tab **Input Method**:
 
 ---
 
-## 7. Kiểm tra
+## 8. Kiểm tra
 
 | Việc cần test | Thao tác | Kết quả mong đợi |
 |---|---|---|
@@ -185,7 +206,7 @@ Sau đó mở **Fcitx5 Configuration** → tab **Input Method**:
 
 ---
 
-## 8. Cấu hình
+## 9. Cấu hình
 
 File cấu hình đặt tại `~/.config/bamboomintkey/config.json` (theo chuẩn XDG).
 
@@ -204,7 +225,7 @@ Thay đổi file này sẽ được addon tự nạp lại qua cơ chế `inotif
 
 ---
 
-## 9. Gỡ cài đặt
+## 10. Gỡ cài đặt
 
 Cách đơn giản nhất:
 
@@ -212,39 +233,45 @@ Cách đơn giản nhất:
 ./scripts/uninstall_linux.sh
 ```
 
-Script tự dọn cả `/usr` lẫn `~/.local` rồi restart Fcitx5. Nếu muốn gỡ thủ công:
+Script tự dọn cả `/usr` (bao gồm `/usr/lib64` trên Fedora) lẫn `~/.local` rồi restart Fcitx5. Nếu muốn gỡ thủ công:
 
 ```bash
-sudo rm -f /usr/lib/*/fcitx5/libbamboomintkey.so \
-           /usr/lib/*/fcitx5/BambooMintKeyCore.so \
-           /usr/share/fcitx5/addon/bamboomintkey.conf \
-           /usr/share/fcitx5/inputmethod/bamboomintkey.conf \
-           /usr/share/icons/hicolor/scalable/apps/fcitx_bamboomintkey*.svg
+sudo rm -rf /usr/lib/*/fcitx5/libbamboomintkey.so \
+            /usr/lib/*/fcitx5/BambooMintKeyCore.so \
+            /usr/lib64/fcitx5/libbamboomintkey.so \
+            /usr/lib64/fcitx5/BambooMintKeyCore.so \
+            /usr/lib64/bamboomintkey \
+            /usr/lib/bamboomintkey \
+            /usr/share/fcitx5/addon/bamboomintkey.conf \
+            /usr/share/fcitx5/inputmethod/bamboomintkey.conf \
+            /usr/share/icons/hicolor/scalable/apps/fcitx_bamboomintkey*.svg \
+            /usr/share/icons/hicolor/scalable/apps/bamboomintkey.svg \
+            /usr/share/applications/bamboomintkey-settings.desktop \
+            /usr/bin/bamboomintkey-ui \
+            /usr/local/bin/bamboomintkey-ui
 
-# Gỡ giao diện Cài đặt (UI)
-rm -f /usr/share/applications/bamboomintkey-settings.desktop \
-      /usr/share/icons/hicolor/scalable/apps/bamboomintkey.svg \
-      /usr/local/bin/bamboomintkey-ui \
-      ~/.local/share/applications/bamboomintkey-settings.desktop \
+# Gỡ bản cài đặt user (nếu có)
+rm -f ~/.local/share/applications/bamboomintkey-settings.desktop \
       ~/.local/share/icons/hicolor/scalable/apps/bamboomintkey.svg \
       ~/.local/bin/bamboomintkey-ui
 ```
 
 ---
 
-## 10. Khắc phục sự cố thường gặp
+## 11. Khắc phục sự cố thường gặp
 
 | Vấn đề | Nguyên nhân / cách xử lý |
 |---|---|
+| Bộ gõ hiện trong danh sách nhưng ở trạng thái "Not Available" | Do không nạp được thư viện `BambooMintKeyCore.so` hoặc thiếu dependency. Chạy `killall fcitx5 && fcitx5 -v` để xem log trực tiếp, hoặc `ldd -r /usr/lib*/fcitx5/libbamboomintkey.so`. Vấn đề này đã được khắc phục triệt để từ bản v1.1.0+ bằng `SONAME` và `$ORIGIN` (xem [Issue 010](3.Issue/010_LinuxPackaging_NotAvailable_Fix.md)). |
 | Không chọn được input method nào | Có addon trùng lặp cài ở nhiều nơi (`/usr` và `/usr/local`) → dọn sạch file addon cũ, chỉ giữ 1 bản |
 | Không thấy addon sau khi cài | Chưa restart: chạy `fcitx5 -r`; hoặc sai prefix (`/usr/local` thay vì `/usr`) |
-| Icon không hiện | Chạy `gtk-update-icon-cache` |
+| Icon không hiện | Chạy `gtk-update-icon-cache /usr/share/icons/hicolor` |
 | Gõ không ra tiếng Việt | Đang ở chế độ E → bấm `` ` `` để chuyển V |
 | Một số app (vd Zed) vẫn gạch chân preedit | Zed tự vẽ gạch chân composition, bỏ qua cờ `NoFlag` — giới hạn phía app |
 
 ---
 
-## 11. Kiến trúc tổng quan
+## 12. Kiến trúc tổng quan
 
 ```
 Ứng dụng (GTK/Qt/Zed...)
