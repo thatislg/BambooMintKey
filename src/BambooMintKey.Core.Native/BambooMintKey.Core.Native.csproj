@@ -30,4 +30,8 @@
     <ProjectReference Include="..\BambooMintKey.Core\BambooMintKey.Core.fsproj" />
   </ItemGroup>
 
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+    <LinkerArg Include="-Wl,-soname,BambooMintKeyCore.so" />
+  </ItemGroup>
+
 </Project>

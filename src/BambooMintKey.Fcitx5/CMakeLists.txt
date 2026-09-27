@@ -28,7 +28,8 @@ if(BAMBOOMINTKEY_CORE_SO)
     # Imported target để link trực tiếp tới file .so (tránh CMake chuyển thành -l).
     add_library(bamboomintkey_core SHARED IMPORTED)
     set_target_properties(bamboomintkey_core PROPERTIES
-        IMPORTED_LOCATION "${BAMBOOMINTKEY_CORE_SO}")
+        IMPORTED_LOCATION "${BAMBOOMINTKEY_CORE_SO}"
+        IMPORTED_SONAME "BambooMintKeyCore.so")
     target_link_libraries(bamboomintkey PRIVATE bamboomintkey_core)
 endif()
 

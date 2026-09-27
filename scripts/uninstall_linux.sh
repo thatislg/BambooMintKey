@@ -14,17 +14,24 @@ echo "Đang gỡ cài đặt BambooMintKey..."
 # Bản cài hệ thống (/usr) — cần sudo
 # ---------------------------------------------------------------------------
 SYSTEM_ANY="/usr/share/fcitx5/addon/bamboomintkey.conf"
-if [ -f "$SYSTEM_ANY" ] || ls /usr/lib/*/fcitx5/libbamboomintkey.so >/dev/null 2>&1; then
+if [ -f "$SYSTEM_ANY" ] || ls /usr/lib*/fcitx5/libbamboomintkey.so >/dev/null 2>&1; then
     echo "Phát hiện bản cài hệ thống /usr — cần sudo để dọn."
-    sudo rm -f \
+    sudo rm -rf \
         /usr/lib/*/fcitx5/libbamboomintkey.so \
         /usr/lib/*/fcitx5/BambooMintKeyCore.so \
+        /usr/lib64/fcitx5/libbamboomintkey.so \
+        /usr/lib64/fcitx5/BambooMintKeyCore.so \
+        /usr/lib/fcitx5/libbamboomintkey.so \
+        /usr/lib/fcitx5/BambooMintKeyCore.so \
+        /usr/lib64/bamboomintkey \
+        /usr/lib/bamboomintkey \
         /usr/share/fcitx5/addon/bamboomintkey.conf \
         /usr/share/fcitx5/inputmethod/bamboomintkey.conf \
         /usr/share/icons/hicolor/scalable/apps/fcitx_bamboomintkey.svg \
         /usr/share/icons/hicolor/scalable/apps/fcitx_bamboomintkey_e.svg \
         /usr/share/icons/hicolor/scalable/apps/bamboomintkey.svg \
         /usr/share/applications/bamboomintkey-settings.desktop \
+        /usr/bin/bamboomintkey-ui \
         /usr/local/bin/bamboomintkey-ui
     sudo gtk-update-icon-cache /usr/share/icons/hicolor 2>/dev/null || true
     sudo update-desktop-database /usr/share/applications 2>/dev/null || true

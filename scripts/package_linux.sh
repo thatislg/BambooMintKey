@@ -143,11 +143,16 @@ if command -v rpmbuild >/dev/null 2>&1; then
     cp "$STAGE/usr/share/fcitx5/inputmethod/bamboomintkey.conf" "$RPM_ROOT/SOURCES/bamboomintkey.conf"
     cp "$STAGE/usr/share/icons/hicolor/scalable/apps/fcitx_bamboomintkey.svg" "$RPM_ROOT/SOURCES/"
     cp "$STAGE/usr/share/icons/hicolor/scalable/apps/fcitx_bamboomintkey_e.svg" "$RPM_ROOT/SOURCES/"
+    cp "$STAGE/usr/share/icons/hicolor/scalable/apps/bamboomintkey.svg" "$RPM_ROOT/SOURCES/"
     cp -a "$STAGE/usr/lib/bamboomintkey/ui" "$RPM_ROOT/SOURCES/ui"
     cp "$STAGE/usr/share/applications/bamboomintkey-settings.desktop" "$RPM_ROOT/SOURCES/"
     cp "$SCRIPT_DIR/bamboomintkey.spec" "$RPM_ROOT/SPECS/"
 
-    rpmbuild -ba --define "_topdir $RPM_ROOT" "$RPM_ROOT/SPECS/bamboomintkey.spec"
+    rpmbuild -ba \
+        --define "_topdir $RPM_ROOT" \
+        --define "_lib lib64" \
+        --define "_libdir /usr/lib64" \
+        "$RPM_ROOT/SPECS/bamboomintkey.spec"
     echo "  -> $RPM_ROOT/RPMS/"
 else
     echo "[5/5] Bỏ qua .rpm (không có rpmbuild — build trên Fedora bằng scripts/bamboomintkey.spec)."

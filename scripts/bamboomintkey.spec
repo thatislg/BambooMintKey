@@ -37,6 +37,7 @@ install -m 644 %{_sourcedir}/bamboomintkey-addon.conf %{buildroot}%{_datadir}/fc
 install -m 644 %{_sourcedir}/bamboomintkey.conf %{buildroot}%{_datadir}/fcitx5/inputmethod/bamboomintkey.conf
 install -m 644 %{_sourcedir}/fcitx_bamboomintkey.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/
 install -m 644 %{_sourcedir}/fcitx_bamboomintkey_e.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/
+install -m 644 %{_sourcedir}/bamboomintkey.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/
 
 # UI (framework-dependent) + launcher + desktop entry
 cp -a %{_sourcedir}/ui/. %{buildroot}%{_libdir}/bamboomintkey/ui/
@@ -55,6 +56,14 @@ BambooMintKey đã được cài đặt thành công!
 Lưu ý: bảng cài đặt (bamboomintkey-ui) cần .NET 10 runtime.
   Nếu chưa cài:  sudo dnf install dotnet-runtime-10.0
 MSG
+touch --no-create %{_datadir}/icons/hicolor &>/dev/null || :
+gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
+update-desktop-database %{_datadir}/applications &>/dev/null || :
+
+%postun
+touch --no-create %{_datadir}/icons/hicolor &>/dev/null || :
+gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
+update-desktop-database %{_datadir}/applications &>/dev/null || :
 
 %files
 %{_libdir}/fcitx5/libbamboomintkey.so
@@ -63,6 +72,7 @@ MSG
 %{_datadir}/fcitx5/inputmethod/bamboomintkey.conf
 %{_datadir}/icons/hicolor/scalable/apps/fcitx_bamboomintkey.svg
 %{_datadir}/icons/hicolor/scalable/apps/fcitx_bamboomintkey_e.svg
+%{_datadir}/icons/hicolor/scalable/apps/bamboomintkey.svg
 %{_libdir}/bamboomintkey/ui/
 %{_bindir}/bamboomintkey-ui
 %{_datadir}/applications/bamboomintkey-settings.desktop
