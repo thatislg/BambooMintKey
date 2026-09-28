@@ -12,6 +12,10 @@ build-options:
   prefix: /app/addons/BambooMintKey
   prepend-pkg-config-path: /app/addons/BambooMintKey/lib/pkgconfig
   append-path: /usr/lib/sdk/dotnet10/bin
+  env:
+    DOTNET_ROOT: /usr/lib/sdk/dotnet10
+    DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+    DOTNET_NOLOGO: "true"
   no-debuginfo: true
   strip: true
 
@@ -25,17 +29,22 @@ modules:
     buildsystem: simple
     build-commands:
       # 1. Biên dịch Core Native (C-ABI .so) bằng .NET 10 NativeAOT
-      - dotnet publish src/BambooMintKey.Core.Native/BambooMintKey.Core.Native.csproj -c Release -r linux-x64 -o ${FLATPAK_BUILDER_BUILDDIR}/publish/linux-x64
-      # 2. Biên dịch Fcitx5 C++ Addon bằng CMake và liên kết với BambooMintKeyCore.so
-      - cmake -B build -S src/BambooMintKey.Fcitx5 -DCMAKE_INSTALL_PREFIX=${FLATPAK_DEST} -DBAMBOOMINTKEY_CORE_SO=${FLATPAK_BUILDER_BUILDDIR}/publish/linux-x64/BambooMintKeyCore.so
+      - dotnet publish src/BambooMintKey.Core.Native/BambooMintKey.Core.Native.csproj -c Release -r linux-x64 --source nuget-sources -o ${FLATPAK_BUILDER_BUILDDIR}/publish/linux-x64
+      # 2. Biên dịch Fcitx5 C++ Addon bằng CMake và liên kết với BambooMintKeyCore.so (nâng C++20 cho tương thích Fcitx5 trên KDE Sdk 6.11)
+      - sed -i 's/CMAKE_CXX_STANDARD 17/CMAKE_CXX_STANDARD 20/' src/BambooMintKey.Fcitx5/CMakeLists.txt
+      - cmake -B build -S src/BambooMintKey.Fcitx5 -DCMAKE_INSTALL_PREFIX=${FLATPAK_DEST} -DCMAKE_INSTALL_LIBDIR=lib -DBAMBOOMINTKEY_CORE_SO=${FLATPAK_BUILDER_BUILDDIR}/publish/linux-x64/BambooMintKeyCore.so
       - cmake --build build
       - cmake --install build
-      # 3. Cài đặt AppStream Metainfo cho KDE Discover / GNOME Software
+      # 3. Tạo symlink icon theo chuẩn Flatpak Fcitx5 (tiền tố org.fcitx.Fcitx5.)
+      - ln -sf fcitx_bamboomintkey.svg ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps/org.fcitx.Fcitx5.fcitx_bamboomintkey.svg
+      - ln -sf fcitx_bamboomintkey_e.svg ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps/org.fcitx.Fcitx5.fcitx_bamboomintkey_e.svg
+      # 4. Cài đặt AppStream Metainfo cho KDE Discover / GNOME Software
       - install -D -m 644 org.fcitx.Fcitx5.Addon.BambooMintKey.metainfo.xml ${FLATPAK_DEST}/share/metainfo/org.fcitx.Fcitx5.Addon.BambooMintKey.metainfo.xml
     sources:
       - type: git
         url: https://github.com/thatislg/BambooMintKey.git
-        tag: v1.1.0
-        commit: e666af7a8367f08b3baaa2f8087ab6a152ca3145
+        branch: main
+        commit: 03f91bbd4d2a00fb546c646997f6fb81b70a1832
       - type: file
         path: org.fcitx.Fcitx5.Addon.BambooMintKey.metainfo.xml
+      - nuget-sources.json

@@ -69,6 +69,8 @@ public:
                   fcitx::KeyEvent &keyEvent) override;
     void activate(const fcitx::InputMethodEntry &entry,
                   fcitx::InputContextEvent &event) override;
+    void deactivate(const fcitx::InputMethodEntry &entry,
+                    fcitx::InputContextEvent &event) override;
     void reset(const fcitx::InputMethodEntry &entry,
                fcitx::InputContextEvent &event) override;
 
@@ -92,8 +94,14 @@ private:
     // Xử lý phím theo mã hành động trả về từ C-ABI.
     void handleAction(fcitx::InputContext *ic, BambooMintKeyState *state,
                       int action, fcitx::KeyEvent &keyEvent);
-    void updatePreedit(fcitx::InputContext *ic, BambooMintKeyState *state);
+    // Điều phối hiển thị phân tầng theo chuẩn Mozc DrawAll: phân nhánh theo
+    // CapabilityFlag::Preedit (inline vs popup) và luôn làm mới InputPanel.
+    void drawAll(fcitx::InputContext *ic, BambooMintKeyState *state);
     void commitText(fcitx::InputContext *ic, BambooMintKeyState *state);
+    // Commit chuỗi đang gõ dở & reset khi mất focus (chuẩn Mozc FocusOut),
+    // tránh kẹt buffer trên các ứng dụng XIM/legacy.
+    void flushPendingComposition(fcitx::InputContext *ic,
+                                 BambooMintKeyState *state);
 
     // Direct commit (Level 2): thay text đã commit thay vì hiển thị preedit.
     void directCommit(fcitx::InputContext *ic, BambooMintKeyState *state);

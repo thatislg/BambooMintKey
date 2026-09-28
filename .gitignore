@@ -5,6 +5,7 @@ publish/
 build/
 build-pkg/
 delivery/
+.flatpak-builder/
 *.aot.json
 
 ## NativeAOT Compilation Artifacts

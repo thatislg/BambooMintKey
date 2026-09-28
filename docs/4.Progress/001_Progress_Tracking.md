@@ -22,7 +22,9 @@
 | Phase 4 | Free Tone, English Protection | ✅ Hoàn thành | 100% |
 | Phase 5 | Display Attribute, Preedit Toggle | 🧪 Đang kiểm thử | 90% |
 | Phase 6 | Win32 Store App & Distribution | 🛠️ Đang triển khai | 70% |
-| Phase 7 | (Dự phòng) | ⏸️ Chưa bắt đầu | 0% |
+| Phase 7 | Linux & Fcitx5 Integration | ✅ Hoàn thành | 95% ([002_LinuxProgressTracking.md](002_LinuxProgressTracking.md)) |
+| Phase 8 | Dictionary & Word Predict Engine | ✅ Hoàn thành | 100% ([003_PredictEngine_Progress.md](003_PredictEngine_Progress.md)) |
+| Phase 9 | Flatpak & Steam Deck (Flathub) | ⚠️ Blocker Issue 011 | 75% ([004_Flatpak_Progress.md](004_Flatpak_Progress.md)) |
 
 ---
 
@@ -94,6 +96,7 @@ Phát hành BambooMintKey lên Microsoft Store dưới dạng **Win32 Desktop Ap
 | 006 | Preedit Toggle Not Working | Toggle Preedit trên UI không có tác dụng trên ứng dụng | 🔍 Đang điều tra | `docs/3.Issue/006_PreeditToggleNotWorking.md` |
 | 007 | UI Autostart After Uninstall | UI vẫn chạy cùng Windows sau khi gỡ cài đặt | ✅ Code đã sửa, chờ build | `docs/3.Issue/007_UIAutostartAfterUninstall.md` |
 | 008 | Per-Application V/E Mode | Trạng thái V/E không đồng nhất giữa các ứng dụng | 🛠️ Code đã sửa, chờ build/test | `docs/3.Issue/008_PerApplicationVEMode.md` |
+| 011 | Lỗi tương thích Chrome, Opera, Zed, Steam (Fcitx5 Flatpak) | Không kích hoạt hoặc không nhận diện chữ; cần tái cấu trúc engine theo Mozc | ⚠️ Blocker Phase 9 | `docs/3.Issue/011_Flatpak_Incompatibility_Chrome_Opera_Zed_Steam.md` |
 
 ### 4.1. Thứ tự ưu tiên sửa bug
 

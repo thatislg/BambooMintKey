@@ -105,15 +105,22 @@ void BambooMintKeyEngine::activate(const fcitx::InputMethodEntry &entry,
                                settingsAction_.get());
 }
 
+void BambooMintKeyEngine::deactivate(const fcitx::InputMethodEntry &entry,
+                                     fcitx::InputContextEvent &event) {
+    FCITX_UNUSED(entry);
+    // Chuyển khỏi BambooMintKey sang IM khác: commit chuỗi dở dang trước.
+    auto *ic = event.inputContext();
+    auto *state = ic->propertyFor(&factory_);
+    flushPendingComposition(ic, state);
+}
+
 void BambooMintKeyEngine::reset(const fcitx::InputMethodEntry &entry,
                                  fcitx::InputContextEvent &event) {
     FCITX_UNUSED(entry);
+    // Mất focus: commit chuỗi đang gõ dở (không bỏ mất chữ), rồi reset sạch.
     auto *ic = event.inputContext();
     auto *state = ic->propertyFor(&factory_);
-    state->reset();
-    ic->inputPanel().reset();
-    ic->inputPanel().setClientPreedit(fcitx::Text());
-    ic->updatePreedit();
+    flushPendingComposition(ic, state);
 }
 
 std::string BambooMintKeyEngine::overrideIcon(const fcitx::InputMethodEntry &entry) {
@@ -227,7 +234,7 @@ void BambooMintKeyEngine::handleAction(fcitx::InputContext *ic,
     // SurroundingText nhưng thực tế không xử lý xóa, gây lỗi x2/x3 nội dung.
     switch (action) {
     case ActionUpdatePreedit:
-        updatePreedit(ic, state);
+        drawAll(ic, state);
         keyEvent.filterAndAccept();
         break;
     case ActionCommitString:
@@ -277,11 +284,11 @@ void BambooMintKeyEngine::directCommitFinal(fcitx::InputContext *ic,
 }
 
 // =========================================================================
-// Preedit UI (M2.5)
+// Preedit UI — drawAll (chuẩn Mozc DrawAll, M3.6)
 // =========================================================================
 
-void BambooMintKeyEngine::updatePreedit(fcitx::InputContext *ic,
-                                        BambooMintKeyState *state) {
+void BambooMintKeyEngine::drawAll(fcitx::InputContext *ic,
+                                   BambooMintKeyState *state) {
     const char *text = bmk_get_preedit_text(state->handle());
 
     fcitx::Text preedit;
@@ -291,21 +298,51 @@ void BambooMintKeyEngine::updatePreedit(fcitx::InputContext *ic,
         preedit.setCursor(-1);
     }
 
-    // Set cả preedit popup (candidate window) lẫn client preedit (inline trong app).
-    ic->inputPanel().setPreedit(preedit);
-    ic->inputPanel().setClientPreedit(preedit);
+    // Phân nhánh theo năng lực thật của ứng dụng (chuẩn Mozc DrawAll).
+    if (ic->capabilityFlags().test(fcitx::CapabilityFlag::Preedit)) {
+        // Ứng dụng hỗ trợ inline preedit (Kate, Firefox, LibreOffice):
+        // chỉ vẽ inline, không mở popup ứng viên.
+        ic->inputPanel().setClientPreedit(preedit);
+        ic->inputPanel().setPreedit(fcitx::Text());
+    } else {
+        // Ứng dụng KHÔNG hỗ trợ inline preedit (Steam XIM, legacy):
+        // vẽ qua cửa sổ popup ứng viên nổi của Fcitx5.
+        ic->inputPanel().setPreedit(preedit);
+        ic->inputPanel().setClientPreedit(fcitx::Text());
+    }
     ic->updatePreedit();
+    // Luôn yêu cầu Fcitx5 làm mới giao diện InputPanel.
+    ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
 }
 
 void BambooMintKeyEngine::commitText(fcitx::InputContext *ic,
                                      BambooMintKeyState *state) {
     const char *text = bmk_get_commit_text(state->handle());
     ic->inputPanel().reset();
-    ic->inputPanel().setClientPreedit(fcitx::Text());
     ic->updatePreedit();
+    ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
     if (text && text[0] != '\0') {
         ic->commitString(text);
     }
+}
+
+// =========================================================================
+// Flush composition khi mất focus (chuẩn Mozc FocusOut, M3.6.3)
+// =========================================================================
+
+void BambooMintKeyEngine::flushPendingComposition(
+    fcitx::InputContext *ic, BambooMintKeyState *state) {
+    // Commit chuỗi đang gõ dở trước khi mất focus (tránh kẹt buffer / mất chữ).
+    // Chỉ commit PreeditBuffer; CommitBuffer đã được commitText tiêu thụ đồng bộ.
+    const char *preedit = bmk_get_preedit_text(state->handle());
+    if (preedit && preedit[0] != '\0') {
+        ic->commitString(preedit);
+    }
+
+    state->reset();
+    ic->inputPanel().reset();
+    ic->updatePreedit();
+    ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
 }
 
 // =========================================================================

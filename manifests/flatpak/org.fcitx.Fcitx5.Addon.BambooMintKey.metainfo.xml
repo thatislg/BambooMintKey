@@ -7,12 +7,13 @@
 <component type="addon">
   <id>org.fcitx.Fcitx5.Addon.BambooMintKey</id>
   <extends>org.fcitx.Fcitx5</extends>
-  <metadata_license>MIT</metadata_license>
+  <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
   <name>BambooMintKey</name>
   <name xml:lang="vi">Bộ gõ BambooMintKey</name>
   <summary>Modern Vietnamese Telex Input Method for Fcitx 5</summary>
   <summary xml:lang="vi">Bộ gõ tiếng Việt Telex hiện đại cho Fcitx 5</summary>
+  <content_rating type="oars-1.1" />
   <description>
     <p>
       BambooMintKey is a modern Vietnamese Telex input method editor (IME) designed for high typing speed, maximum stability, and intelligent text corrections.
