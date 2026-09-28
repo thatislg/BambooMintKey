@@ -52,12 +52,14 @@ fi
 info "Phiên làm việc phát hiện: ${SESSION_TYPE}"
 
 ENV_BLOCK='# BambooMintKey IME environment (fcitx5)
-GTK_IM_MODULE=fcitx
+# GTK dùng XIM vì Steam (app 32-bit) không nạp được libfcitx5gclient.so 64-bit.
+GTK_IM_MODULE=xim
 QT_IM_MODULE=fcitx
 XMODIFIERS=@im=fcitx'
 
 EXPORT_BLOCK='# BambooMintKey IME environment (fcitx5)
-export GTK_IM_MODULE=fcitx
+# GTK dùng XIM vì Steam (app 32-bit) không nạp được libfcitx5gclient.so 64-bit.
+export GTK_IM_MODULE=xim
 export QT_IM_MODULE=fcitx
 export XMODIFIERS=@im=fcitx'
 

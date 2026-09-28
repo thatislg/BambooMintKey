@@ -49,11 +49,18 @@ Trong quá trình nghiệm thu **Milestone 2 & 3 (Phase 9 - Đóng gói Flatpak)
 
 > **Kết luận thực nghiệm (đã xác minh):** Steam **có** hỗ trợ input method, nhưng cần đúng biến môi trường. Nguyên nhân gốc: Steam là app **32-bit**, dùng **CEF (nền GTK)** cho ô nhập liệu. Kênh `GTK_IM_MODULE=fcitx` nạp `libfcitx5gclient.so` (64-bit) → Steam 32-bit không nạp được → không kết nối. Kênh `GTK_IM_MODULE=xim` dùng giao thức XIM thuần túy (chỉ cần libX11) → hoạt động.
 >
-> **Giải pháp đã xác minh hoạt động (cả native lẫn Flatpak):**
-> ```bash
-> env XMODIFIERS="@im=fcitx" GTK_IM_MODULE="xim" QT_IM_MODULE="xim" steam
-> ```
-> Wrapper tự động: `scripts/linux/steam-ime.sh` (hoặc `--install` để cài `~/.local/bin/steam`).
+> **Giải pháp chuẩn (đã xác minh hoạt động, áp dụng cho mọi người dùng Steam, cả native lẫn Flatpak):**
+> - Nguyên nhân sâu: `im-config` (công cụ chuẩn cấu hình Fcitx5) set `GTK_IM_MODULE=fcitx` **toàn cục** trong `/etc/environment` — giá trị này khiến Steam 32-bit cố nạp `libfcitx5gclient.so` 64-bit và fail.
+> - Cách khắc phục dứt điểm: đổi `GTK_IM_MODULE=fcitx` → `GTK_IM_MODULE=xim` (chỉ GTK; giữ `QT_IM_MODULE=fcitx` vì app Qt là 64-bit), rồi đăng xuất/đăng nhập lại.
+>   ```bash
+>   sed -i 's/GTK_IM_MODULE=fcitx/GTK_IM_MODULE=xim/' ~/.config/environment.d/bamboomintkey.conf
+>   sudo sed -i 's/GTK_IM_MODULE=fcitx/GTK_IM_MODULE=xim/' /etc/environment
+>   ```
+> - Tự động hóa: `scripts/linux/setup_ime_compat.sh` (ghi `GTK_IM_MODULE=xim` vào `~/.config/environment.d/`).
+> - Khởi chạy thủ công 1 lần (không cần đổi toàn cục):
+>   ```bash
+>   env XMODIFIERS="@im=fcitx" GTK_IM_MODULE="xim" QT_IM_MODULE="xim" steam
+>   ```
 
 *(Lịch sử chẩn đoán: ban đầu suy đoán engine nuốt phím → sau đó suy đoán Steam không hỗ trợ XIM → cuối cùng xác định đúng nguyên nhân là `GTK_IM_MODULE=xim` cho app 32-bit.)*
 
@@ -151,11 +158,7 @@ Khi triển khai giải pháp tái cấu trúc `BambooMintKeyEngine` theo kiến
 
 **Đã giải quyết triệt để Steam:**
 
-1. **Steam — đã fix:** Nguyên nhân gốc là Steam (app 32-bit) dùng CEF/GTK nhưng `GTK_IM_MODULE=fcitx` không nạp được `libfcitx5gclient.so` (64-bit). Giải pháp: khởi chạy Steam với `GTK_IM_MODULE=xim` + `XMODIFIERS=@im=fcitx` (đã xác minh hoạt động cả native lẫn Flatpak):
-   ```bash
-   env XMODIFIERS="@im=fcitx" GTK_IM_MODULE="xim" QT_IM_MODULE="xim" steam
-   ```
-   Wrapper tự động: `scripts/linux/steam-ime.sh` (hoặc `--install`).
+1. **Steam — đã fix (giải pháp chuẩn cho mọi người dùng):** Nguyên nhân gốc là `im-config` set `GTK_IM_MODULE=fcitx` toàn cục, khiến Steam 32-bit cố nạp `libfcitx5gclient.so` 64-bit và fail. Giải pháp dứt điểm: đổi `GTK_IM_MODULE=fcitx` → `GTK_IM_MODULE=xim` toàn cục (giữ `QT_IM_MODULE=fcitx`), rồi đăng xuất/đăng nhập lại. Tự động hóa bằng `scripts/linux/setup_ime_compat.sh`.
 
 2. **Chrome/Opera/Zed (Flatpak):** nhóm thực sự bị ảnh hưởng bởi sandbox Flatpak / Wayland text-input (gõ tốt native nhưng fail trên Flatpak). Xem [009_08_App_Compatibility_Fix_Matrix.md](../2.Design/Phase9/009_08_App_Compatibility_Fix_Matrix.md).
 

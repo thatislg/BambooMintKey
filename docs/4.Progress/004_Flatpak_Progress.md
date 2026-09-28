@@ -340,4 +340,8 @@ gantt
   - **Nguyên nhân thật:** Steam (app 32-bit) dùng CEF/GTK; `GTK_IM_MODULE=fcitx` nạp `libfcitx5gclient.so` (64-bit) → không nạp được. `GTK_IM_MODULE=xim` đi qua XIM thuần túy → hoạt động. Áp dụng được cho cả native lẫn Flatpak.
   - Bổ sung wrapper `scripts/linux/steam-ime.sh` (cờ `--install` để cài `~/.local/bin/steam`); cập nhật `setup_ime_compat.sh`.
   - Đính chính lại Issue 011 và `009_08`: kết luận trước đó "Steam không hỗ trợ XIM" là sai.
+- **2026-09-28 (Steam — chốt giải pháp chuẩn cho mọi người dùng):**
+  - Xác định nguồn gốc: `im-config` set `GTK_IM_MODULE=fcitx` toàn cục trong `/etc/environment` → Steam 32-bit fail. Đây là cấu hình mặc định của mọi người dùng Fcitx5.
+  - Giải pháp dứt điểm: đổi `GTK_IM_MODULE=fcitx` → `GTK_IM_MODULE=xim` toàn cục (giữ `QT_IM_MODULE=fcitx`), đăng xuất/đăng nhập lại. Tự động hóa bằng `setup_ime_compat.sh`.
+  - Đã xác minh hoạt động trên máy thực; cập nhật Issue 011 + `009_08` thành giải pháp chuẩn.
   - Commit mã nguồn lên git (commit `0966d0e` + `8a102e4`), trỏ manifest Flatpak tới commit mới.

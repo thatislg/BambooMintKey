@@ -112,13 +112,18 @@ flowchart TD
 | **Nguyên nhân gốc thật** | Steam dùng CEF (nền GTK) cho ô nhập liệu. `GTK_IM_MODULE=fcitx` nạp thư viện client 64-bit → Steam 32-bit không nạp được → im lặng không kết nối. Cần `GTK_IM_MODULE=xim` để đi qua giao thức XIM thuần túy. |
 | **Bằng chứng** | `env XMODIFIERS="@im=fcitx" GTK_IM_MODULE="xim" QT_IM_MODULE="xim" steam` → gõ tiếng Việt bình thường. |
 
-**Biện pháp (đã xác minh):**
+**Biện pháp chuẩn (đã xác minh, áp dụng cho mọi người dùng):**
+
+`im-config` set `GTK_IM_MODULE=fcitx` toàn cục (trong `/etc/environment`) — đây là nguồn gốc lỗi. Đổi sang `xim` toàn cục (chỉ GTK; giữ `QT_IM_MODULE=fcitx`):
 
 ```bash
-env XMODIFIERS="@im=fcitx" GTK_IM_MODULE="xim" QT_IM_MODULE="xim" steam
+sed -i 's/GTK_IM_MODULE=fcitx/GTK_IM_MODULE=xim/' ~/.config/environment.d/bamboomintkey.conf
+sudo sed -i 's/GTK_IM_MODULE=fcitx/GTK_IM_MODULE=xim/' /etc/environment
 ```
 
-Hoặc dùng wrapper: `scripts/linux/steam-ime.sh` (cờ `--install` để cài `~/.local/bin/steam`).
+rồi đăng xuất/đăng nhập lại. Tự động hóa: `scripts/linux/setup_ime_compat.sh`.
+
+Khởi chạy thủ công 1 lần (không cần đổi toàn cục): `env XMODIFIERS="@im=fcitx" GTK_IM_MODULE="xim" QT_IM_MODULE="xim" steam`.
 
 **Áp dụng cho native & Flatpak:** biến môi trường được set ở phía Steam (không phải phía Fcitx5), nên **giống hệt nhau** dù Fcitx5 chạy native hay flatpak (cả hai đều dựng XIM server trên cùng XWayland display).
 
