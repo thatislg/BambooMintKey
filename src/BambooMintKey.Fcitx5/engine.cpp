@@ -298,14 +298,19 @@ void BambooMintKeyEngine::drawAll(fcitx::InputContext *ic,
         preedit.setCursor(-1);
     }
 
-    // Phân nhánh theo năng lực thật của ứng dụng (chuẩn Mozc DrawAll).
-    if (ic->capabilityFlags().test(fcitx::CapabilityFlag::Preedit)) {
+    // Frontend XIM (Steam 32-bit, xterm...) báo CapabilityFlag::Preedit KHÔNG đáng tin:
+    // nó có thể báo true nhưng app không thực sự vẽ inline -> phải ép vẽ popup.
+    const bool isXim = (ic->frontendName() == "xim");
+
+    // Phân nhánh theo năng lực thật của ứng dụng (chuẩn Mozc DrawAll),
+    // ngoại trừ frontend XIM thì luôn vẽ popup.
+    if (ic->capabilityFlags().test(fcitx::CapabilityFlag::Preedit) && !isXim) {
         // Ứng dụng hỗ trợ inline preedit (Kate, Firefox, LibreOffice):
         // chỉ vẽ inline, không mở popup ứng viên.
         ic->inputPanel().setClientPreedit(preedit);
         ic->inputPanel().setPreedit(fcitx::Text());
     } else {
-        // Ứng dụng KHÔNG hỗ trợ inline preedit (Steam XIM, legacy):
+        // Ứng dụng KHÔNG hỗ trợ inline preedit (Steam XIM, legacy) hoặc frontend XIM:
         // vẽ qua cửa sổ popup ứng viên nổi của Fcitx5.
         ic->inputPanel().setPreedit(preedit);
         ic->inputPanel().setClientPreedit(fcitx::Text());
