@@ -54,7 +54,8 @@ EOF
     done
     if [ -n "$SRC_DESK" ]; then
         cp -f "$SRC_DESK" "$DESK"
-        sed -i "s#^Exec=.*#Exec=env XMODIFIERS=\"@im=fcitx\" GTK_IM_MODULE=\"xim\" QT_IM_MODULE=\"xim\" ${STEAM_BIN} %U#" "$DESK"
+        # Trỏ Exec thẳng tới wrapper (đường dẫn tuyệt đối) — tránh lỗi parser với 'env'
+        sed -i "s#^Exec=.*#Exec=${WRAP} %U#" "$DESK"
         # Sửa tên cho đúng (gói steam-installer đặt tên là "Install Steam")
         sed -i "s#^Name=.*#Name=Steam#" "$DESK"
     else
@@ -62,7 +63,7 @@ EOF
 [Desktop Entry]
 Name=Steam
 Comment=Steam with Fcitx5 IME
-Exec=env XMODIFIERS="@im=fcitx" GTK_IM_MODULE="xim" QT_IM_MODULE="xim" ${STEAM_BIN} %U
+Exec=${WRAP} %U
 Type=Application
 Icon=steam
 Categories=Game;
