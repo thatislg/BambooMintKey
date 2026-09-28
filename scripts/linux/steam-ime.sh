@@ -55,6 +55,8 @@ EOF
     if [ -n "$SRC_DESK" ]; then
         cp -f "$SRC_DESK" "$DESK"
         sed -i "s#^Exec=.*#Exec=env XMODIFIERS=\"@im=fcitx\" GTK_IM_MODULE=\"xim\" QT_IM_MODULE=\"xim\" ${STEAM_BIN} %U#" "$DESK"
+        # Sửa tên cho đúng (gói steam-installer đặt tên là "Install Steam")
+        sed -i "s#^Name=.*#Name=Steam#" "$DESK"
     else
         cat > "$DESK" <<EOF
 [Desktop Entry]
@@ -67,11 +69,13 @@ Categories=Game;
 EOF
     fi
     echo "Đã cài desktop entry: $DESK"
+    update-desktop-database "$DESK_DIR" 2>/dev/null || true
 
     echo
     echo "Để áp dụng:"
-    echo "  - Dòng lệnh 'steam': đảm bảo $HOME/.local/bin đứng trước /usr/games trong PATH."
-    echo "  - Icon desktop/menu: đăng xuất/đăng nhập lại (hoặc update-desktop-database) để nạp entry mới."
+    echo "  1. TẮT HẲN Steam nếu đang chạy:  killall steam steamwebhelper"
+    echo "  2. Chạy lại bằng lệnh 'steam' (dòng lệnh) HOẶC đăng xuất/đăng nhập lại rồi mở bằng icon."
+    echo "     (Nếu Steam đang chạy mà mở lại, lệnh sẽ chỉ chuyển tiếp tới phiên cũ — không có IME.)"
     exit 0
 fi
 
