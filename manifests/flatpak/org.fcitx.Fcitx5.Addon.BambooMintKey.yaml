@@ -44,7 +44,7 @@ modules:
       - type: git
         url: https://github.com/thatislg/BambooMintKey.git
         branch: main
-        commit: 0966d0e4bd66c21f1c888ecd52e194f737abff0a
+        commit: bd6782db6eedfbc7626a43c92e54a488c16ac405
       - type: file
         path: org.fcitx.Fcitx5.Addon.BambooMintKey.metainfo.xml
       - nuget-sources.json
