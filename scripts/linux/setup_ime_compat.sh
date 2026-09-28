@@ -95,10 +95,13 @@ esac
 step "Hướng dẫn cho từng ứng dụng"
 
 cat <<'EOF'
-[Steam Client] (XIM — cần XMODIFIERS)
-  - Đảm bảo XMODIFIERS=@im=fcitx có trong môi trường khi Steam chạy.
-  - Sau khi ghi biến môi trường, ĐĂNG XUẤT / ĐĂNG NHẬP lại rồi khởi chạy Steam.
-  - Nếu Steam đang chạy: tắt Steam, mở lại để nhận XMODIFIERS.
+[Steam Client] (XIM qua CEF/GTK — cần GTK_IM_MODULE=xim)
+  - Steam là app 32-bit, dùng CEF (GTK) cho ô nhập liệu; không nạp được
+    libfcitx5gclient.so (64-bit) nên phải dùng XIM thuần túy.
+  - Khởi chạy Steam bằng wrapper đã cài (hoặc tự chạy lệnh sau):
+      env XMODIFIERS="@im=fcitx" GTK_IM_MODULE="xim" QT_IM_MODULE="xim" steam
+  - Cài wrapper tự động: ./scripts/linux/steam-ime.sh --install
+    (rồi dùng lệnh 'steam' như bình thường, miễn ~/.local/bin đứng trước PATH).
 
 [Google Chrome / Opera] (Flatpak — Wayland IME)
   - Mở chrome://flags/#enable-wayland-ime  ->  Enabled  ->  Relaunch.

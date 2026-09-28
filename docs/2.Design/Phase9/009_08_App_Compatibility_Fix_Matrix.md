@@ -104,20 +104,23 @@ flowchart TD
    ```
    Khi bỏ `WAYLAND_DISPLAY`, Zed chạy nền X11 và fallback về XIM.
 
-### 3.3. Steam Client (native 32-bit, XWayland, XIM) — "dấu ?" lớn nhất
+### 3.3. Steam Client (native 32-bit, CEF/GTK, XIM) — ✅ Đã giải quyết
 
 | Khía cạnh | Mô tả |
 | :--- | :--- |
-| **Kênh** | XIM (app 32-bit X11, không có GTK/Qt IM module) |
-| **Nguyên nhân gốc (2 lớp)** | (1) **Đã khắc phục tại M3.6:** engine không phân nhánh `CapabilityFlag::Preedit`, không gọi `updateUserInterface` → nuốt phím. (2) **Môi trường:** Steam cần `XMODIFIERS=@im=fcitx` để dùng XIM. |
-| **Bằng chứng "dấu ?" đã giải tỏa** | Issue 011 ghi nhận status Fcitx5 chuyển **[V]** khi click vào ô tìm kiếm → **XIM đã kết nối thành công và Fcitx5 nhận focus**. Vậy lỗi nằm ở hiển thị (đã fix), không phải kết nối. |
+| **Kênh** | XIM qua CEF/GTK (app 32-bit, không nạp được `libfcitx5gclient.so` 64-bit) |
+| **Nguyên nhân gốc thật** | Steam dùng CEF (nền GTK) cho ô nhập liệu. `GTK_IM_MODULE=fcitx` nạp thư viện client 64-bit → Steam 32-bit không nạp được → im lặng không kết nối. Cần `GTK_IM_MODULE=xim` để đi qua giao thức XIM thuần túy. |
+| **Bằng chứng** | `env XMODIFIERS="@im=fcitx" GTK_IM_MODULE="xim" QT_IM_MODULE="xim" steam` → gõ tiếng Việt bình thường. |
 
-**Kết luận về khả năng hoạt động trên Flatpak:**
+**Biện pháp (đã xác minh):**
 
-- Fcitx5 Flatpak (`org.fcitx.Fcitx5`) khai báo `sockets=x11;wayland;session-bus` (đã xác minh qua `flatpak info --show-permissions`), do đó **XIM server chạy trên cùng XWayland display với Steam**.
-- Với `XMODIFIERS=@im=fcitx` + fix M3.6, Steam sẽ gõ được ở **cả Native lẫn Flatpak**.
+```bash
+env XMODIFIERS="@im=fcitx" GTK_IM_MODULE="xim" QT_IM_MODULE="xim" steam
+```
 
-**Biện pháp:** đảm bảo `XMODIFIERS=@im=fcitx` có mặt khi Steam khởi chạy (xem Mục 4).
+Hoặc dùng wrapper: `scripts/linux/steam-ime.sh` (cờ `--install` để cài `~/.local/bin/steam`).
+
+**Áp dụng cho native & Flatpak:** biến môi trường được set ở phía Steam (không phải phía Fcitx5), nên **giống hệt nhau** dù Fcitx5 chạy native hay flatpak (cả hai đều dựng XIM server trên cùng XWayland display).
 
 ---
 
@@ -150,7 +153,7 @@ Script tự động hóa: `scripts/linux/setup_ime_compat.sh` (xem Mục 6).
 | :--- | :--- | :---: | :---: | :---: |
 | **Chrome / Opera** | Wayland text-input / XIM | ✅ | `XMODIFIERS` + `--enable-wayland-ime` | Chromium flag |
 | **Zed Editor** | Wayland text-input | ✅ | `XMODIFIERS` (XWayland fallback) | ⚠️ Lỗi GPUI (cập nhật Zed) |
-| **Steam Client** | XIM | ✅ (trọng tâm) | `XMODIFIERS=@im=fcitx` | — |
+| **Steam Client** | XIM qua CEF/GTK | ✅ (bổ trợ popup) | `GTK_IM_MODULE=xim` + `XMODIFIERS=@im=fcitx` | — |
 | **Kate / Konsole / Firefox / LibreOffice** | Qt / GTK IM module | ✅ | `QT_IM_MODULE` / `GTK_IM_MODULE` | — |
 
 ---
@@ -161,14 +164,15 @@ Script tự động hóa: `scripts/linux/setup_ime_compat.sh` (xem Mục 6).
 
 1. Phát hiện phiên làm việc (X11 / Wayland).
 2. Ghi bộ 3 biến môi trường vào đúng vị trí theo nền tảng.
-3. Áp dụng Flatpak override cho Chrome/Opera (nếu cài) để gợi ý cờ `--enable-wayland-ime`.
-4. In hướng dẫn riêng cho Steam và Zed.
+3. Hướng dẫn riêng cho Steam (wrapper `steam-ime.sh`), Chrome/Opera (cờ Chromium), Zed.
+
+`scripts/linux/steam-ime.sh` khởi chạy Steam với `GTK_IM_MODULE=xim` + `XMODIFIERS=@im=fcitx`; cờ `--install` cài wrapper `~/.local/bin/steam`.
 
 ---
 
 ## 7. Kết luận
 
-- **Steam (native lẫn Flatpak):** đã giải tỏa "dấu ?" — XIM kết nối tốt, lỗi nằm ở hiển thị (đã fix M3.6) + `XMODIFIERS`. Không còn rào cản kiến trúc.
+- **Steam (native lẫn Flatpak):** đã giải quyết — nguyên nhân là Steam 32-bit không nạp được IM module 64-bit, cần `GTK_IM_MODULE=xim` + `XMODIFIERS=@im=fcitx`. Đã xác minh hoạt động.
 - **Chrome/Opera:** nguyên nhân là cờ Chromium (`--enable-wayland-ime`), **không** phải quyền D-Bus sandbox như Issue 011 từng nhận định.
 - **Zed:** lỗi upstream GPUI; workaround qua XWayland/XIM hoặc cập nhật Zed.
 - **Không cần thay đổi manifest addon** hay quyền sandbox của extension — toàn bộ fix nằm ở tầng engine (đã xong) và tầng môi trường app.

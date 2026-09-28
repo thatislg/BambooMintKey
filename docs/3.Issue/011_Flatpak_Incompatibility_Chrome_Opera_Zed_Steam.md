@@ -45,22 +45,24 @@ Trong quá trình nghiệm thu **Milestone 2 & 3 (Phase 9 - Đóng gói Flatpak)
    - Framework đồ họa GPUI của Zed trên Linux Wayland giao tiếp trực tiếp qua `wayland-client`. Triển khai giao thức `zwp_text_input_v3` của Zed hiện còn nhiều lỗi trong việc bắt tay (handshake) với bộ phối màn hình KWin khi Fcitx 5 chạy tách biệt.
    - Zed khi khởi chạy thiếu biến môi trường `XMODIFIERS=@im=fcitx` nên không thể tự động fallback về kênh XIM.
 
-### 2.3. Nhóm ứng dụng XIM cổ điển (Steam Client) — ⚠️ ĐÃ ĐÍNH CHÍNH
+### 2.3. Nhóm ứng dụng XIM cổ điển (Steam Client) — ✅ ĐÃ GIẢI QUYẾT
 
-> **Kết luận thực nghiệm (đã xác minh):** Steam trên Linux **không thiết lập kết nối XIM** cho các ô nhập liệu (VGUI search box, CEF chat). Bằng chứng:
-> 1. `XMODIFIERS=@im=fcitx xterm` gõ tiếng Việt **bình thường** → frontend XIM của Fcitx5 hoạt động hoàn hảo.
-> 2. **Mozc bản native cũng không hoạt động trên Steam** → lỗi không nằm ở addon (BambooMintKey hay Mozc).
-> 3. Triệu chứng: Super+Space không kích hoạt khi focus Steam, phím tắt E/V không đổi, không gõ được chữ — tức Fcitx5 **không nhận focus/keystroke** từ Steam, chứ không phải nhận rồi nuốt.
+> **Kết luận thực nghiệm (đã xác minh):** Steam **có** hỗ trợ input method, nhưng cần đúng biến môi trường. Nguyên nhân gốc: Steam là app **32-bit**, dùng **CEF (nền GTK)** cho ô nhập liệu. Kênh `GTK_IM_MODULE=fcitx` nạp `libfcitx5gclient.so` (64-bit) → Steam 32-bit không nạp được → không kết nối. Kênh `GTK_IM_MODULE=xim` dùng giao thức XIM thuần túy (chỉ cần libX11) → hoạt động.
 >
-> **Nguyên nhân thật:** đây là **giới hạn của Valve/Steam** (VGUI không implement XIM trên Linux), **nằm ngoài tầm xử lý của mọi bộ gõ**. Không thể fix từ phía BambooMintKey/Fcitx5, và **giống hệt nhau giữa native lẫn Flatpak**.
+> **Giải pháp đã xác minh hoạt động (cả native lẫn Flatpak):**
+> ```bash
+> env XMODIFIERS="@im=fcitx" GTK_IM_MODULE="xim" QT_IM_MODULE="xim" steam
+> ```
+> Wrapper tự động: `scripts/linux/steam-ime.sh` (hoặc `--install` để cài `~/.local/bin/steam`).
 
-*(Phân tích cũ dưới đây — cho rằng Steam có kết nối XIM nhưng thiếu preedit — đã bị bác bỏ bởi thực nghiệm trên.)*
+*(Lịch sử chẩn đoán: ban đầu suy đoán engine nuốt phím → sau đó suy đoán Steam không hỗ trợ XIM → cuối cùng xác định đúng nguyên nhân là `GTK_IM_MODULE=xim` cho app 32-bit.)*
 
-1. **~~Steam không hỗ trợ Client Preedit của XIM:~~**
-   - ~~Steam là ứng dụng 32-bit X11 giao tiếp với Fcitx 5 thông qua giao thức XIM cổ điển.~~
-   - Thực tế: Steam **không mở kết nối XIM** ngay từ đầu.
-2. **~~Lỗ hổng xử lý Preedit trong `BambooMintKeyEngine`:~~**
-   - Việc tái cấu trúc engine theo chuẩn Mozc (M3.6) vẫn đúng và cần thiết về mặt kiến trúc (phân nhánh `CapabilityFlag::Preedit`, gọi `updateUserInterface(InputPanel)`), nhưng **không phải là nguyên nhân** khiến Steam fail — vì Steam chưa từng kết nối XIM để Fcitx5 xử lý.
+1. **Nguyên nhân gốc thật — app 32-bit không nạp được IM module 64-bit:**
+   - Steam (32-bit) dùng CEF/GTK cho khung chat và ô tìm kiếm.
+   - `GTK_IM_MODULE=fcitx` yêu cầu `libfcitx5gclient.so` (64-bit) qua D-Bus → Steam không nạp được → im lặng không kết nối.
+   - `GTK_IM_MODULE=xim` đi qua giao thức XIM (không cần thư viện client theo kiến trúc) → Steam kết nối XIM server của Fcitx5 thành công.
+2. **Vai trò của tái cấu trúc engine (M3.6):**
+   - Việc phân nhánh `CapabilityFlag::Preedit` + gọi `updateUserInterface(InputPanel)` vẫn đúng và cần thiết để Steam (thiếu client preedit) hiển thị popup ứng viên thay vì nuốt phím — bổ trợ cho fix môi trường ở trên, chứ không thay thế.
 
 ---
 
@@ -147,10 +149,14 @@ Khi triển khai giải pháp tái cấu trúc `BambooMintKeyEngine` theo kiến
 
 ## 6. Kết luận
 
-**Tách bạch hai vấn đề khác nhau:**
+**Đã giải quyết triệt để Steam:**
 
-1. **Steam:** Đã xác định dứt khoát là **giới hạn của Valve** — Steam trên Linux không implement XIM (VGUI/CEF không mở kết nối input method). Đã chứng minh: `xterm` (XIM) gõ tiếng Việt bình thường, **Mozc bản native cũng fail trên Steam**. Kết luận này **đúng cho cả native lẫn Flatpak**; không thể fix từ phía bộ gõ. Workaround duy nhất: gõ ở app khác rồi copy-paste vào Steam.
+1. **Steam — đã fix:** Nguyên nhân gốc là Steam (app 32-bit) dùng CEF/GTK nhưng `GTK_IM_MODULE=fcitx` không nạp được `libfcitx5gclient.so` (64-bit). Giải pháp: khởi chạy Steam với `GTK_IM_MODULE=xim` + `XMODIFIERS=@im=fcitx` (đã xác minh hoạt động cả native lẫn Flatpak):
+   ```bash
+   env XMODIFIERS="@im=fcitx" GTK_IM_MODULE="xim" QT_IM_MODULE="xim" steam
+   ```
+   Wrapper tự động: `scripts/linux/steam-ime.sh` (hoặc `--install`).
 
-2. **Chrome/Opera/Zed (Flatpak):** đây mới là nhóm thực sự bị ảnh hưởng bởi sandbox Flatpak / Wayland text-input (gõ tốt native nhưng fail trên Flatpak). Đây là phần cần xử lý cho bản phát hành Flatpak (xem [009_08_App_Compatibility_Fix_Matrix.md](../2.Design/Phase9/009_08_App_Compatibility_Fix_Matrix.md)).
+2. **Chrome/Opera/Zed (Flatpak):** nhóm thực sự bị ảnh hưởng bởi sandbox Flatpak / Wayland text-input (gõ tốt native nhưng fail trên Flatpak). Xem [009_08_App_Compatibility_Fix_Matrix.md](../2.Design/Phase9/009_08_App_Compatibility_Fix_Matrix.md).
 
-Việc tái cấu trúc engine theo chuẩn Mozc (M3.6) vẫn được giữ lại như một cải tiến kiến trúc đúng đắn (phân nhánh `CapabilityFlag::Preedit`, đồng bộ `updateUserInterface(InputPanel)`, flush khi mất focus), nhưng **không còn được xem là biện pháp khắc phục Steam**. Flathub submit (Milestone 4) chỉ cần hoàn thiện phần Chrome/Opera/Zed trước khi nộp.
+Việc tái cấu trúc engine theo chuẩn Mozc (M3.6) được giữ lại như cải tiến kiến trúc đúng đắn (phân nhánh `CapabilityFlag::Preedit`, đồng bộ `updateUserInterface(InputPanel)`, flush khi mất focus) — giúp Steam (thiếu client preedit) hiển thị popup ứng viên đúng cách, bổ trợ cho fix môi trường ở trên.

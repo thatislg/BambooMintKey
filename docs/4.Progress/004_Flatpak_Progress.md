@@ -335,3 +335,9 @@ gantt
   - **Mozc bản native cũng fail trên Steam** → Steam không phải lỗi của addon.
   - **Kết luận:** Steam trên Linux không implement XIM (VGUI/CEF của Valve không mở kết nối input method) → **giới hạn của Valve, không thể fix từ phía bộ gõ, đúng cho cả native lẫn Flatpak**. Workaround duy nhất: copy-paste.
   - Tái cấu trúc M3.6 được giữ lại như cải tiến kiến trúc chuẩn Mozc (đúng đắn) nhưng không còn được xem là biện pháp khắc phục Steam.
+- **2026-09-28 (Steam — GIẢI QUYẾT dứt điểm):**
+  - Phát hiện thực nghiệm: `env XMODIFIERS="@im=fcitx" GTK_IM_MODULE="xim" QT_IM_MODULE="xim" steam` → Steam gõ tiếng Việt bình thường.
+  - **Nguyên nhân thật:** Steam (app 32-bit) dùng CEF/GTK; `GTK_IM_MODULE=fcitx` nạp `libfcitx5gclient.so` (64-bit) → không nạp được. `GTK_IM_MODULE=xim` đi qua XIM thuần túy → hoạt động. Áp dụng được cho cả native lẫn Flatpak.
+  - Bổ sung wrapper `scripts/linux/steam-ime.sh` (cờ `--install` để cài `~/.local/bin/steam`); cập nhật `setup_ime_compat.sh`.
+  - Đính chính lại Issue 011 và `009_08`: kết luận trước đó "Steam không hỗ trợ XIM" là sai.
+  - Commit mã nguồn lên git (commit `0966d0e` + `8a102e4`), trỏ manifest Flatpak tới commit mới.
