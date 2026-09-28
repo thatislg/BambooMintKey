@@ -82,7 +82,7 @@ case "$ACTION" in
             echo "   PID Sandbox: $PID"
             IM=$(fcitx5-remote -n 2>/dev/null || echo "Chưa nạp")
             echo "   Input Method đang chọn: $IM"
-            ADDON=$(flatpak run --command=fcitx5-remote org.fcitx.Fcitx5 -m bamboomintkey 2>/dev/null || echo "Chưa nhận")
+            ADDON=$(timeout 10 flatpak run --command=fcitx5-remote org.fcitx.Fcitx5 -m bamboomintkey 2>/dev/null || echo "Chưa nhận")
             echo "   Trạng thái Addon BambooMintKey: $ADDON"
         elif [ "$MODE" = "native" ]; then
             echo "🔵 Chế độ đang chạy: [Fcitx 5 Hệ Thống (Native)] (Linux Mint APT/DEB)"
@@ -107,7 +107,9 @@ case "$ACTION" in
         ensure_flatpak_icons
 
         echo "Khởi chạy Fcitx 5 Flatpak..."
-        flatpak run org.fcitx.Fcitx5 -d </dev/null >/dev/null 2>&1 &
+        LOG="$HOME/.cache/bamboomintkey/switch-fcitx5.log"
+        mkdir -p "$HOME/.cache/bamboomintkey"
+        flatpak run org.fcitx.Fcitx5 -d </dev/null >"$LOG" 2>&1 &
 
         if wait_for 15 'bwrap.*fcitx5'; then
             echo "✅ Đã chuyển thành công sang Fcitx 5 Flatpak!"
@@ -123,7 +125,9 @@ case "$ACTION" in
         stop_all_fcitx
 
         echo "Khởi chạy Fcitx 5 Hệ Thống (/usr/bin/fcitx5)..."
-        /usr/bin/fcitx5 -d </dev/null >/dev/null 2>&1 &
+        LOG="$HOME/.cache/bamboomintkey/switch-fcitx5.log"
+        mkdir -p "$HOME/.cache/bamboomintkey"
+        /usr/bin/fcitx5 -d </dev/null >"$LOG" 2>&1 &
 
         if wait_for 10 'fcitx5-bin'; then
             echo "✅ Đã chuyển thành công về Fcitx 5 Hệ Thống!"
