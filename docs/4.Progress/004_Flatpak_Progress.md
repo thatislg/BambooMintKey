@@ -345,3 +345,8 @@ gantt
   - Giải pháp dứt điểm: đổi `GTK_IM_MODULE=fcitx` → `GTK_IM_MODULE=xim` toàn cục (giữ `QT_IM_MODULE=fcitx`), đăng xuất/đăng nhập lại. Tự động hóa bằng `setup_ime_compat.sh`.
   - Đã xác minh hoạt động trên máy thực; cập nhật Issue 011 + `009_08` thành giải pháp chuẩn.
   - Commit mã nguồn lên git (commit `0966d0e` + `8a102e4`), trỏ manifest Flatpak tới commit mới.
+- **2026-09-28 (Steam preedit + quyết định phân phối Flatpak):**
+  - Sửa engine `drawAll()`: với frontend XIM (Steam báo `CapabilityFlag::Preedit` sai), ép vẽ preedit ra popup. Đã build native + flatpak, xác minh hoạt động.
+  - Khắc phục script `switch_fcitx.sh`: ghi log ra file, `timeout` cho `fcitx5-remote`, sửa mẫu `pgrep` native.
+  - **Kết luận về Flatpak:** chỉ phục vụ app XIM (Steam), không phục vụ app host qua D-Bus/Wayland (sandbox). Chỉ phát huy trên OS bất biến (SteamOS/Bazzite) nơi app cũng là Flatpak.
+  - **Quyết định:** tạm gác Flathub submit (Milestone 4); thay bằng phân phối bundle `.flatpak` trực tiếp + hướng dẫn cài đặt (xem `manifests/flatpak/README.md` mục 6).
