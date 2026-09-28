@@ -12,7 +12,7 @@
 #
 # Cách dùng:
 #   ./scripts/linux/steam-ime.sh            # chạy Steam với IME
-#   ./scripts/linux/steam-ime.sh --install  # cài wrapper ~/.local/bin/steam
+#   ./scripts/linux/steam-ime.sh --install  # cài wrapper + desktop entry (thường trực)
 #   ./scripts/linux/steam-ime.sh --help
 
 set -euo pipefail
@@ -20,7 +20,7 @@ set -euo pipefail
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
     echo "Cách dùng: $0 [--install]"
     echo "  (không đối số)  Chạy Steam với môi trường IME"
-    echo "  --install       Cài wrapper vào ~/.local/bin/steam"
+    echo "  --install       Cài wrapper ~/.local/bin/steam + desktop entry"
     exit 0
 fi
 
@@ -33,6 +33,7 @@ for cand in /usr/games/steam /usr/bin/steam steam; do
 done
 
 if [ "${1:-}" = "--install" ]; then
+    # 1. Wrapper dòng lệnh
     WRAP="$HOME/.local/bin/steam"
     mkdir -p "$HOME/.local/bin"
     cat > "$WRAP" <<EOF
@@ -41,9 +42,36 @@ if [ "${1:-}" = "--install" ]; then
 exec env XMODIFIERS="@im=fcitx" GTK_IM_MODULE="xim" QT_IM_MODULE="xim" ${STEAM_BIN} "\$@"
 EOF
     chmod +x "$WRAP"
-    echo "Đã cài wrapper: $WRAP"
-    echo "Đảm bảo $HOME/.local/bin nằm TRƯỚC /usr/bin trong PATH khi chạy 'steam'."
-    echo "Kiểm tra: echo \$PATH"
+    echo "Đã cài wrapper dòng lệnh: $WRAP"
+
+    # 2. Desktop entry override (cho khởi chạy bằng icon/menu)
+    DESK_DIR="$HOME/.local/share/applications"
+    DESK="$DESK_DIR/steam.desktop"
+    mkdir -p "$DESK_DIR"
+    SRC_DESK=""
+    for d in /usr/share/applications/steam.desktop /usr/local/share/applications/steam.desktop; do
+        if [ -f "$d" ]; then SRC_DESK="$d"; break; fi
+    done
+    if [ -n "$SRC_DESK" ]; then
+        cp -f "$SRC_DESK" "$DESK"
+        sed -i "s#^Exec=.*#Exec=env XMODIFIERS=\"@im=fcitx\" GTK_IM_MODULE=\"xim\" QT_IM_MODULE=\"xim\" ${STEAM_BIN} %U#" "$DESK"
+    else
+        cat > "$DESK" <<EOF
+[Desktop Entry]
+Name=Steam
+Comment=Steam with Fcitx5 IME
+Exec=env XMODIFIERS="@im=fcitx" GTK_IM_MODULE="xim" QT_IM_MODULE="xim" ${STEAM_BIN} %U
+Type=Application
+Icon=steam
+Categories=Game;
+EOF
+    fi
+    echo "Đã cài desktop entry: $DESK"
+
+    echo
+    echo "Để áp dụng:"
+    echo "  - Dòng lệnh 'steam': đảm bảo $HOME/.local/bin đứng trước /usr/games trong PATH."
+    echo "  - Icon desktop/menu: đăng xuất/đăng nhập lại (hoặc update-desktop-database) để nạp entry mới."
     exit 0
 fi
 
