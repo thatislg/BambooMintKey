@@ -129,7 +129,7 @@ case "$ACTION" in
         mkdir -p "$HOME/.cache/bamboomintkey"
         /usr/bin/fcitx5 -d </dev/null >"$LOG" 2>&1 &
 
-        if wait_for 10 'fcitx5-bin'; then
+        if wait_for 10 'fcitx5'; then
             echo "✅ Đã chuyển thành công về Fcitx 5 Hệ Thống!"
             $0 status
         else
