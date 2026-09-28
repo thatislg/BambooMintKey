@@ -203,6 +203,21 @@ Hoặc dùng công cụ có sẵn:
 
 > Lưu ý: giá trị module là `fcitx` (không phải `fcitx5`) để tương thích ngược với các app.
 
+### 8.1.1. Ngoại lệ Steam (app 32-bit)
+
+**Steam** (client 32-bit) dùng CEF/GTK cho ô chat/tìm kiếm, nên `GTK_IM_MODULE=fcitx` sẽ khiến nó cố nạp `libfcitx5gclient.so` (64-bit) và **không gõ được tiếng Việt**. Nếu bạn dùng Steam, hãy đổi `GTK_IM_MODULE` thành `xim` (đi qua giao thức XIM thuần túy, không cần thư viện client):
+
+```bash
+# Đổi GTK_IM_MODULE=fcitx -> xim (giữ QT_IM_MODULE=fcitx vì app Qt là 64-bit)
+sed -i 's/GTK_IM_MODULE=fcitx/GTK_IM_MODULE=xim/' ~/.config/environment.d/bamboomintkey.conf
+sudo sed -i 's/GTK_IM_MODULE=fcitx/GTK_IM_MODULE=xim/' /etc/environment
+# rồi đăng xuất / đăng nhập lại
+```
+
+Hoặc tự động hóa bằng script: `./scripts/linux/setup_ime_compat.sh`.
+
+> `GTK_IM_MODULE=xim` vẫn gõ tiếng Việt bình thường cho mọi app GTK (Firefox, gedit...); chỉ thiếu một số tính năng nâng cao (surrounding text) so với `fcitx` — chấp nhận được cho bộ gõ Telex. Chi tiết: [Issue 011](3.Issue/011_Flatpak_Incompatibility_Chrome_Opera_Zed_Steam.md).
+
 ### 8.2. Nạp addon & thêm bộ gõ
 
 ```bash
@@ -292,6 +307,7 @@ rm -f ~/.local/share/applications/bamboomintkey-settings.desktop \
 | Không thấy addon sau khi cài | Chưa restart: chạy `fcitx5 -r`; hoặc sai prefix (`/usr/local` thay vì `/usr`) |
 | Icon không hiện | Chạy `gtk-update-icon-cache /usr/share/icons/hicolor` |
 | Gõ không ra tiếng Việt | Đang ở chế độ E → bấm `` ` `` để chuyển V |
+| Không gõ được tiếng Việt trong Steam | Steam (32-bit) không nạp được `libfcitx5gclient.so` (64-bit) → đổi `GTK_IM_MODULE=fcitx` thành `xim` (xem mục 8.1.1), rồi đăng xuất/đăng nhập lại |
 | Một số app (vd Zed) vẫn gạch chân preedit | Zed tự vẽ gạch chân composition, bỏ qua cờ `NoFlag` — giới hạn phía app |
 
 ---
