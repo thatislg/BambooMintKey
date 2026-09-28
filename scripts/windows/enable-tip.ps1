@@ -8,7 +8,7 @@ param (
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
-$RootDir = Split-Path -Parent $PSScriptRoot
+$RootDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $DllPath = Join-Path $RootDir "publish\$Runtime\BambooMintKey.dll"
 
 $Clsid = "{B8A5A29D-68B1-4A59-B41E-D8B383D6F2C1}"

@@ -6,7 +6,7 @@ Produces a multi-resolution ICO with 16x16, 24x24, 32x32, 48x48 and 64x64.
 from PIL import Image
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 SRC = ROOT / "src" / "media" / "rendered_v_64x64.png"
 DEST = ROOT / "src" / "media" / "bamboomintkey.ico"
 SIZES = [16, 24, 32, 48, 64]

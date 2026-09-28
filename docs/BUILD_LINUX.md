@@ -13,8 +13,8 @@ Tài liệu hướng dẫn cài đặt và build bộ gõ BambooMintKey trên Li
 > **⚡ Cài đặt nhanh bằng 1 lệnh:**
 > ```bash
 > cd /đường/dẫn/tới/BambooMintKey
-> ./scripts/install_linux.sh      # build + cài toàn bộ vào /usr (cần sudo)
-> ./scripts/uninstall_linux.sh    # gỡ sạch
+> ./scripts/linux/install_linux.sh      # build + cài toàn bộ vào /usr (cần sudo)
+> ./scripts/linux/uninstall_linux.sh    # gỡ sạch
 > ```
 > Cài vào hệ thống `/usr` (phù hợp apt/rpm cho Ubuntu/Debian & Fedora). Các mục bên dưới mô tả chi tiết từng bước nếu bạn muốn build thủ công.
 
@@ -118,10 +118,10 @@ Giao diện cài đặt là ứng dụng Avalonia (F# / .NET 10), tách biệt k
 cd /đường/dẫn/tới/BambooMintKey
 
 # Cài launcher vào /usr/local/bin (cần sudo) — khuyến nghị để Fcitx5 addon gọi được
-./scripts/install-ui-linux.sh
+./scripts/linux/install-ui-linux.sh
 
 # Hoặc cài user (không cần sudo), launcher vào ~/.local/bin
-./scripts/install-ui-linux.sh --user
+./scripts/linux/install-ui-linux.sh --user
 ```
 
 Script thực hiện:
@@ -146,7 +146,7 @@ Script thực hiện:
 
 ```bash
 cd /đường/dẫn/tới/BambooMintKey
-./scripts/package_linux.sh
+./scripts/linux/package_linux.sh
 ```
 
 Kết quả đóng gói nằm tại thư mục `delivery/linux/`:
@@ -230,7 +230,7 @@ Thay đổi file này sẽ được addon tự nạp lại qua cơ chế `inotif
 Cách đơn giản nhất:
 
 ```bash
-./scripts/uninstall_linux.sh
+./scripts/linux/uninstall_linux.sh
 ```
 
 Script tự dọn cả `/usr` (bao gồm `/usr/lib64` trên Fedora) lẫn `~/.local` rồi restart Fcitx5. Nếu muốn gỡ thủ công:

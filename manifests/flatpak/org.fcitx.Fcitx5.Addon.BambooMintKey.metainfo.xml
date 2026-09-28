@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  BambooMintKey - Vietnamese Telex Input Method Editor
+  Copyright (c) 2026 Dương Gia Long and LMO contributors
+  SPDX-License-Identifier: MIT
+-->
+<component type="addon">
+  <id>org.fcitx.Fcitx5.Addon.BambooMintKey</id>
+  <extends>org.fcitx.Fcitx5</extends>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <name>BambooMintKey</name>
+  <name xml:lang="vi">Bộ gõ BambooMintKey</name>
+  <summary>Modern Vietnamese Telex Input Method for Fcitx 5</summary>
+  <summary xml:lang="vi">Bộ gõ tiếng Việt Telex hiện đại cho Fcitx 5</summary>
+  <description>
+    <p>
+      BambooMintKey is a modern Vietnamese Telex input method editor (IME) designed for high typing speed, maximum stability, and intelligent text corrections.
+    </p>
+    <p>Key highlights:</p>
+    <ul>
+      <li>Lightning-fast zero-latency engine powered by F# NativeAOT.</li>
+      <li>On-the-fly syllable validation powered by a built-in MIT phonotactics dictionary.</li>
+      <li>Automatic English word restoration on space, tab, or punctuation keys.</li>
+      <li>Repeat-key undo support and flexible free tone placement.</li>
+      <li>Full compatibility with Steam Deck Desktop Mode.</li>
+    </ul>
+    <p xml:lang="vi">
+      BambooMintKey là bộ gõ tiếng Việt Telex hiện đại được tối ưu hóa cho tốc độ phản hồi tức thì, độ ổn định cao và khả năng sửa lỗi gõ thông minh.
+    </p>
+    <p xml:lang="vi">Đặc điểm nổi bật:</p>
+    <ul xml:lang="vi">
+      <li>Phản hồi gõ tức thì, không có độ trễ nhờ nhân xử lý F# NativeAOT độc lập.</li>
+      <li>Thẩm định âm tiết trực tiếp khi gõ (on-the-fly) với từ điển âm tiết chuẩn MIT.</li>
+      <li>Tự động khôi phục từ tiếng Anh khi kết thúc bằng phím cách hoặc dấu câu.</li>
+      <li>Hỗ trợ gõ lặp phím để hoàn tác (repeat-key undo) và tự do đặt dấu thanh.</li>
+      <li>Tương thích mượt mà với Steam Deck trong chế độ Desktop Mode (KDE Plasma).</li>
+    </ul>
+  </description>
+  <developer id="com.github.thatislg">
+    <name>Dương Gia Long &amp; LMO Contributors</name>
+  </developer>
+  <url type="homepage">https://github.com/thatislg/BambooMintKey</url>
+  <url type="bugtracker">https://github.com/thatislg/BambooMintKey/issues</url>
+  <url type="vcs-browser">https://github.com/thatislg/BambooMintKey</url>
+  <project_group>Fcitx</project_group>
+  <categories>
+    <category>Utility</category>
+    <category>TextEditor</category>
+  </categories>
+  <provides>
+    <addon>bamboomintkey</addon>
+  </provides>
+  <releases>
+    <release version="1.1.0" date="2026-09-27">
+      <description>
+        <p>Release 1.1.0: First stable release supporting Linux Fcitx5 with MIT syllable dictionary, NativeAOT C-ABI, and Steam Deck Flatpak support.</p>
+        <p xml:lang="vi">Bản phát hành 1.1.0: Hỗ trợ Fcitx5 trên Linux với từ điển âm tiết MIT, C-ABI NativeAOT và hỗ trợ Flatpak trên Steam Deck.</p>
+      </description>
+    </release>
+  </releases>
+</component>

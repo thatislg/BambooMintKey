@@ -16,7 +16,7 @@ param (
 
 $ErrorActionPreference = "Stop"
 
-$RootDir = Split-Path -Parent $PSScriptRoot
+$RootDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $VersionDir = Join-Path $RootDir "$ManifestDir\$Version"
 
 Write-Host "Updating WinGet manifest for version $Version"

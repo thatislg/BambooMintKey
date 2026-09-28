@@ -18,9 +18,9 @@
 
 set -euo pipefail
 
-# Resolve thư mục gốc dự án (script nằm trong scripts/).
+# Resolve thư mục gốc dự án (script nằm trong scripts/linux/).
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 PROJECT="$PROJECT_ROOT/src/BambooMintKey.UI.Linux/BambooMintKey.UI.Linux.fsproj"
 PUBLISH_DIR="$PROJECT_ROOT/publish/ui-linux"

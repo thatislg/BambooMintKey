@@ -60,7 +60,7 @@ function Add-HeaderIfMissing {
     return $true
 }
 
-$root = $PSScriptRoot | Split-Path -Parent
+$root = $PSScriptRoot | Split-Path -Parent | Split-Path -Parent
 Write-Host "Scanning source files under $root ..." -ForegroundColor Cyan
 
 $files = @()

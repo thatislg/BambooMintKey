@@ -12,7 +12,7 @@ if (-not $isAdmin) {
     exit
 }
 
-$RootDir = Split-Path -Parent $PSScriptRoot
+$RootDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $DllPath = Join-Path $RootDir "publish\$Runtime\BambooMintKey.dll"
 
 if (-not (Test-Path $DllPath)) {

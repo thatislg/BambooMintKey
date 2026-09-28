@@ -58,8 +58,8 @@ BambooMintKey chạy trên Linux qua **Fcitx5**, tái sử dụng nguyên lõi e
 
 ```bash
 cd /đường/dẫn/tới/BambooMintKey
-./scripts/install_linux.sh      # build + cài vào /usr (cần sudo)
-./scripts/uninstall_linux.sh    # gỡ sạch
+./scripts/linux/install_linux.sh      # build + cài vào /usr (cần sudo)
+./scripts/linux/uninstall_linux.sh    # gỡ sạch
 ```
 
 Hướng dẫn chi tiết: [`docs/BUILD_LINUX.md`](docs/BUILD_LINUX.md) · Thiết kế & tiến độ: [`docs/2.Design/Phase7/`](docs/2.Design/Phase7/).
@@ -165,7 +165,7 @@ dotnet publish src/BambooMintKey.NativeBridge/BambooMintKey.NativeBridge.csproj 
 ### 2. Đăng Ký Bộ Gõ (Administrator)
 
 ```powershell
-pwsh -File scripts/test-register.ps1
+pwsh -File scripts/windows/test-register.ps1
 ```
 
 Script sẽ:
@@ -176,7 +176,7 @@ Script sẽ:
 ### 3. Kích Hoạt Cho User Hiện Tại
 
 ```powershell
-pwsh -File scripts/enable-tip.ps1
+pwsh -File scripts/windows/enable-tip.ps1
 ```
 
 Sau đó restart `ctfmon`:
@@ -237,7 +237,7 @@ Chi tiết kiến trúc hệ thống toàn diện có sơ đồ xem tại [Tài 
 | `src/BambooMintKey.Fcitx5` | Addon Fcitx5 (C++/CMake): `libbamboomintkey.so`, D-Bus, icon. |
 | `src/BambooMintKey.UI.Linux` | Giao diện cài đặt Avalonia (F#) cho Linux. |
 | `tests/BambooMintKey.Core.Tests` | Unit tests cho Telex engine. |
-| `scripts/` | Script đăng ký TIP (Windows) + cài đặt/gỡ bỏ Linux (`install_linux.sh`, `uninstall_linux.sh`). |
+| `scripts/` | Script phân loại theo nền tảng: `linux/` (cài đặt, gỡ bỏ, đóng gói DEB/RPM/Flatpak), `windows/` (build AOT, TIP, installer), `tools/` (từ điển, icon), `tests/` (test C-ABI). |
 | `docs/` | Tài liệu thiết kế và hướng dẫn. |
 | `docs/3.Issue/` | Template báo lỗi gõ tiếng Việt (issue templates). |
 

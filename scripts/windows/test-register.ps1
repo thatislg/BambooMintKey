@@ -13,8 +13,8 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 
 $ErrorActionPreference = "Stop"
 
-$RootDir = Split-Path -Parent $PSScriptRoot
-$LogPath = Join-Path $RootDir "scripts\test-register.log"
+$RootDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+$LogPath = Join-Path $PSScriptRoot "test-register.log"
 "" | Out-File $LogPath -Encoding utf8
 
 function Write-Log($msg, $color = "White") {

@@ -7,7 +7,7 @@ param (
 
 $ErrorActionPreference = "Stop"
 
-$RootDir = Split-Path -Parent $PSScriptRoot
+$RootDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $UiOutputDir = Join-Path $RootDir "publish\ui"
 $InstallerScript = Join-Path $RootDir "delivery\installer\installer.iss"
 
@@ -26,7 +26,7 @@ if (Test-Path $PropsPath) {
 Write-Host "[INFO] Detected Application Version: $AppVersion" -ForegroundColor Cyan
 
 # 1. Build NativeAOT TSF COM DLL (output: publish\win-x64\BambooMintKey.dll)
-$BuildNativeScript = Join-Path $RootDir "scripts\build-native.ps1"
+$BuildNativeScript = Join-Path $PSScriptRoot "build-native.ps1"
 Write-Host "[1/3] Building NativeAOT TSF bridge..." -ForegroundColor Yellow
 & $BuildNativeScript -Configuration $Configuration -Runtime $Runtime
 
