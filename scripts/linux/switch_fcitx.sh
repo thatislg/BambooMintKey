@@ -55,12 +55,12 @@ stop_all_fcitx() {
     sleep 1
 }
 
-# Chờ một điều kiện thành công trong vòng N giây (cơ chế đếm thời gian cho thao tác async).
-# $1 = timeout (giây), $2 = lệnh kiểm tra (eval; trả 0 = thành công).
+# Chờ một tiến trình khớp mẫu xuất hiện trong vòng N giây (cơ chế đếm thời gian).
+# $1 = timeout (giây), $2 = mẫu pgrep (regex khớp full command line).
 wait_for() {
-    local timeout="$1" check="$2" i
+    local timeout="$1" pattern="$2" i
     for i in $(seq 1 "$timeout"); do
-        if eval "$check" 2>/dev/null; then
+        if pgrep -f "$pattern" >/dev/null 2>&1; then
             return 0
         fi
         sleep 1
@@ -107,9 +107,9 @@ case "$ACTION" in
         ensure_flatpak_icons
 
         echo "Khởi chạy Fcitx 5 Flatpak..."
-        flatpak run org.fcitx.Fcitx5 -d &
+        flatpak run org.fcitx.Fcitx5 -d </dev/null >/dev/null 2>&1 &
 
-        if wait_for 15 'flatpak ps 2>/dev/null | grep -q org.fcitx.Fcitx5'; then
+        if wait_for 15 'bwrap.*fcitx5'; then
             echo "✅ Đã chuyển thành công sang Fcitx 5 Flatpak!"
             $0 status
         else
@@ -123,9 +123,9 @@ case "$ACTION" in
         stop_all_fcitx
 
         echo "Khởi chạy Fcitx 5 Hệ Thống (/usr/bin/fcitx5)..."
-        /usr/bin/fcitx5 -d &
+        /usr/bin/fcitx5 -d </dev/null >/dev/null 2>&1 &
 
-        if wait_for 10 'pgrep -x fcitx5 >/dev/null 2>&1'; then
+        if wait_for 10 'fcitx5-bin'; then
             echo "✅ Đã chuyển thành công về Fcitx 5 Hệ Thống!"
             $0 status
         else
