@@ -55,6 +55,19 @@ stop_all_fcitx() {
     sleep 1
 }
 
+# Chờ một điều kiện thành công trong vòng N giây (cơ chế đếm thời gian cho thao tác async).
+# $1 = timeout (giây), $2 = lệnh kiểm tra (eval; trả 0 = thành công).
+wait_for() {
+    local timeout="$1" check="$2" i
+    for i in $(seq 1 "$timeout"); do
+        if eval "$check" 2>/dev/null; then
+            return 0
+        fi
+        sleep 1
+    done
+    return 1
+}
+
 ACTION="${1:-status}"
 
 case "$ACTION" in
@@ -95,10 +108,15 @@ case "$ACTION" in
 
         echo "Khởi chạy Fcitx 5 Flatpak..."
         flatpak run org.fcitx.Fcitx5 -d &
-        sleep 2
 
-        echo "✅ Đã chuyển thành công sang Fcitx 5 Flatpak!"
-        $0 status
+        if wait_for 15 'flatpak ps 2>/dev/null | grep -q org.fcitx.Fcitx5'; then
+            echo "✅ Đã chuyển thành công sang Fcitx 5 Flatpak!"
+            $0 status
+        else
+            echo "❌ KHÔNG khởi động được Fcitx 5 Flatpak trong 15 giây!" >&2
+            echo "   Gỡ lỗi: chạy 'flatpak run org.fcitx.Fcitx5' (foreground) để xem lỗi chi tiết." >&2
+            exit 1
+        fi
         ;;
 
     native)
@@ -106,10 +124,15 @@ case "$ACTION" in
 
         echo "Khởi chạy Fcitx 5 Hệ Thống (/usr/bin/fcitx5)..."
         /usr/bin/fcitx5 -d &
-        sleep 2
 
-        echo "✅ Đã chuyển thành công về Fcitx 5 Hệ Thống!"
-        $0 status
+        if wait_for 10 'pgrep -x fcitx5 >/dev/null 2>&1'; then
+            echo "✅ Đã chuyển thành công về Fcitx 5 Hệ Thống!"
+            $0 status
+        else
+            echo "❌ KHÔNG khởi động được Fcitx 5 Hệ Thống trong 10 giây!" >&2
+            echo "   Gỡ lỗi: chạy '/usr/bin/fcitx5' (foreground) để xem lỗi chi tiết." >&2
+            exit 1
+        fi
         ;;
 
     config)
