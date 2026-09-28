@@ -78,6 +78,21 @@ module OnTheFlyBacktrackingTests =
         Assert.Equal(expected, result)
 
     // =========================================================================
+    // M4.6c: Free tone dấu sắc (s) + phụ âm cuối p — không bị nhận nhầm là English cluster "sp"
+    // =========================================================================
+
+    [<Theory>]
+    [<InlineData("tieesp", "tiếp")>]  // dấu sắc s giữa từ (fix: loại "sp" khỏi English cluster)
+    [<InlineData("tieeps", "tiếp")>]  // dấu sắc cuối
+    [<InlineData("thaasp", "thấp")>]  // thấp
+    [<InlineData("clasp", "clasp")>]  // tiếng Anh vẫn được bảo vệ qua M4 (cláp không hợp lệ)
+    [<InlineData("crisp", "crisp")>]  // tiếng Anh vẫn được bảo vệ qua M4
+    [<InlineData("wasp", "wasp")>]    // tiếng Anh vẫn được bảo vệ qua M4
+    let ``M4.6c - free tone dấu sắc + phụ âm cuối p không bị backtrack`` (input: string, expected: string) =
+        let result = typeWord input EngineConfig.Default
+        Assert.Equal(expected, result)
+
+    // =========================================================================
     // M4.1: Cờ cấu hình EnableEnglishBacktracking
     // =========================================================================
 
