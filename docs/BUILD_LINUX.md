@@ -161,9 +161,33 @@ Kết quả đóng gói nằm tại thư mục `delivery/linux/`:
 
 ---
 
-## 7. Kích hoạt Fcitx5 & thêm bộ gõ
+## 7. Đóng gói Flatpak Extension (cho Steam Deck & Flathub)
 
-### 6.1. Đặt Fcitx5 làm bộ gõ hệ thống
+Trên SteamOS (Steam Deck), phân vùng hệ thống `/usr` ở chế độ chỉ đọc (read-only) và bộ gõ Fcitx5 được cài đặt dưới dạng Flatpak (`org.fcitx.Fcitx5`). BambooMintKey cung cấp cơ chế đóng gói thành **Fcitx5 Addon Extension** độc lập:
+
+```bash
+cd /đường/dẫn/tới/BambooMintKey
+
+# Đóng gói bundle Flatpak xuất ra delivery/flatpak/
+./scripts/linux/package_flatpak.sh
+
+# Hoặc vừa build vừa cài đặt trực tiếp vào session Fcitx5 Flatpak hiện tại để test:
+./scripts/linux/package_flatpak.sh --install
+```
+
+Kết quả đóng gói: `delivery/flatpak/org.fcitx.Fcitx5.Addon.BambooMintKey.flatpak`.
+
+Cấu hình Flatpak được duy trì độc lập tại:
+- `manifests/flatpak/org.fcitx.Fcitx5.Addon.BambooMintKey.yaml`: Manifest xây dựng addon extension trên runtime KDE Platform.
+- `manifests/flatpak/org.fcitx.Fcitx5.Addon.BambooMintKey.metainfo.xml`: AppStream metadata mô tả bộ gõ.
+- `manifests/flatpak/flathub.json`: Cấu hình Flathub build.
+- Xem chi tiết tại [manifests/flatpak/README.md](../manifests/flatpak/README.md) và [docs/2.Design/Phase9/009_02_Flathub_Independent_Architecture.md](2.Design/Phase9/009_02_Flathub_Independent_Architecture.md).
+
+---
+
+## 8. Kích hoạt Fcitx5 & thêm bộ gõ
+
+### 8.1. Đặt Fcitx5 làm bộ gõ hệ thống
 
 Để ứng dụng (GTK/Qt) dùng Fcitx5, cần đặt biến môi trường IM module. Thêm vào `~/.profile` (hoặc `~/.bash_profile`):
 
@@ -179,7 +203,7 @@ Hoặc dùng công cụ có sẵn:
 
 > Lưu ý: giá trị module là `fcitx` (không phải `fcitx5`) để tương thích ngược với các app.
 
-### 6.2. Nạp addon & thêm bộ gõ
+### 8.2. Nạp addon & thêm bộ gõ
 
 ```bash
 # Restart Fcitx5 để nạp addon mới
@@ -195,7 +219,7 @@ Sau đó mở **Fcitx5 Configuration** → tab **Input Method**:
 
 ---
 
-## 8. Kiểm tra
+## 9. Kiểm tra
 
 | Việc cần test | Thao tác | Kết quả mong đợi |
 |---|---|---|
@@ -203,10 +227,11 @@ Sau đó mở **Fcitx5 Configuration** → tab **Input Method**:
 | Chuyển V/E | Bấm phím `` ` `` (dưới Esc) | Đổi V ↔ E (gõ tiếng Việt ↔ tiếng Anh) |
 | Icon V/E | Quan sát thanh trạng thái | Icon đổi V ↔ E |
 | D-Bus | `dbus-send --session --print-reply --dest=org.fcitx.Fcitx5.BambooMintKey /org/fcitx/Fcitx5/BambooMintKey org.fcitx.Fcitx5.BambooMintKey1.GetVietnameseMode` | Trả `boolean true/false` |
+| Kiểm thử C-ABI | `python3 scripts/tests/test-cabi.py publish/linux-x64/BambooMintKeyCore.so` | `9 passed, 0 failed` |
 
 ---
 
-## 9. Cấu hình
+## 10. Cấu hình
 
 File cấu hình đặt tại `~/.config/bamboomintkey/config.json` (theo chuẩn XDG).
 
@@ -225,7 +250,7 @@ Thay đổi file này sẽ được addon tự nạp lại qua cơ chế `inotif
 
 ---
 
-## 10. Gỡ cài đặt
+## 11. Gỡ cài đặt
 
 Cách đơn giản nhất:
 
@@ -258,7 +283,7 @@ rm -f ~/.local/share/applications/bamboomintkey-settings.desktop \
 
 ---
 
-## 11. Khắc phục sự cố thường gặp
+## 12. Khắc phục sự cố thường gặp
 
 | Vấn đề | Nguyên nhân / cách xử lý |
 |---|---|
@@ -271,7 +296,7 @@ rm -f ~/.local/share/applications/bamboomintkey-settings.desktop \
 
 ---
 
-## 12. Kiến trúc tổng quan
+## 13. Kiến trúc tổng quan
 
 ```
 Ứng dụng (GTK/Qt/Zed...)
@@ -284,6 +309,8 @@ BambooMintKeyCore.so (F# engine, NativeAOT)
 ```
 
 Xem thêm:
+- Kiến trúc hệ thống toàn diện: `docs/SYSTEM_ARCHITECTURE.md`
 - Thiết kế C-ABI: `docs/2.Design/Phase7/007_03_CoreNative_CABI_Design.md`
 - Thiết kế addon: `docs/2.Design/Phase7/007_04_Fcitx5_Addon_Design.md`
+- Thiết kế Flatpak độc lập: `docs/2.Design/Phase9/009_02_Flathub_Independent_Architecture.md`
 - Theo dõi tiến độ: `docs/4.Progress/002_LinuxProgressTracking.md`

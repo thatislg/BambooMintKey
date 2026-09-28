@@ -6,7 +6,7 @@
 
 # BambooMintKey
 
-**Bộ gõ tiếng Việt Telex cho Windows (TSF) và Linux (Fcitx5).**
+**Bộ gõ tiếng Việt Telex cho Windows (TSF), Linux (Fcitx5) và Steam Deck (Flatpak).**
 
 <a href="https://get.microsoft.com/installer/download/xpdp9v267ntq42?referrer=appbadge" target="_self" >
 	<img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200"/>
@@ -16,6 +16,7 @@ BambooMintKey là bộ gõ tiếng Việt với **lõi xử lý ngôn ngữ thu�
 
 - **Windows** — Text Input Processor (TIP) chạy như In-Process COM Server bên trong tiến trình ứng dụng, tích hợp sâu vào Text Services Framework (TSF).
 - **Linux** — Fcitx5 addon (C++) gọi engine qua C-ABI, kèm giao diện cài đặt Avalonia độc lập.
+- **Steam Deck (SteamOS)** — Flathub Addon Extension tích hợp tự động với Fcitx5 Flatpak mà không sửa đổi phân vùng hệ thống read-only.
 
 ![Demo gõ tiếng Việt với BambooMintKey](screenshot/DemoBogo.gif)
 
@@ -35,15 +36,16 @@ BambooMintKey là bộ gõ tiếng Việt với **lõi xử lý ngôn ngữ thu�
 
 ---
 
-## Linux (Fcitx5)
+## Linux (Fcitx5) & Steam Deck (Flatpak)
 
-BambooMintKey chạy trên Linux qua **Fcitx5**, tái sử dụng nguyên lõi engine F# (không can thiệp code Windows). Gồm 3 thành phần:
+BambooMintKey chạy trên Linux qua **Fcitx5**, tái sử dụng nguyên lõi engine F# (không can thiệp code Windows). Gồm các thành phần:
 
 | Thành phần | Công nghệ | Vai trò |
 |---|---|---|
 | `BambooMintKey.Core.Native` | C# NativeAOT | Đóng gói engine F# thành C-ABI `BambooMintKeyCore.so` |
 | `BambooMintKey.Fcitx5` | C++ / CMake | Addon Fcitx5 `libbamboomintkey.so`, D-Bus V/E, icon động |
 | `BambooMintKey.UI.Linux` | Avalonia / F# | Giao diện cài đặt độc lập (6 tab) |
+| `manifests/flatpak/` | Flatpak / Flathub | Cấu hình Fcitx5 Addon Extension cho Steam Deck & Flathub |
 
 ### Tính năng chính
 
@@ -52,17 +54,24 @@ BambooMintKey chạy trên Linux qua **Fcitx5**, tái sử dụng nguyên lõi e
 - Đồng bộ trạng thái V/E qua D-Bus (signal `ModeChanged`).
 - Cấu hình XDG `~/.config/bamboomintkey/config.json`, hot-reload qua `inotify`.
 - Cài đặt native trong `fcitx5-configtool` + GUI Avalonia.
-- Hỗ trợ **Ubuntu/Debian** và **Fedora** (apt/rpm).
+- Hỗ trợ **Ubuntu/Debian** (.deb), **Fedora** (.rpm), và **Steam Deck / SteamOS** (Flathub Flatpak).
 
 ### Cài đặt nhanh
 
+**Trên Linux thông thường (Ubuntu/Debian, Fedora):**
 ```bash
 cd /đường/dẫn/tới/BambooMintKey
 ./scripts/linux/install_linux.sh      # build + cài vào /usr (cần sudo)
 ./scripts/linux/uninstall_linux.sh    # gỡ sạch
 ```
 
-Hướng dẫn chi tiết: [`docs/BUILD_LINUX.md`](docs/BUILD_LINUX.md) · Thiết kế & tiến độ: [`docs/2.Design/Phase7/`](docs/2.Design/Phase7/).
+**Đóng gói bộ cài (DEB, RPM, Flatpak):**
+```bash
+./scripts/linux/package_linux.sh      # đóng gói .deb, .rpm, .tar.gz vào delivery/linux/
+./scripts/linux/package_flatpak.sh    # đóng gói Flatpak extension vào delivery/flatpak/
+```
+
+Hướng dẫn chi tiết: [`docs/BUILD_LINUX.md`](docs/BUILD_LINUX.md) · Kiến trúc Flathub: [`docs/2.Design/Phase9/009_02_Flathub_Independent_Architecture.md`](docs/2.Design/Phase9/009_02_Flathub_Independent_Architecture.md).
 
 ---
 
@@ -236,10 +245,13 @@ Chi tiết kiến trúc hệ thống toàn diện có sơ đồ xem tại [Tài 
 | `src/BambooMintKey.Core.Native` | C# NativeAOT: thư viện C-ABI `BambooMintKeyCore.so` cho Linux. |
 | `src/BambooMintKey.Fcitx5` | Addon Fcitx5 (C++/CMake): `libbamboomintkey.so`, D-Bus, icon. |
 | `src/BambooMintKey.UI.Linux` | Giao diện cài đặt Avalonia (F#) cho Linux. |
-| `tests/BambooMintKey.Core.Tests` | Unit tests cho Telex engine. |
+| `tests/BambooMintKey.Core.Tests` | Unit tests F# cho Telex engine. |
+| `tests/BambooMintKey.Fcitx5.Tests` | Unit tests C++ cho Fcitx5 addon. |
 | `scripts/` | Script phân loại theo nền tảng: `linux/` (cài đặt, gỡ bỏ, đóng gói DEB/RPM/Flatpak), `windows/` (build AOT, TIP, installer), `tools/` (từ điển, icon), `tests/` (test C-ABI). |
-| `docs/` | Tài liệu thiết kế và hướng dẫn. |
-| `docs/3.Issue/` | Template báo lỗi gõ tiếng Việt (issue templates). |
+| `manifests/` | File manifest phân phối: `flatpak/` (Flathub extension cho Steam Deck) và `l/LMO-LAB/` (WinGet). |
+| `delivery/` | Thư mục chứa gói thành phẩm build: `installer/` (Windows Setup), `linux/` (DEB, RPM), `flatpak/` (Flatpak bundle). |
+| `docs/` | Tài liệu kiến trúc, hướng dẫn build và phân tích kỹ thuật. |
+| `docs/3.Issue/` | Template và báo cáo phân tích/xử lý sự cố kỹ thuật. |
 
 ---
 

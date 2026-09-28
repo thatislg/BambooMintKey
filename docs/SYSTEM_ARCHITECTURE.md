@@ -1,24 +1,31 @@
 <!--
-  BambooMintKey - Vietnamese Telex Input Method Editor for Windows
+  BambooMintKey - Vietnamese Telex Input Method Editor for Windows & Linux
   Copyright (c) 2026 Dương Gia Long and LMO contributors
   SPDX-License-Identifier: MIT
 -->
 
 # BambooMintKey — Kiến Trúc Hệ Thống (System Architecture)
 
-Tài liệu này cung cấp cái nhìn tổng quan toàn diện và chi tiết về mặt kỹ thuật của dự án **BambooMintKey** sau khi toàn bộ mã nguồn đã hoàn thiện và hoạt động ổn định trên hệ điều hành Windows 10/11.
+Tài liệu này cung cấp cái nhìn tổng quan toàn diện và chi tiết về mặt kỹ thuật của dự án **BambooMintKey**, bao gồm kiến trúc lõi dùng chung (F# Functional Core) và các tầng tích hợp hệ thống chuyên biệt trên **Windows** (Text Services Framework), **Linux** (Fcitx5 Native), và **SteamOS / Steam Deck** (Flathub Flatpak Extension).
 
 ---
 
 ## 1. Tổng Quan Kiến Trúc (Architecture Overview)
 
-Khác biệt hoàn toàn với các bộ gõ truyền thống trên Windows sử dụng cơ chế Windows Hook toàn cục (`WH_KEYBOARD_LL`) và giả lập phím ảo (`SendInput`/`keybd_event`) vốn tiềm ẩn độ trễ cao và hay bị các phần mềm bảo mật (antivirus, anti-cheat) chặn, **BambooMintKey** được xây dựng theo mô hình **In-Process Text Input Processor (TIP)** tích hợp sâu vào kiến trúc **Windows Text Services Framework (TSF)**.
+Khác biệt hoàn toàn với các bộ gõ truyền thống sử dụng cơ chế Hook bàn phím toàn cục và giả lập phím ảo (`SendInput` / `keybd_event` / `XTest`) vốn tiềm ẩn độ trễ cao, gây xung đột và hay bị các phần mềm bảo mật (antivirus, anti-cheat) chặn, **BambooMintKey** được xây dựng theo mô hình **Tích hợp sâu vào Input Method Framework chuẩn của hệ điều hành**:
 
-Hệ thống kết hợp mô hình Hybrid đa công nghệ:
-1. **Lõi thuật toán (BambooMintKey.Core)**: Viết bằng **F# thuần chức năng (Functional Programming)**, đảm bảo tính bất biến (immutability), an toàn luồng tuyệt đối và không có tác dụng phụ (no side-effects).
-2. **Cầu nối hệ thống (BambooMintKey.NativeBridge)**: Viết bằng **C# và biên dịch NativeAOT thành DLL C gốc (`BambooMintKey.dll`)**, đóng vai trò là một In-Process COM Server được nạp trực tiếp vào không gian tiến trình (address space) của mọi ứng dụng đích (Notepad, Word, Browser, Discord, Games,...).
-3. **Bộ nhớ dùng chung liên tiến trình (SharedMemoryManager)**: Sử dụng **Win32 Named File Mapping** với Universal SDDL để đồng bộ trạng thái V/E và cấu hình thời gian thực (zero-latency) giữa mọi tiến trình và thanh Taskbar Windows.
-4. **Giao diện điều khiển (BambooMintKey.UI)**: Viết bằng **F# Avalonia Desktop 12**, độc lập, nhẹ và được bảo vệ bởi cơ chế **Single-Instance Mutex** liên tiến trình.
+1. **Lõi thuật toán bất biến (`BambooMintKey.Core`)**: Viết bằng **F# thuần chức năng (Functional Programming)**, đảm bảo tính bất biến (immutability), an toàn luồng tuyệt đối (thread-safe), deterministic 100% và không có tác dụng phụ (no side-effects). Lõi này hoàn toàn không phụ thuộc vào bất kỳ API hệ điều hành nào và được chia sẻ nguyên vẹn cho mọi nền tảng.
+2. **Nền tảng Windows (In-Process TIP qua TSF)**:
+   - `BambooMintKey.NativeBridge`: Viết bằng **C# và biên dịch NativeAOT thành DLL C gốc (`BambooMintKey.dll`)**, đóng vai trò là một In-Process COM Server được nạp trực tiếp vào không gian tiến trình (address space) của mọi ứng dụng đích (Word, Chrome, Notepad, Games,...).
+   - `SharedMemoryManager`: Sử dụng **Win32 Named File Mapping** với Universal SDDL để đồng bộ trạng thái V/E và cấu hình thời gian thực (zero-latency) giữa mọi tiến trình và thanh Taskbar Windows.
+   - `BambooMintKey.UI`: Giao diện điều khiển viết bằng **F# Avalonia Desktop 12**, độc lập, nhẹ và được bảo vệ bởi cơ chế **Single-Instance Mutex** liên tiến trình.
+3. **Nền tảng Linux Native (Fcitx5 Addon)**:
+   - `BambooMintKey.Core.Native`: C# NativeAOT đóng gói lõi F# thành thư viện gốc C-ABI `BambooMintKeyCore.so`, liên kết duy nhất với `libc` và `libm` chuẩn (không phụ thuộc .NET runtime trên máy người dùng).
+   - `BambooMintKey.Fcitx5`: C++ Addon biên dịch thành `libbamboomintkey.so`, tích hợp trực tiếp vào vòng đời Fcitx5 (KeyEvent, InputContext, Preedit, Commit), quản lý D-Bus service và tự động reload cấu hình qua `inotify`.
+   - `BambooMintKey.UI.Linux`: Bảng điều khiển cấu hình độc lập viết bằng F# Avalonia.
+4. **Nền tảng SteamOS / Steam Deck (Flathub Flatpak Extension)**:
+   - Đóng gói theo chuẩn **Fcitx5 Addon Extension** (`org.fcitx.Fcitx5.Addon.BambooMintKey`).
+   - Được nạp tự động vào container Fcitx5 Flatpak tại `/app/addons/BambooMintKey` mà không cần quyền ghi vào phân vùng rootfs A/B read-only của SteamOS, bảo toàn nguyên vẹn sau mỗi lần cập nhật hệ điều hành của Valve.
 
 ---
 
@@ -26,95 +33,70 @@ Hệ thống kết hợp mô hình Hybrid đa công nghệ:
 
 ```mermaid
 flowchart TB
-    subgraph UserSpace ["Khong Gian Nguoi Dung va He Dieu Hanh"]
-        PhysicalKeyboard["Ban phim vat ly"]
-        Taskbar["Windows Taskbar va Input Indicator<br/>ctfmon.exe / explorer.exe"]
-        TargetApps["Ung dung dich<br/>Word, Chrome, Notepad, VS Code,..."]
-    end
-
-    subgraph WindowsTSF ["He Thong Windows Text Services Framework (TSF)"]
-        MsCtf["msctf.dll (TSF Runtime Core)"]
-        KeystrokeMgr["ITfKeystrokeMgr"]
-        LangBarItemMgr["ITfLangBarItemMgr"]
-        CompartmentMgr["ITfCompartmentMgr (Input Mode)"]
-    end
-
-    subgraph NativeAOTBridge ["BambooMintKey.dll (C# NativeAOT In-Process COM Server)"]
+    subgraph CoreEngine ["Lõi Thuật Toán Dùng Chung (F# Pure Functional)"]
         direction TB
-        ComExports["COM Exports<br/>DllGetClassObject, DllRegisterServer"]
-        TextService["ITfTextInputProcessorEx<br/>(Lifecycle Manager)"]
-        KeyEventSink["ITfKeyEventSink<br/>(Key Interception and Filtering)"]
-        LangBarItem["ITfLangBarItemButton va ITfSource<br/>(Dynamic Taskbar Icon V/E va Menu)"]
-        IconHelper["IconHelper<br/>(GDI+ Direct Rendering va Cache)"]
-        BridgeState["BridgeStateManager<br/>(Active Session State)"]
-    end
-
-    subgraph FSharpCore ["BambooMintKey.Core (F# Pure Functional Engine)"]
-        direction TB
-        Types["Types va Enums"]
         SyllableParser["SyllableParser<br/>(Phan tich phu am, nguyen am, van)"]
-        TransformEngine["TransformEngine<br/>(Telex / VNI / Simple Telex)"]
+        TransformEngine["TransformEngine<br/>(Telex / VNI / Simple Telex / Bo dau tu do)"]
         CharTable["CharTable<br/>(Unicode dung san, to hop, TCVN3)"]
-        MacroEngine["MacroEngine<br/>(Bang go tat)"]
+        MacroEngine["MacroEngine<br/>(Bang go tat sieu toc)"]
+        Dictionary["DictionaryEngine<br/>(Tu dien tieng Viet MIT)"]
     end
 
-    subgraph InterProcessSync ["Dong Bo Lien Tien Trinh (Cross-Process IPC)"]
+    subgraph WindowsPlatform ["Phan He Windows (Text Services Framework)"]
         direction TB
-        SharedMem["Shared Memory: Local/BambooMintKey_SharedConfig_v1<br/>(64-byte Named File Mapping, Universal SDDL)"]
-        SharedEvent["Broadcast Event: Local/BambooMintKey_StateChangedEvent_v1<br/>(Manual-Reset Event)"]
-        DiskConfig["File Cau hinh: config.json<br/>(JSON Schema v2)"]
+        MsCtf["Windows TSF Runtime (msctf.dll)"]
+        NativeBridge["BambooMintKey.dll (C# NativeAOT COM TIP)<br/>ITfTextInputProcessorEx, ITfKeyEventSink, ITfLangBarItemButton"]
+        WinSharedMem["Shared Memory 64-byte<br/>Local/BambooMintKey_SharedConfig_v1"]
+        WinUI["BambooMintKey.UI.exe<br/>(Avalonia F# - Single Instance Mutex)"]
+        WindowsApps["Ung dung Windows<br/>Word, Chrome, Notepad, Games,..."]
+
+        WindowsApps <--> MsCtf
+        MsCtf <--> NativeBridge
+        NativeBridge <--> WinSharedMem
+        WinUI <--> WinSharedMem
     end
 
-    subgraph GUI ["BambooMintKey.UI.exe (Avalonia Desktop)"]
+    subgraph LinuxPlatform ["Phan He Linux Native (Fcitx5 Framework)"]
         direction TB
-        SingleInstance["Single-Instance Check<br/>(Named Mutex va HWND Activation)"]
-        SettingsGUI["Cua so Bang Dieu Khien<br/>4 Tabs Cau Hinh va Sandbox"]
-        ConfigStore["ConfigStore Module"]
+        Fcitx5Core["Fcitx5 Core Daemon"]
+        CoreNativeSo["BambooMintKeyCore.so (C# NativeAOT C-ABI)<br/>Export: bmk_init, bmk_process_key, bmk_free"]
+        Fcitx5Addon["libbamboomintkey.so (C++ Addon)<br/>InputContext, KeyEvent, D-Bus, inotify"]
+        LinuxConfig["File Cau Hinh XDG<br/>~/.config/bamboomintkey/config.json"]
+        LinuxUI["bamboomintkey-ui<br/>(Avalonia F# Linux)"]
+        LinuxApps["Ung dung Linux (GTK / Qt / Wayland / X11)<br/>LibreOffice, Firefox, VS Code, Zed,..."]
+
+        LinuxApps <--> Fcitx5Core
+        Fcitx5Core <--> Fcitx5Addon
+        Fcitx5Addon <--> CoreNativeSo
+        Fcitx5Addon <--> LinuxConfig
+        LinuxUI <--> LinuxConfig
     end
 
-    PhysicalKeyboard --> TargetApps
-    TargetApps --> MsCtf
-    MsCtf --> TargetApps
-    MsCtf --> KeystrokeMgr
-    MsCtf --> LangBarItemMgr
-    MsCtf --> CompartmentMgr
+    subgraph SteamDeckPlatform ["Phan He SteamOS / Steam Deck (Flathub Extension)"]
+        direction TB
+        SteamFcitx5["org.fcitx.Fcitx5 (Flatpak Runtime)"]
+        FlatpakAddon["/app/addons/BambooMintKey<br/>org.fcitx.Fcitx5.Addon.BambooMintKey"]
+        SteamApps["Steam Gaming / Desktop Mode Apps"]
 
-    KeystrokeMgr --> KeyEventSink
-    KeyEventSink --> KeystrokeMgr
-    LangBarItemMgr --> LangBarItem
-    LangBarItem --> LangBarItemMgr
-    CompartmentMgr --> BridgeState
-    BridgeState --> CompartmentMgr
+        SteamApps <--> SteamFcitx5
+        SteamFcitx5 <--> FlatpakAddon
+    end
 
-    KeyEventSink --> BridgeState
-    BridgeState --> FSharpCore
-    FSharpCore --> BridgeState
-    LangBarItem --> IconHelper
-    LangBarItem --> BridgeState
-
-    BridgeState --> SharedMem
-    SharedMem --> BridgeState
-    BridgeState --> SharedEvent
-    SharedEvent -.-> TargetApps
-
-    Taskbar --> LangBarItemMgr
-    LangBarItemMgr --> Taskbar
-    LangBarItem -.-> GUI
-    ConfigStore --> SharedMem
-    SharedMem --> ConfigStore
-    ConfigStore --> DiskConfig
-    DiskConfig --> ConfigStore
-    SettingsGUI --> SingleInstance
+    NativeBridge --> CoreEngine
+    CoreNativeSo --> CoreEngine
+    FlatpakAddon -.-> CoreNativeSo
+    FlatpakAddon -.-> Fcitx5Addon
 ```
 
 ---
 
 ## 3. Chi Tiết Các Phân Hệ (Component Details)
 
-### 3.1. Phân Hệ Lõi: `BambooMintKey.Core` (F#)
-- **Đặc điểm**: Mã nguồn thuần F#, không phụ thuộc vào bất kỳ thư viện bên ngoài hay API nền tảng Windows. Đảm bảo deterministic 100%, dễ viết Unit Test độc lập.
-- **Các thành phần chính**:
-  - `Types.fs`: Định nghĩa các kiểu dữ liệu cốt lõi (`InputMethod`, `Charset`, `ToneStyle`, `TonePosition`, `SyllableComponents`).
+### 3.1. Phân Hệ Lõi Dùng Chung: `BambooMintKey.Core` (F#)
+
+- **Đặc điểm:** Mã nguồn thuần F#, không phụ thuộc vào bất kỳ thư viện bên ngoài hay API nền tảng Windows/Linux. Đảm bảo deterministic 100%, dễ viết Unit Test độc lập.
+- **Các thành phần chính:**
+  - `Types.fs`: Định nghĩa các kiểu dữ liệu cốt lõi (`InputMethod`, `Charset`, `ToneStyle`, `TonePosition`, `SyllableComponents`, `EngineState`).
   - `CharTable.fs`: Bảng mã tra cứu siêu tốc cho Unicode dựng sẵn (NFC), Unicode tổ hợp (NFD), TCVN3 (ABC).
   - `SyllableParser.fs`: Thuật toán bóc tách âm tiết tiếng Việt thành 3 phần: Phụ âm đầu (Initial Consonant), Âm đệm & Âm chính (Medial & Nucleus Vowel), Phụ âm cuối (Final Consonant).
   - `TransformEngine.fs`: Cỗ máy biến đổi âm tiết theo các quy tắc ngữ pháp tiếng Việt:
@@ -122,32 +104,35 @@ flowchart TB
     - Tự động phục hồi từ gốc khi gõ từ tiếng Anh sai ngữ pháp tiếng Việt (`AutoRestoreEnglishWords`).
     - Gõ lặp dấu để khôi phục ký tự thô (`AllowRepeatKeyUndo`: *ss* $\rightarrow$ *s*).
     - Phím `w` đầu từ thành `ư` (`AllowLeadingWAsU`: *w* $\rightarrow$ *ư*).
+    - Bỏ dấu tự do (`AllowFreeTonePlacement`).
   - `MacroEngine.fs`: Khớp chuỗi gõ tắt cực nhanh từ bộ nhớ đệm.
+  - `DictionaryEngine.fs`: Kiểm tra tính hợp lệ của từ tiếng Việt dựa trên tập từ điển mã nguồn mở MIT.
 
-### 3.2. Phân Hệ Cầu Nối: `BambooMintKey.NativeBridge` (C# NativeAOT)
-- **Đặc điểm**: Được biên dịch thành thư viện C native (`BambooMintKey.dll`) qua công nghệ **.NET NativeAOT**, không cần nạp CLR runtime nặng nề, tốc độ khởi tạo tính bằng microsecond.
-- **COM Exports & Interfaces**:
-  - `DllRegisterServer` / `DllUnregisterServer`: Đăng ký CLSID COM Server `{B8A5A29D-68B1-4A59-B41E-D8B383D6F2C1}` và đăng ký TSF Language Profile Tiếng Việt (`0x042A`, GUID `{C2F31A8E-92D0-4F81-9C3E-A52889211D44}`).
+---
+
+### 3.2. Phân Hệ Windows (Windows TSF & COM Server)
+
+#### 3.2.1. Cầu Nối C# NativeAOT: `BambooMintKey.NativeBridge`
+- **Biên dịch:** Đóng gói thành DLL C gốc (`BambooMintKey.dll`) qua **.NET NativeAOT**, không cần nạp CLR runtime nặng nề, tốc độ nạp tính bằng microsecond.
+- **COM Interfaces:**
+  - `DllRegisterServer` / `DllUnregisterServer`: Đăng ký CLSID COM Server `{B8A5A29D-68B1-4A59-B41E-D8B383D6F2C1}` và TSF Language Profile Tiếng Việt (`0x042A`, GUID `{C2F31A8E-92D0-4F81-9C3E-A52889211D44}`).
   - `ITfTextInputProcessorEx`: Quản lý vòng đời khởi động (`ActivateEx`) và tắt (`Deactivate`) TIP khi ứng dụng được kích hoạt/thoát.
   - `ITfKeyEventSink`: Đánh chặn phím cấp thấp:
-    - `OnTestKeyDown`: Kiểm tra xem phím có thuộc diện TIP cần xử lý hay không. Nếu cần, trả về `*pfEaten = 1` để hệ điều hành chuyển phím tiếp sang `OnKeyDown`.
+    - `OnTestKeyDown`: Kiểm tra xem phím có thuộc diện TIP cần xử lý hay không (`*pfEaten = 1`).
     - `OnKeyDown`: Bóc tách phím, chuyển dữ liệu vào F# Core Engine để tổng hợp văn bản tiếng Việt, sau đó chèn vào vị trí con trỏ bằng `ITfInsertAtSelection`.
     - `OnPreservedKey`: Tiếp nhận sự kiện bấm phím tắt chuyển chế độ (Hotkeys).
   - `ITfLangBarItemButton` & `ITfSource`: Nút điều khiển trên Taskbar:
-    - Render icon `V` hoặc `E` động qua GDI+ ([IconHelper.cs](file:///D:/Kojin/BambooMintKey/src/BambooMintKey.NativeBridge/Interop/IconHelper.cs)).
+    - Render icon `V` hoặc `E` động qua GDI+ ([IconHelper.cs](file:///src/BambooMintKey.NativeBridge/Interop/IconHelper.cs)).
     - Xử lý click chuột trái: Đảo trạng thái V/E tức thì.
     - Xử lý click chuột phải: Tạo Win32 Popup Context Menu với phím tắt động.
   - `SettingsLauncher`: Khởi chạy hoặc kích hoạt cửa sổ cài đặt UI đảm bảo Single-Instance.
 
-### 3.3. Phân Hệ Đồng Bộ: `SharedMemoryManager` (Inter-Process Sync)
-- **Vấn đề giải quyết**: Windows TSF chạy TIP phân tán trong từng tiến trình độc lập (mỗi process Notepad, Word, Chrome đều nạp 1 bản sao `BambooMintKey.dll` riêng). Do đó, khi người dùng đổi chế độ từ Taskbar hoặc từ Bảng điều khiển, trạng thái phải được cập nhật sang tất cả các tiến trình ngay lập tức.
-- **Giải pháp**:
-  - Sử dụng **Win32 Named File Mapping** mang tên `Local\BambooMintKey_SharedConfig_v1`.
-  - Thiết lập Universal SDDL `D:(A;;GA;;;WD)(A;;GA;;;AC)S:(ML;;NW;;;LW)` cho phép cả các tiến trình chạy trong Sandbox bảo mật ngặt nghèo (Chromium Renderer Low-Integrity, UWP/AppContainer) đều có quyền đọc/ghi mà không bị Windows Access Denied.
-  - Cập nhật số phiên bản trạng thái `StateSequence` (offset 8) kiểu atomic (`Interlocked.Increment`).
-  - Kích hoạt Win32 Manual-Reset Event `Local\BambooMintKey_StateChangedEvent_v1` để đánh thức tức thì tất cả các tiến trình đang chờ.
+#### 3.2.2. Phân Hệ Đồng Bộ Liên Tiến Trình: `SharedMemoryManager`
+- Sử dụng **Win32 Named File Mapping** mang tên `Local\BambooMintKey_SharedConfig_v1`.
+- Universal SDDL `D:(A;;GA;;;WD)(A;;GA;;;AC)S:(ML;;NW;;;LW)` cho phép cả các tiến trình chạy trong Sandbox bảo mật ngặt nghèo (Chromium Renderer Low-Integrity, UWP/AppContainer) đều có quyền đọc/ghi mà không bị Windows Access Denied.
+- Kích hoạt Win32 Manual-Reset Event `Local\BambooMintKey_StateChangedEvent_v1` để đánh thức tức thì tất cả các tiến trình đang chờ khi có thay đổi cấu hình.
 
-#### Cấu Trúc Vùng Nhớ Dùng Chung (Shared Memory 64-byte Layout):
+##### Cấu Trúc Vùng Nhớ Dùng Chung (Shared Memory 64-byte Layout):
 | Offset | Kích thước | Kiểu dữ liệu | Tên trường | Ý nghĩa |
 |:------:|:----------:|:------------:|:-----------|:--------|
 | `0` | 1 byte | `byte` | `IsVietnameseMode` | `1`: Chế độ Tiếng Việt (`V`), `0`: Tiếng Anh (`E`) |
@@ -163,40 +148,76 @@ flowchart TB
 | `16` | 4 bytes | `uint32` | `HotkeyModifiers`  | TSF Modifiers của phím tắt (VD: `0x0202`, `0x0001`,...) |
 | `20..63` | 44 bytes| `byte[]` | *Reserved*         | Dành cho mở rộng trong tương lai |
 
-### 3.4. Phân Hệ Giao Diện: `BambooMintKey.UI` (Avalonia F#)
-- **Công nghệ**: Avalonia 12 Fluent Design, chạy cross-thread an toàn.
-- **Tính năng**:
-  - Cài đặt kiểu gõ, bảng mã, phím tắt linh hoạt (bấm để gán phím trực tiếp).
-  - Gõ thử nghiệm (Sandbox) trực tiếp ngay trên cửa sổ cấu hình.
-  - Tùy chọn khởi động cùng Windows (ghi Registry `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`).
-  - Cơ chế **Single-Instance 2 lớp**:
-    - Sử dụng `System.Threading.Mutex` (`Local\BambooMintKey_UI_SingleInstance_Mutex`).
-    - Nếu đã có instance đang chạy, tìm `HWND` và gọi Win32 API `ShowWindow(hWnd, SW_RESTORE)` kèm `SetForegroundWindow(hWnd)` để kéo cửa sổ cũ lên trước màn hình, instance mới lập tức kết thúc.
+#### 3.2.3. Giao Diện Người Dùng: `BambooMintKey.UI` (Avalonia F#)
+- Giao diện Fluent Design hiện đại, bảo vệ **Single-Instance 2 lớp**:
+  - Lớp 1: Named Mutex (`Local\BambooMintKey_UI_SingleInstance_Mutex`).
+  - Lớp 2: Tìm HWND và gọi Win32 API `ShowWindow(hWnd, SW_RESTORE)` kèm `SetForegroundWindow(hWnd)`.
+
+---
+
+### 3.3. Phân Hệ Linux Native (Fcitx5 & C-ABI)
+
+#### 3.3.1. C-ABI NativeAOT Library: `BambooMintKey.Core.Native`
+- Đóng gói lõi F# thành `BambooMintKeyCore.so` xuất khẩu các hàm C-ABI thuần (`bmk_*`):
+  - `bmk_init()`: Khởi tạo engine instance.
+  - `bmk_process_key(instance, keycode, modifiers, out_result)`: Xử lý phím gõ và trả về kết quả biến đổi (preedit string, commit string, backspace count).
+  - `bmk_free(instance)`: Giải phóng tài nguyên engine.
+  - `bmk_set_config(instance, config_json)`: Cập nhật cấu hình engine theo định dạng JSON.
+- **Tính độc lập & Portable:**
+  - Biên dịch NativeAOT chỉ liên kết với `libc.so.6` và `libm.so.6`.
+  - Được gán `-Wl,-soname,BambooMintKeyCore.so` để tránh bị hardcode đường dẫn tuyệt đối khi liên kết với addon C++.
+
+#### 3.3.2. Addon C++ Fcitx5: `BambooMintKey.Fcitx5`
+- Thư viện `libbamboomintkey.so` nạp `BambooMintKeyCore.so` qua cơ chế `$ORIGIN` rpath.
+- **Các thành phần xử lý:**
+  - `InputMethodEngine`: Đăng ký input method với Fcitx5 core, quản lý `InputContext`.
+  - `KeyEvent Filter`: Bắt các sự kiện phím, chuyển vào C-ABI `bmk_process_key`. Khi engine trả về chuỗi biến đổi, addon gửi `commitString` hoặc cập nhật `preedit` trên màn hình.
+  - `Hotkey Manager`: Bắt phím tắt nhanh (mặc định `` ` `` grave bên dưới Esc) để chuyển đổi V/E tức thì mà không cần qua menu phức tạp.
+  - `D-Bus Service`: Đăng ký service `org.fcitx.Fcitx5.BambooMintKey` trên Session Bus, phát signal `ModeChanged(bool is_vietnamese)` cho toàn hệ thống khi đổi chế độ.
+  - `Config Reloader (inotify)`: Theo dõi file cấu hình XDG `~/.config/bamboomintkey/config.json`, tự động nạp lại cài đặt khi người dùng lưu từ Settings GUI mà không cần khởi động lại Fcitx5 daemon.
+
+#### 3.3.3. Giao Diện Cài Đặt Linux: `BambooMintKey.UI.Linux` (Avalonia F#)
+- Ứng dụng Avalonia 12 Desktop độc lập cho Linux.
+- Đọc/ghi cấu hình trực tiếp vào chuẩn XDG `~/.config/bamboomintkey/config.json`.
+- Cung cấp launcher script `bamboomintkey-ui` trên PATH và file `.desktop` tích hợp vào menu ứng dụng cũng như menu chuột phải của Fcitx5 tray.
+
+---
+
+### 3.4. Phân Hệ SteamOS / Steam Deck (Flathub Extension)
+
+SteamOS sử dụng mô hình hệ điều hành bất biến (immutable root filesystem với cơ chế A/B updates qua `steamos-readonly`). Mọi thay đổi ghi trực tiếp vào `/usr` sẽ bị ghi đè sau mỗi lần cập nhật hệ điều hành.
+
+BambooMintKey giải quyết vấn đề này triệt để bằng mô hình **Flathub Addon Extension độc lập**:
+- **Extension ID:** `org.fcitx.Fcitx5.Addon.BambooMintKey`
+- **Mục tiêu mở rộng (Extension Point):** `org.fcitx.Fcitx5` (bộ gõ Fcitx5 Flatpak chính thức của Flathub)
+- **Điểm gắn kết (Mount Point):** `/app/addons/BambooMintKey`
+- **Cơ chế nạp:** Wrapper script `/app/bin/fcitx5` của container Fcitx5 Flatpak tự động quét thư mục `/app/addons/*` và thiết lập các biến môi trường:
+  - `FCITX_ADDON_DIRS`: Khám phá metadata addon `bamboomintkey.conf`.
+  - `XDG_DATA_DIRS`: Khám phá input method metadata và icon SVG.
+  - `LD_LIBRARY_PATH`: Nạp thư viện `libbamboomintkey.so` và `BambooMintKeyCore.so`.
+- **Độc lập mã nguồn:** Toàn bộ cấu hình đóng gói Flatpak nằm tách biệt trong `manifests/flatpak/` và `scripts/linux/package_flatpak.sh`, tuyệt đối không can thiệp hay làm ảnh hưởng tới mã nguồn build native của Windows hay Linux.
 
 ---
 
 ## 4. Sơ Đồ Các Luồng Xử Lý Chính (Core Sequence Diagrams)
 
-### 4.1. Luồng Xử Lý Gõ Phím (Key Interception and Typing Pipeline)
+### 4.1. Luồng Xử Lý Phím trên Windows TSF
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor User as Nguoi dung
-    participant App as Ung dung dich
+    participant App as Ung dung dich (Chrome, Word)
     participant TSF as Windows TSF (msctf.dll)
     participant Sink as KeyEventSinkImpl
     participant Core as TransformEngine (F#)
     participant Target as Document Context
 
     User->>App: Bam phim ky tu (VD: s)
-    App->>TSF: Gui thong diep ban phim (WM_KEYDOWN)
+    App->>TSF: WM_KEYDOWN
     TSF->>Sink: OnTestKeyDown(wParam = 'S')
     
-    alt Khong o che do go Tieng Viet
-        Sink-->>TSF: pfEaten = 0 (Bo qua, de he thong xu ly)
-        TSF-->>App: Xu ly phim binh thuong
-    else Dang bat Tieng Viet (IsVietnameseMode = true)
+    alt Dang bat Tieng Viet (IsVietnameseMode = true)
         Sink-->>TSF: pfEaten = 1 (Danh dau nuot phim)
         TSF->>Sink: OnKeyDown(wParam = 'S')
         Sink->>Core: ProcessKey(currentBuffer, key = 's')
@@ -204,69 +225,70 @@ sequenceDiagram
         Sink->>Target: Tao Composition va ghi van ban (ITfRange)
         Target-->>App: Hien thi ky tu tieng Viet
         Sink-->>TSF: pfEaten = 1 (Hoan tat)
+    else Khong o che do Tieng Viet
+        Sink-->>TSF: pfEaten = 0 (Bo qua, de he thong xu ly)
+        TSF-->>App: Xu ly phim ky tu tho
     end
 ```
 
-### 4.2. Luồng Chuyển Đổi Chế Độ V/E và Đồng Bộ Đa Tiến Trình (State Synchronization Flow)
+### 4.2. Luồng Xử Lý Phím trên Linux Fcitx5
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor User as Nguoi dung
-    participant Taskbar as Taskbar Icon / Hotkey
-    participant LangBar as LangBarItemButton
-    participant SharedMem as SharedMemoryManager
-    participant EventMgr as Win32 Event Broadcast
-    participant ActiveApps as Cac ung dung dang mo
+    participant App as Ung dung Linux (GTK/Qt/Zed)
+    participant Fcitx as Fcitx5 Daemon
+    participant Addon as libbamboomintkey.so (C++)
+    participant CABI as BambooMintKeyCore.so (C-ABI)
+    participant Core as TransformEngine (F#)
 
-    User->>Taskbar: Click chuot trai hoac bam phim tat (Ctrl+Shift)
-    Taskbar->>LangBar: OnClick() / OnPreservedKey()
-    LangBar->>SharedMem: ToggleVietnameseMode() (Ghi byte 0 va tang StateSequence)
-    LangBar->>LangBar: NotifyStateChanged() (Ve lai Icon V hoac E)
-    LangBar->>EventMgr: SetEvent() (Phat song toan he thong)
-    LangBar->>Taskbar: SetConversionMode() (Dong bo Compartment)
-    EventMgr-->>ActiveApps: Danh thuc tien trinh (Event Triggered)
-    ActiveApps->>SharedMem: Doc trang thai moi tu byte 0
-    ActiveApps->>ActiveApps: Cap nhat Engine go tuc thi
+    User->>App: Bam phim ky tu (VD: w)
+    App->>Fcitx: Fcitx5 KeyEvent
+    Fcitx->>Addon: keyEvent(KeyEvent &key)
+
+    alt Bam phim tat chuyen V/E (phim `)
+        Addon->>Addon: Toggle Vietnamese Mode
+        Addon->>Fcitx: Update Status Icon V/E
+        Addon-->>Fcitx: return true (Filter phím tắt)
+    else Dang o che do Tieng Viet
+        Addon->>CABI: bmk_process_key(engine, keyChar, modifiers, &result)
+        CABI->>Core: ProcessKey(state, key)
+        Core-->>CABI: Ket qua bien doi (commit / preedit)
+        CABI-->>Addon: bmk_result_t
+        Addon->>Fcitx: ic->commitString(result.commit)
+        Addon-->>Fcitx: return true (Phím da duoc xu ly)
+    else Che do Tieng Anh
+        Addon-->>Fcitx: return false (De nguyen phim cho app)
+    end
 ```
 
-### 4.3. Luồng Bảo Vệ Single-Instance Khi Khởi Chạy Bảng Điều Khiển (Single-Instance Lifecycle)
+### 4.3. Luồng Đồng Bộ Trạng Thái V/E và Cấu Hình
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    actor User as Nguoi dung
-    participant Trigger as Taskbar Menu / Shortcut
-    participant Launcher as SettingsLauncher
-    participant Process2 as BambooMintKey.UI (Moi)
-    participant Mutex as Named Mutex System
-    participant Process1 as BambooMintKey.UI (Cu)
+flowchart LR
+    subgraph WindowsSync ["Dong Bo Tren Windows"]
+        WinUser["User click Taskbar / Hotkey"] --> WinLangBar["LangBarItemButton"]
+        WinLangBar --> WinMap["Shared Memory 64-byte"]
+        WinLangBar --> WinEvt["SetEvent(StateChangedEvent)"]
+        WinEvt -.-> WinProcesses["Cac tien trinh App (Notepad, Word, Browser)"]
+        WinProcesses --> WinMap
+    end
 
-    User->>Trigger: Mo Bang dieu khien va Cai dat
-    Trigger->>Launcher: LaunchSettingsGui()
-    
-    alt Lop 1: Launcher kiem tra danh sach tien trinh
-        Launcher->>Launcher: GetProcessesByName('BambooMintKey.UI')
-        opt Tien trinh cu da chay va co HWND
-            Launcher->>Process1: ShowWindow(hWnd, SW_RESTORE)
-            Launcher->>Process1: SetForegroundWindow(hWnd)
-            Launcher-->>User: Cua so cu duoc dua len truoc man hinh
-        end
-    else Lop 2: Khoi chay truc tiep file .exe
-        Launcher->>Process2: Process.Start('BambooMintKey.UI.exe')
-        Process2->>Mutex: Kiem tra Named Mutex
-        alt Mutex da ton tai (createdNew = false)
-            Process2->>Process1: Tim HWND va SetForegroundWindow
-            Process2->>Process2: Thoat ngay lap tuc (exit 0)
-        else Mutex chua ton tai (createdNew = true)
-            Process2->>Process2: Khoi tao Avalonia App va mo MainWindow
-        end
+    subgraph LinuxSync ["Dong Bo Tren Linux"]
+        LinUser["User toggle hotkey ` / Settings GUI"] --> LinAddon["Fcitx5 Addon"]
+        LinAddon --> LinDBus["D-Bus Signal: ModeChanged"]
+        LinDBus -.-> LinDesktop["System Tray / Desktop Indicators"]
+        LinSettings["Avalonia Settings GUI"] --> LinFile["~/.config/bamboomintkey/config.json"]
+        LinFile -. inotify .-> LinAddon
     end
 ```
 
 ---
 
-## 5. Đặc Tả Tích Hợp Hệ Thống Windows TSF (Windows Integration Spec)
+## 5. Đặc Tả Tích Hợp Hệ Thống (Integration Specifications)
+
+### 5.1. Đặc Tả Windows TSF
 
 | Thành phần | Định danh / Giá trị | Ý nghĩa |
 |:-----------|:--------------------|:--------|
@@ -275,22 +297,78 @@ sequenceDiagram
 | **Language ID (LCID)** | `0x042A` (`vi-VN`) | Mã ngôn ngữ Tiếng Việt chuẩn của Microsoft Windows |
 | **Language Bar Item GUID** | `{5A70B60B-A57E-4C23-8BBE-9A2E12F6B8E1}` | Định danh nút bấm icon `V`/`E` trên Language Bar |
 | **Preserved Key GUID** | `{F618B0DE-E6E4-427E-B8E3-E5F6BD660E04}` | Định danh phím tắt chuyển đổi chế độ gõ hệ thống |
-| **Registry COM Server** | `HKLM\SOFTWARE\Classes\CLSID\{B8A5A29D-...}` | Đăng ký đường dẫn file `BambooMintKey.dll` |
-| **Registry TSF TIP** | `HKLM\SOFTWARE\Microsoft\CTF\TIP\{B8A5A29D-...}` | Đăng ký TIP vào hệ thống TSF của máy tính |
-| **Registry User Profile** | `HKCU\SOFTWARE\Microsoft\CTF\TIP\{B8A5A29D-...}` | Kích hoạt bộ gõ cho tài khoản người dùng hiện tại |
-| **Registry SortOrder** | `HKCU\Software\Microsoft\CTF\SortOrder\...` | Đưa BambooMintKey vào danh sách chuyển đổi `Win + Space` |
+| **Shared Memory Name** | `Local\BambooMintKey_SharedConfig_v1` | Tên vùng nhớ chia sẻ liên tiến trình |
+| **Broadcast Event Name** | `Local\BambooMintKey_StateChangedEvent_v1` | Tên sự kiện broadcast đồng bộ cấu hình |
+
+### 5.2. Đặc Tả Linux Fcitx5
+
+| Thành phần | Định danh / Giá trị | Ý nghĩa |
+|:-----------|:--------------------|:--------|
+| **Addon Name** | `bamboomintkey` | Tên định danh Fcitx5 Addon |
+| **Input Method Name** | `bamboomintkey` (`LangCode=vi`) | Bộ gõ hiển thị trong fcitx5-configtool |
+| **D-Bus Service** | `org.fcitx.Fcitx5.BambooMintKey` | Tên dịch vụ D-Bus trên Session Bus |
+| **D-Bus Path** | `/org/fcitx/Fcitx5/BambooMintKey` | Đường dẫn Object D-Bus |
+| **D-Bus Interface** | `org.fcitx.Fcitx5.BambooMintKey1` | Interface quản lý và đồng bộ trạng thái V/E |
+| **Config File** | `~/.config/bamboomintkey/config.json` | Tệp cấu hình chuẩn XDG |
+| **Launcher Command** | `bamboomintkey-ui` | Lệnh khởi chạy giao diện cài đặt Avalonia |
+
+### 5.3. Đặc Tả SteamOS Flathub Flatpak Extension
+
+| Thành phần | Định danh / Giá trị | Ý nghĩa |
+|:-----------|:--------------------|:--------|
+| **Flatpak ID** | `org.fcitx.Fcitx5.Addon.BambooMintKey` | Định danh extension trên Flathub |
+| **Base App** | `org.fcitx.Fcitx5` | Ứng dụng Fcitx5 chính thức của Flathub |
+| **Extension Point** | `org.fcitx.Fcitx5.Addon` | Điểm mở rộng của Fcitx5 Flatpak |
+| **Extension Mount Point** | `/app/addons/BambooMintKey` | Thư mục gắn kết extension trong sandbox |
+| **Runtime Version** | `org.kde.Platform // 6.8` | Runtime SDK dùng để build extension |
 
 ---
 
-## 6. Lộ Trình Sẵn Sàng Công Bố (Release & Public Readiness)
+## 6. Cấu Trúc Script Tự Động Hóa & Đóng Gói (`scripts/`)
 
-Hệ thống hiện tại đã hoàn tất toàn bộ các phân hệ cốt lõi:
-1. ✅ **Core Engine**: F# Telex / VNI / Simple Telex, xử lý âm tiết tiếng Việt chính xác cao, 119/119 unit tests passing.
-2. ✅ **TSF Native Bridge**: NativeAOT x64, đăng ký COM in-process mượt mà, Taskbar Icon GDI+ động, Context menu nhãn động theo phím tắt.
-3. ✅ **Cross-Process Sync**: Shared Memory + Event broadcast, tương thích mọi loại sandbox của Windows.
-4. ✅ **Settings GUI**: Avalonia 12 hiện đại, bảo vệ Single-Instance tuyệt đối.
+Hệ thống script được phân loại rành mạch theo 4 nhóm chuyên trách:
 
-**Các công đoạn tiếp theo trước khi phát hành (Public Release):**
-- **Đóng gói bộ cài đặt (Installer)**: Sử dụng Inno Setup hoặc WiX Toolset để đóng gói `BambooMintKey.dll`, `BambooMintKey.UI.exe` và các dependency thành 1 file `Setup.exe` duy nhất có chức năng tự động `regsvr32` và `enable-tip`.
-- **Ký số mã nguồn (Code Signing)**: Ký số file DLL và EXE bằng chứng chỉ số (Authenticode Certificate) để tránh cảnh báo Windows SmartScreen.
-- **Tài liệu hướng dẫn người dùng cuối (User Guide)**: Ảnh chụp màn hình và hướng dẫn sử dụng nhanh trên GitHub Release.
+```
+scripts/
+├── windows/                    # Tự động hóa nền tảng Windows
+│   ├── build-native.ps1        # Publish NativeAOT DLL BambooMintKey.dll
+│   ├── test-register.ps1       # Đăng ký COM Server & TSF Profile (Admin)
+│   ├── enable-tip.ps1          # Kích hoạt TIP cho người dùng hiện tại
+│   ├── unregister-tip.ps1      # Hủy đăng ký TIP sạch sẽ
+│   ├── build-installer.ps1     # Đóng gói Inno Setup thành BambooMintKey-Setup.exe
+│   └── update-winget-manifest.ps1 # Cập nhật hash và version cho WinGet manifest
+├── linux/                      # Tự động hóa nền tảng Linux & Flatpak
+│   ├── install_linux.sh        # Build và cài đặt toàn bộ addon + core + UI vào /usr
+│   ├── uninstall_linux.sh      # Gỡ sạch toàn bộ cài đặt khỏi hệ thống
+│   ├── install-ui-linux.sh     # Cài đặt riêng giao diện Avalonia Settings
+│   ├── package_linux.sh        # Đóng gói DEB, RPM, tarball vào delivery/linux/
+│   ├── package_flatpak.sh      # Đóng gói Flatpak extension vào delivery/flatpak/
+│   └── bamboomintkey.spec      # File Spec RPM cho Fedora / RHEL
+├── tools/                      # Công cụ tạo asset & dữ liệu
+│   ├── generate_mit_dict.py    # Tự sinh tập từ điển tiếng Việt MIT
+│   ├── fetch_vi_wikipedia.py   # Thu thập dữ liệu corpus từ Wikipedia tiếng Việt
+│   ├── generate-icon.py        # Tạo bộ icon đa kích thước (.ico, .svg)
+│   └── add-license-headers.ps1 # Tự động chèn header MIT vào source code
+└── tests/                      # Kiểm thử tự động
+    └── test-cabi.py            # Kiểm thử C-ABI 9 kịch bản với BambooMintKeyCore.so
+```
+
+---
+
+## 7. Lộ Trình & Trạng Thái Hoàn Thiện
+
+| Phân hệ | Thành phần | Trạng thái | Ghi chú |
+|---|---|:---:|---|
+| **Core** | Thuật toán Telex, phân tích âm tiết, bảng mã Unicode | ✅ Hoàn tất | 119/119 Unit Tests pass |
+| | Tập từ điển tiếng Việt MIT (`dict_vi.txt`) | ✅ Hoàn tất | Cấp phép CC0/MIT, độc lập bản quyền |
+| **Windows** | COM Server NativeAOT TSF (`BambooMintKey.dll`) | ✅ Hoàn tất | In-process, không dùng hook |
+| | Taskbar Icon V/E động & Context Menu | ✅ Hoàn tất | GDI+ dynamic render, đồng bộ TSF Compartment |
+| | Shared Memory & Inter-process Event | ✅ Hoàn tất | Low-Integrity / Sandbox-safe SDDL |
+| | Avalonia Settings GUI (`BambooMintKey.UI.exe`) | ✅ Hoàn tất | Single-Instance Mutex 2 lớp |
+| | Bộ cài đặt Inno Setup & WinGet Package | ✅ Hoàn tất | Xuất bản Microsoft Store & GitHub Releases |
+| **Linux Native** | C-ABI NativeAOT (`BambooMintKeyCore.so`) | ✅ Hoàn tất | Portable SONAME, $ORIGIN rpath |
+| | C++ Fcitx5 Addon (`libbamboomintkey.so`) | ✅ Hoàn tất | Preedit, Commit, Hotkey `` ` ``, D-Bus, inotify |
+| | Giao diện cài đặt Linux (`BambooMintKey.UI.Linux`) | ✅ Hoàn tất | Avalonia F# 6 tab, XDG config |
+| | Gói đóng gói DEB, RPM, Tarball | ✅ Hoàn tất | Script `scripts/linux/package_linux.sh` |
+| **SteamOS Flatpak**| Manifest Flatpak Flathub Extension | ✅ Hoàn tất | `manifests/flatpak/` độc lập |
+| | Script đóng gói Flatpak Bundle | ✅ Hoàn tất | `scripts/linux/package_flatpak.sh` |
