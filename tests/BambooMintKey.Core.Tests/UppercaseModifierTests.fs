@@ -150,6 +150,12 @@ module UppercaseModifierTests =
     [<InlineData("wf", "ừ")>]         // w + huyền -> ừ
     [<InlineData("W", "Ư")>]          // W hoa -> Ư
     [<InlineData("Wa", "Ưa")>]        // W hoa + a -> Ưa
+    [<InlineData("Wng", "Ưng")>]      // W + ng -> Ưng
+    [<InlineData("Wowng", "Ương")>]   // W + o + w + ng -> Ương (ưo -> ươ)
+    [<InlineData("wowng", "ương")>]   // w + o + w + ng -> ương
+    [<InlineData("wongw", "ương")>]   // w + o + ng + w -> ương (w tự do sau phụ âm cuối)
+    [<InlineData("Ww", "Uw")>]        // W -> ư, lặp w hủy -> Uw (trả về u)
+    [<InlineData("wiw", "uiw")>]      // w + i + w -> ui + w (hủy horn trả về u)
     let ``8. Leading w maps to horn vowel ư when AllowLeadingWAsU is on`` (input: string, expected: string) =
         let config = { EngineConfig.Default with AllowLeadingWAsU = true }
         let result = typeWord input config

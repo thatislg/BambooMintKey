@@ -68,6 +68,13 @@ module TelexEngine =
             |> List.tryLast
             |> Option.exists (fun k -> Char.ToLowerInvariant k = lowerChar)
 
+        // Phím 'w' đứng đầu từ (AllowLeadingWAsU): 'w' đầu -> 'ư' = 'u' + horn.
+        // Khi hủy (gõ 'w' lần nữa) phải trả về 'u' thay vì chỉ bỏ phím 'w'.
+        let isLeadingW =
+            config.AllowLeadingWAsU &&
+            (not state.RawKeys.IsEmpty) &&
+            Char.ToLowerInvariant state.RawKeys.Head = 'w'
+
 
         // 1. Kiểm tra lặp phím dấu thanh (Undo Tone: má + s -> mass, dà + f -> daff)
         let isUndoTone =
@@ -113,7 +120,15 @@ module TelexEngine =
 
         elif isUndoModifier then
             // Lặp phím modifier -> hủy biến đổi. Ưu tiên hoàn dấu trước: lặp liền kề luôn rút về 1 ký tự thô (ddd -> dd).
-            let resultKeys = if isConsecutiveRepeat then state.RawKeys else newRaw
+            // Ngoại lệ phím 'w' đứng đầu: 'ư' được sinh từ 'w' (u + horn) nên hủy phải trả về 'u' + 'w'
+            // (Ww -> Uw, wiw -> uiw) thay vì chỉ rút về 'w' như lặp liền kề thông thường.
+            let resultKeys =
+                if lowerChar = 'w' && isLeadingW then
+                    let baseU = if Char.IsUpper state.RawKeys.Head then 'U' else 'u'
+                    let newW = if Char.IsUpper c then 'W' else 'w'
+                    baseU :: (state.RawKeys.Tail @ [ newW ])
+                elif isConsecutiveRepeat then state.RawKeys
+                else newRaw
             let resultString = String(Array.ofList resultKeys)
             let formatted = WordBuffer.applyCase detectedCase resultString
             let newState = {

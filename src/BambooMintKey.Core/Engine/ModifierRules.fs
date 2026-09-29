@@ -85,11 +85,17 @@ module ModifierRules =
             else
                 // Trường hợp 2: Âm tiết đã có nguyên âm (VD: 'ư' sau khi gõ 'Uw', 'ơ' sau 'Ow')
                 // Thử ghép nguyên âm mới vào cụm nguyên âm theo bảng ngữ âm học
-                let candidateCluster = currentVowel.ToLowerInvariant() + string lowerChar
-                if isValidVowelCluster candidateCluster then
-                    Some { syllable with VowelNucleus = candidateCluster }
+                let currentLower = currentVowel.ToLowerInvariant()
+                // Hòa hợp móc (horn harmonization): ư + o -> ươ (cả hai cùng mang móc),
+                // khớp với resolveInlineModifiers ("ưo" -> "ươ") và "uow" -> "ươ".
+                if currentLower = "ư" && lowerChar = 'o' then
+                    Some { syllable with VowelNucleus = "ươ" }
                 else
-                    None
+                    let candidateCluster = currentLower + string lowerChar
+                    if isValidVowelCluster candidateCluster then
+                        Some { syllable with VowelNucleus = candidateCluster }
+                    else
+                        None
 
     let applyModifier (c: char) (syllable: Syllable) : Syllable option =
         let lower = Char.ToLowerInvariant c
@@ -146,6 +152,9 @@ module ModifierRules =
                     transformVowel 'o' Modifier.Horn
                 | 'w' when vowels.Contains "u" && not (vowels.Contains "ư") ->
                     transformVowel 'u' Modifier.Horn
+                | 'w' when vowels = "ươ" ->
+                    // Đã đủ móc (ư + ơ): phím w thừa -> giữ nguyên (no-op)
+                    Some vowels
                 | _ -> None
 
             match newNucleusOpt with
