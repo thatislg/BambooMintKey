@@ -400,9 +400,6 @@ public static unsafe class LangBarItemButton
         }
 
         // 3. Tùy chọn ngữ pháp thông minh
-        uint autoRestoreFlag = SharedMemoryManager.AutoRestoreEnglishWords ? TsfMenuFlags.TfLbMenuFlagChecked : 0;
-        AddMenuItemText(menuVTable, pMenu, MenuCommands.ToggleAutoRestoreEnglish, autoRestoreFlag, "Tự động khôi phục từ tiếng Anh");
-
         uint repeatUndoFlag = SharedMemoryManager.AllowRepeatKeyUndo ? TsfMenuFlags.TfLbMenuFlagChecked : 0;
         AddMenuItemText(menuVTable, pMenu, MenuCommands.ToggleRepeatKeyUndo, repeatUndoFlag, "Gõ lặp dấu để khôi phục (ss -> s)");
 
@@ -412,11 +409,8 @@ public static unsafe class LangBarItemButton
         uint freeToneFlag = SharedMemoryManager.AllowFreeTonePlacement ? TsfMenuFlags.TfLbMenuFlagChecked : 0;
         AddMenuItemText(menuVTable, pMenu, MenuCommands.ToggleFreeTonePlacement, freeToneFlag, "Cho phép bỏ dấu tự do");
 
-        uint enableDictFlag = SharedMemoryManager.EnableVietnameseDictionary ? TsfMenuFlags.TfLbMenuFlagChecked : 0;
-        AddMenuItemText(menuVTable, pMenu, MenuCommands.ToggleEnableDictionary, enableDictFlag, "Thẩm định qua từ điển");
-
         uint enableBacktrackFlag = SharedMemoryManager.EnableEnglishBacktracking ? TsfMenuFlags.TfLbMenuFlagChecked : 0;
-        AddMenuItemText(menuVTable, pMenu, MenuCommands.ToggleEnableBacktracking, enableBacktrackFlag, "Tự động hoàn tác tiếng Anh");
+        AddMenuItemText(menuVTable, pMenu, MenuCommands.ToggleEnableBacktracking, enableBacktrackFlag, "Tự động nhận diện từ tiếng Anh (20.000 từ)");
 
         AddMenuSeparator(menuVTable, pMenu);
 
@@ -524,9 +518,6 @@ public static unsafe class LangBarItemButton
             AppendMenuW(hMenu, mfPopup, (nuint)hSubTone, "Kiểu đặt dấu thanh");
 
             // 3. Tùy chọn ngữ pháp thông minh
-            uint autoRestore = SharedMemoryManager.AutoRestoreEnglishWords ? mfChecked : 0;
-            AppendMenuW(hMenu, mfString | autoRestore, MenuCommands.ToggleAutoRestoreEnglish, "Tự động khôi phục từ tiếng Anh");
-
             uint repeatUndo = SharedMemoryManager.AllowRepeatKeyUndo ? mfChecked : 0;
             AppendMenuW(hMenu, mfString | repeatUndo, MenuCommands.ToggleRepeatKeyUndo, "Gõ lặp dấu để khôi phục (ss -> s)");
 
@@ -536,11 +527,8 @@ public static unsafe class LangBarItemButton
             uint freeTone = SharedMemoryManager.AllowFreeTonePlacement ? mfChecked : 0;
             AppendMenuW(hMenu, mfString | freeTone, MenuCommands.ToggleFreeTonePlacement, "Cho phép bỏ dấu tự do");
 
-            uint enableDict = SharedMemoryManager.EnableVietnameseDictionary ? mfChecked : 0;
-            AppendMenuW(hMenu, mfString | enableDict, MenuCommands.ToggleEnableDictionary, "Thẩm định qua từ điển");
-
             uint enableBacktrack = SharedMemoryManager.EnableEnglishBacktracking ? mfChecked : 0;
-            AppendMenuW(hMenu, mfString | enableBacktrack, MenuCommands.ToggleEnableBacktracking, "Tự động hoàn tác tiếng Anh");
+            AppendMenuW(hMenu, mfString | enableBacktrack, MenuCommands.ToggleEnableBacktracking, "Tự động nhận diện từ tiếng Anh (20.000 từ)");
 
             AppendMenuW(hMenu, mfSeparator, 0, string.Empty);
 
@@ -602,10 +590,6 @@ public static unsafe class LangBarItemButton
                 SharedMemoryManager.ToneStyle = 1; // 1 = Classic
                 break;
 
-            case MenuCommands.ToggleAutoRestoreEnglish:
-                SharedMemoryManager.AutoRestoreEnglishWords = !SharedMemoryManager.AutoRestoreEnglishWords;
-                break;
-
             case MenuCommands.ToggleRepeatKeyUndo:
                 SharedMemoryManager.AllowRepeatKeyUndo = !SharedMemoryManager.AllowRepeatKeyUndo;
                 break;
@@ -616,10 +600,6 @@ public static unsafe class LangBarItemButton
 
             case MenuCommands.ToggleFreeTonePlacement:
                 SharedMemoryManager.AllowFreeTonePlacement = !SharedMemoryManager.AllowFreeTonePlacement;
-                break;
-
-            case MenuCommands.ToggleEnableDictionary:
-                SharedMemoryManager.EnableVietnameseDictionary = !SharedMemoryManager.EnableVietnameseDictionary;
                 break;
 
             case MenuCommands.ToggleEnableBacktracking:

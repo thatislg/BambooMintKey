@@ -25,6 +25,8 @@ module OnTheFlyBacktrackingTests =
     // =========================================================================
 
     [<Theory>]
+    [<InlineData("post", "pót")>]     // post là English nhưng "pót" hợp lệ -> giữ Việt
+    [<InlineData("turn", "tủn")>]     // turn là English nhưng "tủn" hợp lệ -> giữ Việt
     [<InlineData("has", "há")>]       // "has" là English nhưng "há" hợp lệ -> giữ Việt
     [<InlineData("cos", "có")>]       // có
     [<InlineData("cor", "cỏ")>]       // cỏ
@@ -40,11 +42,9 @@ module OnTheFlyBacktrackingTests =
     // =========================================================================
 
     [<Theory>]
-    [<InlineData("post", "post")>]     // đuôi -st
     [<InlineData("form", "form")>]     // đuôi -rm
     [<InlineData("core", "core")>]     // đuôi -re
     [<InlineData("start", "start")>]   // đuôi -rt
-    [<InlineData("turn", "turn")>]     // đuôi -rn (qua hardcode, vì "rn" bị loại khỏi cluster)
     [<InlineData("learn", "learn")>]   // đuôi -rn (hardcode)
     [<InlineData("term", "term")>]     // đuôi -rm (qua hardcode, vì "rm" bị loại khỏi cluster)
     let ``M4.3 - từ tiếng Anh được hoàn tác đúng`` (input: string, expected: string) =

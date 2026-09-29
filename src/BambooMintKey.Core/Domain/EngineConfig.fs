@@ -9,8 +9,6 @@ open BambooMintKey.Core.Domain.Types
 type EngineConfig = {
     // Bật/tắt chế độ gõ tiếng Việt (True: V, False: E)
     IsEnabled: bool
-    // Tự động phục hồi từ gốc khi gõ từ sai ngữ pháp tiếng Việt (Fallback tiếng Anh)
-    AutoRestoreEnglishWords: bool
     // Cho phép gõ lặp dấu để khôi phục ký tự thô (ví dụ: 'ss' -> 's', 'aa' -> 'a')
     AllowRepeatKeyUndo: bool
     // Cho phép phím 'w' đứng đầu từ biến thành 'ư' (True: w -> ư, False: w -> w)
@@ -28,7 +26,6 @@ with
     // Cấu hình mặc định của BambooMintKey
     static member Default = {
         IsEnabled = true
-        AutoRestoreEnglishWords = true
         AllowRepeatKeyUndo = true
         AllowLeadingWAsU = true
         ToneStyle = TonePlacementStyle.Modern

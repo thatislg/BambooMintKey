@@ -30,7 +30,6 @@ public static class BridgeStateManager
         get
         {
             bool isVn = IsVietnameseMode;
-            bool autoRestore = SharedMemoryManager.AutoRestoreEnglishWords;
             bool repeatUndo = SharedMemoryManager.AllowRepeatKeyUndo;
             bool leadingW = SharedMemoryManager.AllowLeadingWAsU;
             byte toneStyleByte = SharedMemoryManager.ToneStyle;
@@ -40,7 +39,6 @@ public static class BridgeStateManager
             var toneStyle = (toneStyleByte == 1) ? Types.TonePlacementStyle.Traditional : Types.TonePlacementStyle.Modern;
 
             if (_currentConfig.IsEnabled != isVn ||
-                _currentConfig.AutoRestoreEnglishWords != autoRestore ||
                 _currentConfig.AllowRepeatKeyUndo != repeatUndo ||
                 _currentConfig.AllowLeadingWAsU != leadingW ||
                 _currentConfig.ToneStyle != toneStyle ||
@@ -50,7 +48,6 @@ public static class BridgeStateManager
             {
                 _currentConfig = new EngineConfig.EngineConfig(
                     isVn,
-                    autoRestore,
                     repeatUndo,
                     leadingW,
                     toneStyle,

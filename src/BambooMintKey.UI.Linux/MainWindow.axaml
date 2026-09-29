@@ -159,11 +159,9 @@
                             <StackPanel Spacing="10">
                                 <TextBlock Text="Tính năng thông minh:" FontWeight="Bold" FontSize="13" Foreground="#16a34a"/>
                                 <CheckBox Name="ChkFreeTone" Content="Cho phép bỏ dấu tự do ở bất kỳ vị trí (phari → phải)"/>
-                                <CheckBox Name="ChkAutoRestore" Content="Tự động khôi phục từ tiếng Anh (start, word, ...)"/>
                                 <CheckBox Name="ChkRepeatUndo" Content="Gõ lặp dấu để khôi phục ký tự thô (ss → s)"/>
                                 <CheckBox Name="ChkLeadingW" Content="Phím 'w' đầu từ biến thành 'ư' (w → ư)"/>
-                                <CheckBox Name="ChkEnableDictionary" Content="Thẩm định âm tiết qua từ điển (sửa lỗi đặt dấu)"/>
-                                <CheckBox Name="ChkEnableBacktracking" Content="Tự động hoàn tác từ tiếng Anh (post, test, ...)"/>
+                                <CheckBox Name="ChkEnableBacktracking" Content="Tự động nhận diện từ tiếng Anh (20.000 từ)"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

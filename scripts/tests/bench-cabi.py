@@ -76,7 +76,7 @@ def load_library(path: str) -> ctypes.CDLL:
         ctypes.c_void_p,
         ctypes.c_int, ctypes.c_int, ctypes.c_int,
         ctypes.c_int, ctypes.c_int, ctypes.c_int,
-        ctypes.c_int, ctypes.c_int,
+        ctypes.c_int,
     ]
     lib.bmk_load_config_json.restype = ctypes.c_int
     lib.bmk_load_config_json.argtypes = [ctypes.c_void_p, ctypes.c_char_p]

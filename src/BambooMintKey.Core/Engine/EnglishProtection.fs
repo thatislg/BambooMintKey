@@ -53,64 +53,6 @@ module EnglishProtection =
             "routes"; "queues"
         ]
 
-    /// Kiểm tra xem chuỗi có kết thúc bằng cụm phụ âm đặc trưng của tiếng Anh hay không
-    let hasEnglishTerminalCluster (lower: string) : bool =
-        if lower.Length < 3 then false
-        else
-            let terminals = [
-                // Lưu ý: LOẠI bỏ "rn", "rm" và "sp" vì 'r' là phím dấu hỏi, 's' là phím dấu sắc Telex ->
-                // "r"/"s" + phụ âm cuối tạo "rn"/"rm"/"sp" trùng English cluster, gây backtrack sai
-                // từ tiếng Việt (vd "chuaarn" -> "chuẩn", "kharm" -> "khảm", "tieesp" -> "tiếp").
-                // Các từ "rn"/"rm" phổ biến (turn, born, form, term...) đã nằm trong CommonEnglishWords hardcode,
-                // các từ còn lại (earn, warn, alarm, firm...) được backtrack qua từ điển 20k (M4).
-                // Tương tự, từ "sp" (clasp, crisp, wasp, gasp...) được backtrack qua từ điển 20k (M4).
-                "rt"; "rd"; "rk"; "rp"
-                "st"; "sk"
-                "ct"; "ft"; "lt"; "pt"; "nt"
-                "ld"; "nd"; "mp"; "nk"
-            ]
-            terminals |> List.exists (fun t -> 
-                if lower.EndsWith t && lower.Length > t.Length then
-                    let prevChar = lower[lower.Length - t.Length - 1]
-                    // Trước đuôi phụ âm kép tiếng Anh phải là nguyên âm (a, e, i, o, u, y) hoặc phụ âm 'r'/'l' (như 'first', 'world')
-                    "aeiouyrl".Contains (string prevChar)
-                else false
-            )
-
-    /// Kiểm tra xem chuỗi có kết thúc bằng nguyên âm câm "re" sau nguyên âm hay không (core, more, care...)
-    /// Hỗ trợ cả trường hợp người dùng gõ lặp 'rr' theo thói quen cũ để hủy dấu (corre, morre...)
-    let hasSilentREnding (lower: string) : bool =
-        if lower.Length >= 3 && lower.EndsWith "re" then
-            let prevChar = lower[lower.Length - 3]
-            if "aeiouy".Contains (string prevChar) then true
-            elif prevChar = 'r' && lower.Length >= 4 then
-                let prevVowel = lower[lower.Length - 4]
-                "aeiouy".Contains (string prevVowel)
-            else false
-        else false
-
-    /// Chuẩn hóa từ tiếng Anh: khôi phục nguyên trạng, đồng thời tự động triệt tiêu chữ 'r' dư thừa do thói quen gõ 'rr' để hủy dấu Telex (ví dụ: 'Corre' -> 'Core', 'morre' -> 'more')
-    let cleanEnglishWordText (rawStr: string) : string =
-        let lower = rawStr.ToLowerInvariant()
-        if lower.EndsWith "rre" && lower.Length >= 4 then
-            let prevVowelIdx = lower.Length - 4
-            if prevVowelIdx >= 0 && "aeiouy".Contains (string lower[prevVowelIdx]) then
-                rawStr[0 .. lower.Length - 4] + rawStr[lower.Length - 2 ..]
-            else rawStr
-        else rawStr
-
-    /// Kiểm tra xem chuỗi có kết thúc bằng đuôi số nhiều / chia động từ "-es" hoặc "-s" tiếng Anh hay không
-    let hasEnglishPluralEnding (lower: string) : bool =
-        if lower.Length >= 4 && lower.EndsWith "es" then
-            // Ví dụ: files, games, lines, notes, cases
-            let stem = lower[0 .. lower.Length - 2]
-            CommonEnglishWords.Contains stem || hasSilentREnding stem
-        elif lower.Length >= 4 && lower.EndsWith "s" then
-            // Ví dụ: tests, facts, points, marks
-            let stem = lower[0 .. lower.Length - 2]
-            hasEnglishTerminalCluster stem || CommonEnglishWords.Contains stem
-        else false
-
     /// Bóc tách toàn bộ dấu thanh khỏi cụm nguyên âm để lấy nguyên âm nền thuần khiết phục vụ kiểm định ngữ âm
     let stripToneFromVowels (vowels: string) : string =
         if String.IsNullOrEmpty vowels then ""
@@ -153,20 +95,3 @@ module EnglishProtection =
     /// Kiểm tra từ có nằm trong từ điển tiếng Anh 20.000 từ (DictionaryProvider) hoặc danh sách hardcode cũ.
     let isKnownEnglishWord (lower: string) : bool =
         DictionaryProvider.Default.IsLikelyEnglishWord lower || CommonEnglishWords.Contains lower
-
-    /// Đánh giá xem một chuỗi phím thô có xác suất cao là từ tiếng Anh cần bảo vệ hay không
-    let isLikelyEnglishWord (rawKeys: char list) : bool =
-        if rawKeys.IsEmpty then false
-        else
-            let rawStr = String(Array.ofList rawKeys)
-            let lower = rawStr.ToLowerInvariant()
-
-            // 1. Tra cứu trực tiếp trong danh sách từ tiếng Anh thông dụng (hardcode cũ)
-            if CommonEnglishWords.Contains lower then true
-            // 2. Kiểm tra đuôi nguyên âm câm -re sau nguyên âm (core, more, care, share...)
-            elif hasSilentREnding lower then true
-            // 3. Kiểm tra đuôi phụ âm kép tiếng Anh (-rt, -rd, -st, -rk, -rm, -ct...)
-            elif hasEnglishTerminalCluster lower then true
-            // 4. Kiểm tra đuôi số nhiều -es / -s của tiếng Anh
-            elif hasEnglishPluralEnding lower then true
-            else false

@@ -199,7 +199,6 @@ public static unsafe class Exports
         IntPtr handle,
         int isEnabled,
         int toneStyle,
-        int autoRestoreEnglish,
         int allowRepeatUndo,
         int allowLeadingW,
         int allowFreeTone,
@@ -215,7 +214,6 @@ public static unsafe class Exports
         context.SetOptions(
             isEnabled != 0,
             toneStyle,
-            autoRestoreEnglish != 0,
             allowRepeatUndo != 0,
             allowLeadingW != 0,
             allowFreeTone != 0,
@@ -243,14 +241,13 @@ public static unsafe class Exports
 
         bool isEnabled = JsonGetBool(json, "isVietnameseMode", true);
         int toneStyle = JsonGetInt(json, "toneStyle", 0);
-        bool autoRestore = JsonGetBool(json, "autoRestoreEnglishWords", true);
         bool repeatUndo = JsonGetBool(json, "allowRepeatKeyUndo", true);
         bool leadingW = JsonGetBool(json, "allowLeadingWAsU", false);
         bool freeTone = JsonGetBool(json, "allowFreeTonePlacement", true);
         bool enableDict = JsonGetBool(json, "enableVietnameseDictionary", true);
         bool enableBacktrack = JsonGetBool(json, "enableEnglishBacktracking", true);
 
-        context.SetOptions(isEnabled, toneStyle, autoRestore, repeatUndo, leadingW, freeTone, enableDict, enableBacktrack);
+        context.SetOptions(isEnabled, toneStyle, repeatUndo, leadingW, freeTone, enableDict, enableBacktrack);
         return 0;
     }
 

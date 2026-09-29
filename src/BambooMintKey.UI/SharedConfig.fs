@@ -13,7 +13,6 @@ type AppConfig = {
     mutable Version: int
     mutable IsVietnameseMode: bool
     mutable ToneStyle: byte            // 0 = Modern (òa, xòe), 1 = Traditional (oà, xoè)
-    mutable AutoRestoreEnglishWords: bool
     mutable AllowRepeatKeyUndo: bool
     mutable AllowLeadingWAsU: bool
     mutable AllowFreeTonePlacement: bool
@@ -34,7 +33,6 @@ type AppConfig = {
         Version = 2
         IsVietnameseMode = true
         ToneStyle = 0uy
-        AutoRestoreEnglishWords = true
         AllowRepeatKeyUndo = true
         AllowLeadingWAsU = false
         AllowFreeTonePlacement = true
@@ -151,7 +149,6 @@ module ConfigStore =
                     let span = Span<byte>(pView.ToPointer(), 64)
                     cfg.IsVietnameseMode <- span[0] <> 0uy
                     cfg.ToneStyle <- span[1]
-                    cfg.AutoRestoreEnglishWords <- span[2] <> 0uy
                     cfg.AllowRepeatKeyUndo <- span[3] <> 0uy
                     cfg.AllowLeadingWAsU <- span[4] <> 0uy
                     cfg.AllowFreeTonePlacement <- if span.Length > 20 then span[20] <> 0uy else true
@@ -199,7 +196,6 @@ module ConfigStore =
                 // Nếu chưa nạp từ Shared Memory thì nạp các thuộc tính chính từ JSON
                 if not loadedFromMemory then
                     if has "toneStyle" "1" then cfg.ToneStyle <- 1uy
-                    if has "autoRestoreEnglishWords" "false" then cfg.AutoRestoreEnglishWords <- false
                     if has "allowRepeatKeyUndo" "false" then cfg.AllowRepeatKeyUndo <- false
                     if has "allowLeadingWAsU" "true" then cfg.AllowLeadingWAsU <- true
                     if has "allowFreeTonePlacement" "false" then cfg.AllowFreeTonePlacement <- false
@@ -261,7 +257,7 @@ module ConfigStore =
                 if String.IsNullOrWhiteSpace(macroEntries) then "  \"macros\": {}"
                 else sprintf "  \"macros\": {\n%s\n  }" macroEntries
 
-            let json = sprintf "{\n  \"version\": %d,\n  \"inputMethod\": %d,\n  \"charset\": %d,\n  \"toggleHotkey\": %d,\n  \"hotkeyVKey\": %u,\n  \"hotkeyModifiers\": %u,\n  \"toneStyle\": %d,\n  \"autoRestoreEnglishWords\": %b,\n  \"allowRepeatKeyUndo\": %b,\n  \"allowLeadingWAsU\": %b,\n  \"allowFreeTonePlacement\": %b,\n  \"enablePreedit\": %b,\n  \"enableVietnameseDictionary\": %b,\n  \"enableEnglishBacktracking\": %b,\n  \"startWithWindows\": %b,\n  \"macroEnabled\": %b,\n%s\n}"
+            let json = sprintf "{\n  \"version\": %d,\n  \"inputMethod\": %d,\n  \"charset\": %d,\n  \"toggleHotkey\": %d,\n  \"hotkeyVKey\": %u,\n  \"hotkeyModifiers\": %u,\n  \"toneStyle\": %d,\n  \"allowRepeatKeyUndo\": %b,\n  \"allowLeadingWAsU\": %b,\n  \"allowFreeTonePlacement\": %b,\n  \"enablePreedit\": %b,\n  \"enableVietnameseDictionary\": %b,\n  \"enableEnglishBacktracking\": %b,\n  \"startWithWindows\": %b,\n  \"macroEnabled\": %b,\n%s\n}"
                         cfg.Version
                         (int cfg.InputMethod)
                         (int cfg.Charset)
@@ -269,7 +265,6 @@ module ConfigStore =
                         cfg.HotkeyVKey
                         cfg.HotkeyModifiers
                         (int cfg.ToneStyle)
-                        cfg.AutoRestoreEnglishWords
                         cfg.AllowRepeatKeyUndo
                         cfg.AllowLeadingWAsU
                         cfg.AllowFreeTonePlacement
@@ -296,7 +291,6 @@ module ConfigStore =
                     let span = Span<byte>(pView.ToPointer(), 64)
                     span[0] <- if cfg.IsVietnameseMode then 1uy else 0uy
                     span[1] <- cfg.ToneStyle
-                    span[2] <- if cfg.AutoRestoreEnglishWords then 1uy else 0uy
                     span[3] <- if cfg.AllowRepeatKeyUndo then 1uy else 0uy
                     span[4] <- if cfg.AllowLeadingWAsU then 1uy else 0uy
                     if span.Length > 20 then span[20] <- if cfg.AllowFreeTonePlacement then 1uy else 0uy

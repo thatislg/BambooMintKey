@@ -23,12 +23,10 @@ type MainWindow (args: string[]) as this =
     let mutable chkStartup: CheckBox = null
     let mutable rbToneModern: RadioButton = null
     let mutable rbToneClassic: RadioButton = null
-    let mutable chkAutoRestore: CheckBox = null
     let mutable chkRepeatUndo: CheckBox = null
     let mutable chkLeadingW: CheckBox = null
     let mutable chkFreeTone: CheckBox = null
     let mutable chkPreedit: CheckBox = null
-    let mutable chkEnableDict: CheckBox = null
     let mutable chkEnableBacktrack: CheckBox = null
     let mutable txtSandbox: TextBox = null
     let mutable btnClearSandbox: Button = null
@@ -67,12 +65,10 @@ type MainWindow (args: string[]) as this =
         chkStartup <- this.FindControl<CheckBox>("ChkStartup")
         rbToneModern <- this.FindControl<RadioButton>("RbToneModern")
         rbToneClassic <- this.FindControl<RadioButton>("RbToneClassic")
-        chkAutoRestore <- this.FindControl<CheckBox>("ChkAutoRestore")
         chkRepeatUndo <- this.FindControl<CheckBox>("ChkRepeatUndo")
         chkLeadingW <- this.FindControl<CheckBox>("ChkLeadingW")
         chkFreeTone <- this.FindControl<CheckBox>("ChkFreeTone")
         chkPreedit <- this.FindControl<CheckBox>("ChkPreedit")
-        chkEnableDict <- this.FindControl<CheckBox>("ChkEnableDictionary")
         chkEnableBacktrack <- this.FindControl<CheckBox>("ChkEnableBacktracking")
         txtSandbox <- this.FindControl<TextBox>("TxtSandbox")
         btnClearSandbox <- this.FindControl<Button>("BtnClearSandbox")
@@ -135,9 +131,7 @@ type MainWindow (args: string[]) as this =
 
         if chkFreeTone <> null then chkFreeTone.IsCheckedChanged.Add(onSettingChanged)
         if chkPreedit <> null then chkPreedit.IsCheckedChanged.Add(onSettingChanged)
-        if chkEnableDict <> null then chkEnableDict.IsCheckedChanged.Add(onSettingChanged)
         if chkEnableBacktrack <> null then chkEnableBacktrack.IsCheckedChanged.Add(onSettingChanged)
-        if chkAutoRestore <> null then chkAutoRestore.IsCheckedChanged.Add(onSettingChanged)
         if chkRepeatUndo <> null then chkRepeatUndo.IsCheckedChanged.Add(onSettingChanged)
         if chkLeadingW <> null then chkLeadingW.IsCheckedChanged.Add(onSettingChanged)
         if rbToneModern <> null then rbToneModern.IsCheckedChanged.Add(onSettingChanged)
@@ -174,12 +168,10 @@ type MainWindow (args: string[]) as this =
             if rbToneClassic <> null && rbToneClassic.IsChecked = Nullable true then cfg.ToneStyle <- 1uy
             else cfg.ToneStyle <- 0uy
 
-            if chkAutoRestore <> null then cfg.AutoRestoreEnglishWords <- chkAutoRestore.IsChecked.GetValueOrDefault(true)
             if chkRepeatUndo <> null then cfg.AllowRepeatKeyUndo <- chkRepeatUndo.IsChecked.GetValueOrDefault(true)
             if chkLeadingW <> null then cfg.AllowLeadingWAsU <- chkLeadingW.IsChecked.GetValueOrDefault(false)
             if chkFreeTone <> null then cfg.AllowFreeTonePlacement <- chkFreeTone.IsChecked.GetValueOrDefault(true)
             if chkPreedit <> null then cfg.EnablePreedit <- chkPreedit.IsChecked.GetValueOrDefault(false)
-            if chkEnableDict <> null then cfg.EnableVietnameseDictionary <- chkEnableDict.IsChecked.GetValueOrDefault(true)
             if chkEnableBacktrack <> null then cfg.EnableEnglishBacktracking <- chkEnableBacktrack.IsChecked.GetValueOrDefault(true)
 
             cfg.HotkeyVKey <- fixedVKey
@@ -213,9 +205,6 @@ type MainWindow (args: string[]) as this =
                 else
                     rbToneModern.IsChecked <- Nullable true
 
-            if chkAutoRestore <> null then
-                chkAutoRestore.IsChecked <- Nullable cfg.AutoRestoreEnglishWords
-
             if chkRepeatUndo <> null then
                 chkRepeatUndo.IsChecked <- Nullable cfg.AllowRepeatKeyUndo
 
@@ -227,9 +216,6 @@ type MainWindow (args: string[]) as this =
 
             if chkPreedit <> null then
                 chkPreedit.IsChecked <- Nullable cfg.EnablePreedit
-
-            if chkEnableDict <> null then
-                chkEnableDict.IsChecked <- Nullable cfg.EnableVietnameseDictionary
 
             if chkEnableBacktrack <> null then
                 chkEnableBacktrack.IsChecked <- Nullable cfg.EnableEnglishBacktracking
@@ -244,12 +230,10 @@ type MainWindow (args: string[]) as this =
         if cbCharset <> null then cbCharset.SelectedIndex <- int def.Charset
         if chkStartup <> null then chkStartup.IsChecked <- Nullable def.StartWithWindows
         if rbToneModern <> null then rbToneModern.IsChecked <- Nullable true
-        if chkAutoRestore <> null then chkAutoRestore.IsChecked <- Nullable def.AutoRestoreEnglishWords
         if chkRepeatUndo <> null then chkRepeatUndo.IsChecked <- Nullable def.AllowRepeatKeyUndo
         if chkLeadingW <> null then chkLeadingW.IsChecked <- Nullable def.AllowLeadingWAsU
         if chkFreeTone <> null then chkFreeTone.IsChecked <- Nullable def.AllowFreeTonePlacement
         if chkPreedit <> null then chkPreedit.IsChecked <- Nullable def.EnablePreedit
-        if chkEnableDict <> null then chkEnableDict.IsChecked <- Nullable def.EnableVietnameseDictionary
         if chkEnableBacktrack <> null then chkEnableBacktrack.IsChecked <- Nullable def.EnableEnglishBacktracking
         if txtStatus <> null then txtStatus.Text <- "Đã khôi phục thiết lập mặc định."
 
@@ -287,9 +271,6 @@ type MainWindow (args: string[]) as this =
         else
             cfg.ToneStyle <- 0uy
 
-        if chkAutoRestore <> null then
-            cfg.AutoRestoreEnglishWords <- chkAutoRestore.IsChecked.GetValueOrDefault(true)
-
         if chkRepeatUndo <> null then
             cfg.AllowRepeatKeyUndo <- chkRepeatUndo.IsChecked.GetValueOrDefault(true)
 
@@ -301,9 +282,6 @@ type MainWindow (args: string[]) as this =
 
         if chkPreedit <> null then
             cfg.EnablePreedit <- chkPreedit.IsChecked.GetValueOrDefault(false)
-
-        if chkEnableDict <> null then
-            cfg.EnableVietnameseDictionary <- chkEnableDict.IsChecked.GetValueOrDefault(true)
 
         if chkEnableBacktrack <> null then
             cfg.EnableEnglishBacktracking <- chkEnableBacktrack.IsChecked.GetValueOrDefault(true)

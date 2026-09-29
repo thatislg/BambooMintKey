@@ -206,7 +206,6 @@ public static unsafe class SharedMemoryManager
                   "hotkeyVKey": 192,
                   "hotkeyModifiers": 1,
                   "toneStyle": 0,
-                  "autoRestoreEnglishWords": true,
                   "allowRepeatKeyUndo": true,
                   "allowLeadingWAsU": false,
                   "allowFreeTonePlacement": true,
@@ -249,7 +248,6 @@ public static unsafe class SharedMemoryManager
             }
 
             pShared[1] = (byte)ParseUint("toneStyle", 0);
-            pShared[2] = (byte)(ParseBool("autoRestoreEnglishWords", true) ? 1 : 0);
             pShared[3] = (byte)(ParseBool("allowRepeatKeyUndo", true) ? 1 : 0);
             pShared[4] = (byte)(ParseBool("allowLeadingWAsU", false) ? 1 : 0);
             pShared[5] = (byte)ParseUint("inputMethod", 0);
@@ -471,27 +469,6 @@ public static unsafe class SharedMemoryManager
     }
 
     /// <summary>
-    /// Tự động phục hồi từ gốc khi gõ từ sai ngữ pháp tiếng Việt (Fallback tiếng Anh).
-    /// </summary>
-    public static bool AutoRestoreEnglishWords
-    {
-        get
-        {
-            EnsureInitialized();
-            return _pShared != null ? (_pShared[2] != 0) : true;
-        }
-        set
-        {
-            EnsureInitialized();
-            if (_pShared != null)
-            {
-                _pShared[2] = (byte)(value ? 1 : 0);
-                SignalStateChanged();
-            }
-        }
-    }
-
-    /// <summary>
     /// Cho phép gõ lặp dấu để khôi phục ký tự thô (ví dụ: 'ss' -> 's', 'aa' -> 'a').
     /// </summary>
     public static bool AllowRepeatKeyUndo
@@ -703,7 +680,7 @@ public static unsafe class SharedMemoryManager
     }
 
     /// <summary>
-    /// Tự động hoàn tác từ tiếng Anh qua từ điển (post, test, ...). Mặc định: true.
+    /// Tự động nhận diện từ tiếng Anh qua từ điển (20.000 từ). Mặc định: true.
     /// </summary>
     public static bool EnableEnglishBacktracking
     {

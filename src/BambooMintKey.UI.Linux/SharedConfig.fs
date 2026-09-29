@@ -16,7 +16,6 @@ type AppConfig() =
     member val InputMethod = 0 with get, set          // 0=Telex, 1=VNI, 2=Simple Telex
     member val Charset = 0 with get, set              // 0=Unicode dựng sẵn, 1=Unicode tổ hợp, 2=TCVN3
     member val ToneStyle = 0 with get, set            // 0=kiểu mới, 1=kiểu cũ
-    member val AutoRestoreEnglishWords = true with get, set
     member val AllowRepeatKeyUndo = true with get, set
     member val AllowLeadingWAsU = false with get, set
     member val AllowFreeTonePlacement = true with get, set

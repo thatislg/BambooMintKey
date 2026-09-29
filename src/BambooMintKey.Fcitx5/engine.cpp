@@ -153,11 +153,9 @@ void BambooMintKeyEngine::setConfig(const fcitx::RawConfig &config) {
     config_.load(config);
     // Áp dụng cấu hình native vào engine.
     toneStyle_ = *config_.toneStyle;
-    autoRestoreEnglish_ = *config_.autoRestoreEnglishWords;
     allowRepeatUndo_ = *config_.allowRepeatKeyUndo;
     allowLeadingW_ = *config_.allowLeadingWAsU;
     allowFreeTone_ = *config_.allowFreeTonePlacement;
-    enableVietnameseDictionary_ = *config_.enableVietnameseDictionary;
     enableEnglishBacktracking_ = *config_.enableEnglishBacktracking;
     setVietnameseMode(*config_.isVietnameseMode);
 }
@@ -450,20 +448,18 @@ void BambooMintKeyEngine::reloadConfigFromFile() {
     }
 
     toneStyle_ = jsonGetInt(json, "toneStyle", ToneModern);
-    autoRestoreEnglish_ = jsonGetBool(json, "autoRestoreEnglishWords", true);
     allowRepeatUndo_ = jsonGetBool(json, "allowRepeatKeyUndo", true);
     allowLeadingW_ = jsonGetBool(json, "allowLeadingWAsU", false);
     allowFreeTone_ = jsonGetBool(json, "allowFreeTonePlacement", true);
-    enableVietnameseDictionary_ = jsonGetBool(json, "enableVietnameseDictionary", true);
     enableEnglishBacktracking_ = jsonGetBool(json, "enableEnglishBacktracking", true);
     vietnameseMode_ = jsonGetBool(json, "isVietnameseMode", true);
 }
 
 void BambooMintKeyEngine::applyConfigToState(BambooMintKeyState *state) {
     bmk_set_options(state->handle(),
-                    /*isEnabled=*/true, toneStyle_, autoRestoreEnglish_,
+                    /*isEnabled=*/true, toneStyle_,
                     allowRepeatUndo_, allowLeadingW_, allowFreeTone_,
-                    enableVietnameseDictionary_, enableEnglishBacktracking_);
+                    /*enableVietnameseDictionary=*/true, enableEnglishBacktracking_);
 }
 
 void BambooMintKeyEngine::setupConfigWatcher() {

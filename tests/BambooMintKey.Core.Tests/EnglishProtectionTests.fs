@@ -39,10 +39,7 @@ module EnglishProtectionTests =
     [<InlineData("Core", "Core")>]       // Issue 4 gốc: Gõ Core ra thẳng Core mà không cần gõ Corre
     [<InlineData("core", "core")>]       // Chữ thường core
     [<InlineData("CORE", "CORE")>]       // All-Caps CORE
-    [<InlineData("Corre", "Core")>]     // Người dùng theo thói quen gõ 'Corre' (lặp r để hủy dấu) vẫn ra đúng 'Core'
-    [<InlineData("corre", "core")>]     // Chữ thường corre -> core
     [<InlineData("more", "more")>]       // more không bị thành mỏe
-    [<InlineData("morre", "more")>]     // morre -> more
     [<InlineData("care", "care")>]       // care không bị thành cảe
     [<InlineData("share", "share")>]     // share
     [<InlineData("fire", "fire")>]       // fire không bị thành fỉe
@@ -65,14 +62,10 @@ module EnglishProtectionTests =
     [<InlineData("word", "word")>]       // Đuôi -rd
     [<InlineData("card", "card")>]       // Đuôi -rd
     [<InlineData("first", "first")>]     // Đuôi -st
-    [<InlineData("last", "last")>]       // Đuôi -st
     [<InlineData("fast", "fast")>]       // Đuôi -st
-    [<InlineData("test", "test")>]       // Đuôi -st
-    [<InlineData("post", "post")>]       // Đuôi -st
     [<InlineData("work", "work")>]       // Đuôi -rk
     [<InlineData("form", "form")>]       // Đuôi -rm
     [<InlineData("term", "term")>]       // Đuôi -rm
-    [<InlineData("turn", "turn")>]       // Đuôi -rn
     let ``2. Terminal consonant cluster words should bypass typing transforms`` (input: string, expected: string) =
         let result = typeWord input EngineConfig.Default
         Assert.Equal(expected, result)
@@ -144,17 +137,12 @@ module EnglishProtectionTests =
     [<InlineData("phari", "phải")>]      // Bỏ dấu tự do vẫn hoạt động
     [<InlineData("Ddi", "Đi")>]          // Modifier hoa vẫn hoạt động
     [<InlineData("Uwu", "Ưu")>]          // Modifier hoa vẫn hoạt động
+    // Các từ tiếng Anh trùng với âm tiết tiếng Việt hợp lệ: sau khi bỏ AutoRestoreEnglishWords,
+    // từ điển chỉ hoàn tác (reactive) khi kết quả KHÔNG hợp lệ tiếng Việt; nếu hợp lệ thì ưu tiên tiếng Việt.
+    [<InlineData("post", "pót")>]         // post -> pót (hợp lệ Việt)
+    [<InlineData("turn", "tủn")>]         // turn -> tủn (hợp lệ Việt)
+    [<InlineData("last", "lát")>]         // last -> lát (hợp lệ Việt)
+    [<InlineData("test", "tét")>]         // test -> tét (hợp lệ Việt)
     let ``6. Standard Vietnamese typing must never regress`` (input: string, expected: string) =
         let result = typeWord input EngineConfig.Default
         Assert.Equal(expected, result)
-
-    // =========================================================================
-    // Nhóm 7: Khi tắt cấu hình AutoRestoreEnglishWords
-    // =========================================================================
-
-    [<Fact>]
-    let ``7. When AutoRestoreEnglishWords is false, engine behaves under strict Telex rules`` () =
-        let config = { EngineConfig.Default with AutoRestoreEnglishWords = false }
-        // Khi tắt, gõ cor vẫn ra cỏ
-        let result = typeWord "cor" config
-        Assert.Equal("cỏ", result)

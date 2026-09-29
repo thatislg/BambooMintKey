@@ -26,10 +26,8 @@ type MainWindow() as this =
     let mutable rbToneModern : RadioButton = null
     let mutable rbToneClassic : RadioButton = null
     let mutable chkFreeTone : CheckBox = null
-    let mutable chkAutoRestore : CheckBox = null
     let mutable chkRepeatUndo : CheckBox = null
     let mutable chkLeadingW : CheckBox = null
-    let mutable chkEnableDict : CheckBox = null
     let mutable chkEnableBacktrack : CheckBox = null
     let mutable txtMacroKey : TextBox = null
     let mutable txtMacroValue : TextBox = null
@@ -65,12 +63,11 @@ type MainWindow() as this =
             else
                 TonePlacementStyle.Modern
         { IsEnabled = true
-          AutoRestoreEnglishWords = if chkAutoRestore <> null then chkAutoRestore.IsChecked.GetValueOrDefault(true) else true
           AllowRepeatKeyUndo = if chkRepeatUndo <> null then chkRepeatUndo.IsChecked.GetValueOrDefault(true) else true
           AllowLeadingWAsU = if chkLeadingW <> null then chkLeadingW.IsChecked.GetValueOrDefault(false) else false
           ToneStyle = toneStyle
           AllowFreeTonePlacement = if chkFreeTone <> null then chkFreeTone.IsChecked.GetValueOrDefault(true) else true
-          EnableVietnameseDictionary = if chkEnableDict <> null then chkEnableDict.IsChecked.GetValueOrDefault(true) else true
+          EnableVietnameseDictionary = true
           EnableEnglishBacktracking = if chkEnableBacktrack <> null then chkEnableBacktrack.IsChecked.GetValueOrDefault(true) else true }
 
     member private this.BindControls() =
@@ -82,10 +79,8 @@ type MainWindow() as this =
         rbToneModern <- this.FindControl<RadioButton>("RbToneModern")
         rbToneClassic <- this.FindControl<RadioButton>("RbToneClassic")
         chkFreeTone <- this.FindControl<CheckBox>("ChkFreeTone")
-        chkAutoRestore <- this.FindControl<CheckBox>("ChkAutoRestore")
         chkRepeatUndo <- this.FindControl<CheckBox>("ChkRepeatUndo")
         chkLeadingW <- this.FindControl<CheckBox>("ChkLeadingW")
-        chkEnableDict <- this.FindControl<CheckBox>("ChkEnableDictionary")
         chkEnableBacktrack <- this.FindControl<CheckBox>("ChkEnableBacktracking")
         txtMacroKey <- this.FindControl<TextBox>("TxtMacroKey")
         txtMacroValue <- this.FindControl<TextBox>("TxtMacroValue")
@@ -114,10 +109,8 @@ type MainWindow() as this =
                     Async.Start(async { DbusClient.setVietnameseMode(enabled) }))
 
         if chkFreeTone <> null then chkFreeTone.IsCheckedChanged.Add(fun _ -> this.MarkDirty())
-        if chkAutoRestore <> null then chkAutoRestore.IsCheckedChanged.Add(fun _ -> this.MarkDirty())
         if chkRepeatUndo <> null then chkRepeatUndo.IsCheckedChanged.Add(fun _ -> this.MarkDirty())
         if chkLeadingW <> null then chkLeadingW.IsCheckedChanged.Add(fun _ -> this.MarkDirty())
-        if chkEnableDict <> null then chkEnableDict.IsCheckedChanged.Add(fun _ -> this.MarkDirty())
         if chkEnableBacktrack <> null then chkEnableBacktrack.IsCheckedChanged.Add(fun _ -> this.MarkDirty())
 
         if btnClearSandbox <> null then
@@ -166,10 +159,8 @@ type MainWindow() as this =
                 if cfg.ToneStyle = 1 then rbToneClassic.IsChecked <- Nullable true
                 else rbToneModern.IsChecked <- Nullable true
             if chkFreeTone <> null then chkFreeTone.IsChecked <- Nullable cfg.AllowFreeTonePlacement
-            if chkAutoRestore <> null then chkAutoRestore.IsChecked <- Nullable cfg.AutoRestoreEnglishWords
             if chkRepeatUndo <> null then chkRepeatUndo.IsChecked <- Nullable cfg.AllowRepeatKeyUndo
             if chkLeadingW <> null then chkLeadingW.IsChecked <- Nullable cfg.AllowLeadingWAsU
-            if chkEnableDict <> null then chkEnableDict.IsChecked <- Nullable cfg.EnableVietnameseDictionary
             if chkEnableBacktrack <> null then chkEnableBacktrack.IsChecked <- Nullable cfg.EnableEnglishBacktracking
             this.UpdateModeBadge(cfg.IsVietnameseMode)
             this.RefreshMacroList()
@@ -264,10 +255,8 @@ type MainWindow() as this =
         if cbCharset <> null then cfg.Charset <- max 0 cbCharset.SelectedIndex
         if rbToneClassic <> null && rbToneClassic.IsChecked = Nullable true then cfg.ToneStyle <- 1 else cfg.ToneStyle <- 0
         if chkFreeTone <> null then cfg.AllowFreeTonePlacement <- chkFreeTone.IsChecked.GetValueOrDefault(true)
-        if chkAutoRestore <> null then cfg.AutoRestoreEnglishWords <- chkAutoRestore.IsChecked.GetValueOrDefault(true)
         if chkRepeatUndo <> null then cfg.AllowRepeatKeyUndo <- chkRepeatUndo.IsChecked.GetValueOrDefault(true)
         if chkLeadingW <> null then cfg.AllowLeadingWAsU <- chkLeadingW.IsChecked.GetValueOrDefault(false)
-        if chkEnableDict <> null then cfg.EnableVietnameseDictionary <- chkEnableDict.IsChecked.GetValueOrDefault(true)
         if chkEnableBacktrack <> null then cfg.EnableEnglishBacktracking <- chkEnableBacktrack.IsChecked.GetValueOrDefault(true)
 
         ConfigStore.saveConfig(cfg)

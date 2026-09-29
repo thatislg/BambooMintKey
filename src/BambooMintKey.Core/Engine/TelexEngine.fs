@@ -125,90 +125,75 @@ module TelexEngine =
             (newState, EngineAction.UpdateComposition formatted)
 
         else
-            // Tuyến bảo vệ từ tiếng Anh (English Word Protection):
-            // Nếu chuỗi gõ thô có xác suất cao là từ tiếng Anh (như 'core', 'more', 'post', 'turn', 'files'...),
-            // lập tức khôi phục về chuỗi thô để tránh bị cơ chế Free Tone hoặc biến đổi Telex nuốt nhầm phím.
-            if config.AutoRestoreEnglishWords && EnglishProtection.isLikelyEnglishWord newRaw then
-                let cleaned = EnglishProtection.cleanEnglishWordText rawString
-                let formatted = WordBuffer.applyCase detectedCase cleaned
-                let newState = {
-                    RawKeys = newRaw
-                    TransformedText = formatted
-                    Syllable = None
-                    Case = detectedCase
-                    IsInvalidVietnamese = true
-                }
-                (newState, EngineAction.UpdateComposition formatted)
-            else
-                // 3. Cơ chế Bỏ dấu tự do (Free Tone Placement)
-                // Khi bật cấu hình AllowFreeTonePlacement, kiểm tra xem có phím dấu thanh nằm ở vị trí tự do hay không
-                // (ví dụ: gõ dấu ở cuối từ 'phari', 'hoacs', hoặc gõ dấu trước nguyên âm sau 'phar' + 'i').
-                let freeToneOpt =
-                    if config.AllowFreeTonePlacement then
-                        FreeTonePlacement.tryNormalizeFreeTone newRaw config.ToneStyle config.AllowRepeatKeyUndo
-                    else
-                        None
+            // 3. Cơ chế Bỏ dấu tự do (Free Tone Placement)
+            // Khi bật cấu hình AllowFreeTonePlacement, kiểm tra xem có phím dấu thanh nằm ở vị trí tự do hay không
+            // (ví dụ: gõ dấu ở cuối từ 'phari', 'hoacs', hoặc gõ dấu trước nguyên âm sau 'phar' + 'i').
+            let freeToneOpt =
+                if config.AllowFreeTonePlacement then
+                    FreeTonePlacement.tryNormalizeFreeTone newRaw config.ToneStyle config.AllowRepeatKeyUndo
+                else
+                    None
 
-                match freeToneOpt with
-                | Some (normalizedSyllable, wordCase) ->
-                    // Bỏ dấu tự do thành công: tái tạo chuỗi âm tiết + thẩm định On-the-fly + backtrack English
-                    makeComposition (Some normalizedSyllable) wordCase newRaw rawString config
+            match freeToneOpt with
+            | Some (normalizedSyllable, wordCase) ->
+                // Bỏ dấu tự do thành công: tái tạo chuỗi âm tiết + thẩm định On-the-fly + backtrack English
+                makeComposition (Some normalizedSyllable) wordCase newRaw rawString config
+
+            | None ->
+                // 4. Thử áp dụng biến đổi lên State Syllable hiện có (Luồng gia tăng Telex chuẩn)
+                let modifiedSyllableOpt =
+                    match state.Syllable with
+                    | Some currentSyl ->
+                        match ToneRules.keyToTone c with
+                        | Some tone when not (String.IsNullOrEmpty currentSyl.VowelNucleus) ->
+                            Some (ToneRules.applyTone tone config.ToneStyle currentSyl)
+                        | _ ->
+                            match ModifierRules.applyModifier c currentSyl with
+                            | Some s -> Some s
+                            | None ->
+                                // Thử ghép phụ âm cuối vào Syllable hiện có
+                                let f = currentSyl.FinalConsonant.ToLowerInvariant()
+                                let candFinalOpt =
+                                    if String.IsNullOrEmpty f && "cmnpt".Contains(string lowerChar) then
+                                        Some (string c)
+                                    elif f = "n" && lowerChar = 'g' then Some "ng"
+                                    elif f = "c" && lowerChar = 'h' then Some "ch"
+                                    elif f = "n" && lowerChar = 'h' then Some "nh"
+                                    else None
+                                match candFinalOpt with
+                                | Some newF ->
+                                    let newSyl = { currentSyl with FinalConsonant = newF }
+                                    Some (ToneRules.applyTone currentSyl.Tone config.ToneStyle newSyl)
+                                | None ->
+                                    // Thử mở rộng âm tiết: từ trạng thái chỉ có phụ âm đầu (VD: 'Đ' sau 'Dd' + 'i' -> 'Đi')
+                                    // hoặc mở rộng cụm nguyên âm hợp lệ (VD: 'Ư' sau 'Uw' + 'u' -> 'Ưu', 'Ơ' sau 'Ow' + 'i' -> 'Ơi')
+                                    match ModifierRules.tryExtendSyllableWithChar c currentSyl with
+                                    | Some extSyl ->
+                                        Some (ToneRules.applyTone currentSyl.Tone config.ToneStyle extSyl)
+                                    | None -> None
+                    | None ->
+                        if rawString.ToLowerInvariant() = "dd" then
+                            Some {
+                                InitialConsonant = if Char.IsUpper(newRaw[0]) then "Đ" else "đ"
+                                VowelNucleus = ""
+                                FinalConsonant = ""
+                                Tone = Tone.None
+                                Modifiers = [ ('d', Modifier.DBar) ]
+                            }
+                        else None
+
+                match modifiedSyllableOpt with
+                | Some updatedSyllable ->
+                    makeComposition (Some updatedSyllable) detectedCase newRaw rawString config
 
                 | None ->
-                    // 4. Thử áp dụng biến đổi lên State Syllable hiện có (Luồng gia tăng Telex chuẩn)
-                    let modifiedSyllableOpt =
-                        match state.Syllable with
-                        | Some currentSyl ->
-                            match ToneRules.keyToTone c with
-                            | Some tone when not (String.IsNullOrEmpty currentSyl.VowelNucleus) ->
-                                Some (ToneRules.applyTone tone config.ToneStyle currentSyl)
-                            | _ ->
-                                match ModifierRules.applyModifier c currentSyl with
-                                | Some s -> Some s
-                                | None ->
-                                    // Thử ghép phụ âm cuối vào Syllable hiện có
-                                    let f = currentSyl.FinalConsonant.ToLowerInvariant()
-                                    let candFinalOpt =
-                                        if String.IsNullOrEmpty f && "cmnpt".Contains(string lowerChar) then
-                                            Some (string c)
-                                        elif f = "n" && lowerChar = 'g' then Some "ng"
-                                        elif f = "c" && lowerChar = 'h' then Some "ch"
-                                        elif f = "n" && lowerChar = 'h' then Some "nh"
-                                        else None
-                                    match candFinalOpt with
-                                    | Some newF ->
-                                        let newSyl = { currentSyl with FinalConsonant = newF }
-                                        Some (ToneRules.applyTone currentSyl.Tone config.ToneStyle newSyl)
-                                    | None ->
-                                        // Thử mở rộng âm tiết: từ trạng thái chỉ có phụ âm đầu (VD: 'Đ' sau 'Dd' + 'i' -> 'Đi')
-                                        // hoặc mở rộng cụm nguyên âm hợp lệ (VD: 'Ư' sau 'Uw' + 'u' -> 'Ưu', 'Ơ' sau 'Ow' + 'i' -> 'Ơi')
-                                        match ModifierRules.tryExtendSyllableWithChar c currentSyl with
-                                        | Some extSyl ->
-                                            Some (ToneRules.applyTone currentSyl.Tone config.ToneStyle extSyl)
-                                        | None -> None
-                        | None ->
-                            if rawString.ToLowerInvariant() = "dd" then
-                                Some {
-                                    InitialConsonant = if Char.IsUpper(newRaw[0]) then "Đ" else "đ"
-                                    VowelNucleus = ""
-                                    FinalConsonant = ""
-                                    Tone = Tone.None
-                                    Modifiers = [ ('d', Modifier.DBar) ]
-                                }
-                            else None
-
-                    match modifiedSyllableOpt with
-                    | Some updatedSyllable ->
-                        makeComposition (Some updatedSyllable) detectedCase newRaw rawString config
-
+                    // 5. Parse chuỗi thô để xây dựng âm tiết mới (Luồng toàn chuỗi)
+                    match SyllableParser.parse rawString with
+                    | Some parsedSyllable ->
+                        makeComposition (Some parsedSyllable) detectedCase newRaw rawString config
                     | None ->
-                        // 5. Parse chuỗi thô để xây dựng âm tiết mới (Luồng toàn chuỗi)
-                        match SyllableParser.parse rawString with
-                        | Some parsedSyllable ->
-                            makeComposition (Some parsedSyllable) detectedCase newRaw rawString config
-                        | None ->
-                            // 6. Fallback tiếng Anh (Không nhận diện được âm tiết tiếng Việt -> giữ nguyên chuỗi phím thô)
-                            makeComposition None detectedCase newRaw rawString config
+                        // 6. Fallback tiếng Anh (Không nhận diện được âm tiết tiếng Việt -> giữ nguyên chuỗi phím thô)
+                        makeComposition None detectedCase newRaw rawString config
 
     let processKey (state: WordState) (input: KeyInput) (config: EngineConfig) : WordState * EngineAction =
         if not config.IsEnabled then
@@ -265,16 +250,7 @@ module TelexEngine =
                 if state.RawKeys.IsEmpty then
                     (WordState.Empty, EngineAction.PassThrough)
                 else
-                    // Kiểm tra cơ chế tự động khôi phục từ tiếng Anh khi chốt từ (AutoRestoreEnglishWords)
-                    let finalWordText =
-                        if config.AutoRestoreEnglishWords && EnglishProtection.isLikelyEnglishWord state.RawKeys then
-                            let rawStr = String(Array.ofList state.RawKeys)
-                            let cleaned = EnglishProtection.cleanEnglishWordText rawStr
-                            WordBuffer.applyCase state.Case cleaned
-                        else
-                            state.TransformedText
-
-                    let finalWord = finalWordText + string breakChar
+                    let finalWord = state.TransformedText + string breakChar
                     (WordState.Empty, EngineAction.Commit finalWord)
 
             | KeyInput.NonCharacter ->

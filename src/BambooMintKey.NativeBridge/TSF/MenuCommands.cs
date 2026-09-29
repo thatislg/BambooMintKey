@@ -21,12 +21,10 @@ public static class MenuCommands
     public const uint ToneStyleClassic           = Base + 12; // Kiểu cũ (oà, xoè, thuỷ)
 
     // 3. Tùy chọn ngữ pháp thông minh
-    public const uint ToggleAutoRestoreEnglish   = Base + 20; // Khôi phục từ tiếng Anh
     public const uint ToggleRepeatKeyUndo        = Base + 21; // Gõ lặp để hoàn tác dấu
     public const uint ToggleLeadingWAsU          = Base + 22; // Phím 'w' đầu từ thành 'ư'
     public const uint ToggleFreeTonePlacement    = Base + 23; // Cho phép bỏ dấu tự do (phari -> phải)
-    public const uint ToggleEnableDictionary     = Base + 24; // Thẩm định qua từ điển
-    public const uint ToggleEnableBacktracking   = Base + 25; // Tự động hoàn tác tiếng Anh
+    public const uint ToggleEnableBacktracking   = Base + 25; // Tự động nhận diện từ tiếng Anh (20.000 từ)
 
     // 4. Kiểu gõ (Mở rộng)
     public const uint SubmenuInputMethod         = Base + 30;

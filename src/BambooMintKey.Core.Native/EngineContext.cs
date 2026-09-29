@@ -75,12 +75,11 @@ public sealed unsafe class EngineContext
     /// Cập nhật cấu hình gõ từ các cờ nguyên thủy (không cần xử lý chuỗi).
     /// Thứ tự tham số khớp với constructor của <c>EngineConfig.EngineConfig</c>.
     /// </summary>
-    public void SetOptions(bool isEnabled, int toneStyle, bool autoRestoreEnglish, bool allowRepeatUndo, bool allowLeadingW, bool allowFreeTone, bool enableVietnameseDictionary, bool enableEnglishBacktracking)
+    public void SetOptions(bool isEnabled, int toneStyle, bool allowRepeatUndo, bool allowLeadingW, bool allowFreeTone, bool enableVietnameseDictionary, bool enableEnglishBacktracking)
     {
         var tone = toneStyle == 1 ? Types.TonePlacementStyle.Traditional : Types.TonePlacementStyle.Modern;
         Config = new EngineConfig.EngineConfig(
             isEnabled,
-            autoRestoreEnglish,
             allowRepeatUndo,
             allowLeadingW,
             tone,

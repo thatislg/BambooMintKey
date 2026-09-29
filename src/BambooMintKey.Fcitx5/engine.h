@@ -26,12 +26,10 @@ FCITX_CONFIGURATION(
     BambooMintKeyConfig,
     fcitx::Option<bool> isVietnameseMode{this, "IsVietnameseMode", "Bật gõ tiếng Việt (V)", true};
     fcitx::Option<int> toneStyle{this, "ToneStyle", "Kiểu đặt dấu: 0 = mới (hòa), 1 = cũ (hoà)", 0};
-    fcitx::Option<bool> autoRestoreEnglishWords{this, "AutoRestoreEnglishWords", "Tự khôi phục từ tiếng Anh", true};
     fcitx::Option<bool> allowRepeatKeyUndo{this, "AllowRepeatKeyUndo", "Gõ lặp dấu để undo", true};
     fcitx::Option<bool> allowLeadingWAsU{this, "AllowLeadingWAsU", "w đầu từ thành ư", false};
     fcitx::Option<bool> allowFreeTonePlacement{this, "AllowFreeTonePlacement", "Bỏ dấu tự do", true};
-    fcitx::Option<bool> enableVietnameseDictionary{this, "EnableVietnameseDictionary", "Thẩm định âm tiết qua từ điển", true};
-    fcitx::Option<bool> enableEnglishBacktracking{this, "EnableEnglishBacktracking", "Tự hoàn tác từ tiếng Anh", true};
+    fcitx::Option<bool> enableEnglishBacktracking{this, "EnableEnglishBacktracking", "Tự động nhận diện từ tiếng Anh (20.000 từ)", true};
 );
 
 class BambooMintKeyEngine;
@@ -127,11 +125,9 @@ private:
     // Trạng thái V/E và tùy chọn engine (single-owner).
     bool vietnameseMode_ = true;
     int toneStyle_ = ToneModern;
-    bool autoRestoreEnglish_ = true;
     bool allowRepeatUndo_ = true;
     bool allowLeadingW_ = false;
     bool allowFreeTone_ = true;
-    bool enableVietnameseDictionary_ = true;
     bool enableEnglishBacktracking_ = true;
 
     std::unique_ptr<fcitx::dbus::Bus> dbusBus_;
