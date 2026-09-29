@@ -151,13 +151,10 @@ const fcitx::Configuration *BambooMintKeyEngine::getConfig() const {
 
 void BambooMintKeyEngine::setConfig(const fcitx::RawConfig &config) {
     config_.load(config);
-    // Áp dụng cấu hình native vào engine.
-    toneStyle_ = *config_.toneStyle;
-    allowRepeatUndo_ = *config_.allowRepeatKeyUndo;
-    allowLeadingW_ = *config_.allowLeadingWAsU;
-    allowFreeTone_ = *config_.allowFreeTonePlacement;
-    enableEnglishBacktracking_ = *config_.enableEnglishBacktracking;
-    setVietnameseMode(*config_.isVietnameseMode);
+    // Cấu hình engine (tùy chọn + V/E) lấy từ config.json (Settings GUI ghi, inotify theo dõi),
+    // KHÔNG lấy từ Fcitx5 native config để tránh reset về mặc định
+    // (vd: allowLeadingWAsU bị ghi đè thành false mỗi khi Fcitx5 nạp config).
+    reloadConfigFromFile();
 }
 
 // =========================================================================
@@ -441,17 +438,21 @@ int jsonGetInt(const std::string &json, const std::string &key,
 
 } // namespace
 
+void BambooMintKeyEngine::applyOptionsFromJson(const std::string &json) {
+    toneStyle_ = jsonGetInt(json, "toneStyle", ToneModern);
+    allowRepeatUndo_ = jsonGetBool(json, "allowRepeatKeyUndo", true);
+    allowLeadingW_ = jsonGetBool(json, "allowLeadingWAsU", false);
+    allowFreeTone_ = jsonGetBool(json, "allowFreeTonePlacement", true);
+    enableEnglishBacktracking_ = jsonGetBool(json, "enableEnglishBacktracking", true);
+}
+
 void BambooMintKeyEngine::reloadConfigFromFile() {
     const auto json = readFile(configFilePath());
     if (json.empty()) {
         return;
     }
 
-    toneStyle_ = jsonGetInt(json, "toneStyle", ToneModern);
-    allowRepeatUndo_ = jsonGetBool(json, "allowRepeatKeyUndo", true);
-    allowLeadingW_ = jsonGetBool(json, "allowLeadingWAsU", false);
-    allowFreeTone_ = jsonGetBool(json, "allowFreeTonePlacement", true);
-    enableEnglishBacktracking_ = jsonGetBool(json, "enableEnglishBacktracking", true);
+    applyOptionsFromJson(json);
     vietnameseMode_ = jsonGetBool(json, "isVietnameseMode", true);
 }
 

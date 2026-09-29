@@ -86,6 +86,8 @@ public:
 
     // Nạp cấu hình từ file XDG và áp dụng cho một context mới.
     void reloadConfigFromFile();
+    // Đọc các tùy chọn engine (không gồm trạng thái V/E) từ config.json.
+    void applyOptionsFromJson(const std::string &json);
     void applyConfigToState(BambooMintKeyState *state);
 
 private:
