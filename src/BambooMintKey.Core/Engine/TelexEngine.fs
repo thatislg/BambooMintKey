@@ -33,7 +33,10 @@ module TelexEngine =
             let newState = {
                 RawKeys = rawKeys
                 TransformedText = formatted
-                Syllable = if backtrack then None else Some syl
+                // Giữ lại Syllable kể cả khi backtrack tiếng Anh: ưu tiên tiếng Việt trước,
+                // cho phép phím modifier/tone tiếp theo (vd hopwj -> hợp) tiếp tục biến đổi
+                // thay vì mất context (Syllable=None) giữa chừng.
+                Syllable = Some syl
                 Case = case
                 IsInvalidVietnamese = backtrack
             }
@@ -58,6 +61,14 @@ module TelexEngine =
         let isToneKey = ToneRules.keyToTone c |> Option.isSome
         let isModifierKey = "aweod".Contains lowerChar
 
+        // Phím lặp liền kề (consecutive): phím trước đó chính là phím hiện tại (vd 'xx', 'rr', 'ss').
+        // Dùng để phân biệt "gõ lặp để hủy dấu" (liền kề) với ký tự lặp không liền kề (vd 'tests' có 's' cách bởi 't').
+        let isConsecutiveRepeat =
+            state.RawKeys
+            |> List.tryLast
+            |> Option.exists (fun k -> Char.ToLowerInvariant k = lowerChar)
+
+
         // 1. Kiểm tra lặp phím dấu thanh (Undo Tone: má + s -> mass, dà + f -> daff)
         let isUndoTone =
             config.AllowRepeatKeyUndo && isToneKey && state.Syllable.IsSome &&
@@ -73,7 +84,9 @@ module TelexEngine =
                 (lowerChar = 'a' && (state.TransformedText.ToLowerInvariant().Contains "â" || state.TransformedText.ToLowerInvariant().Contains "ă")) ||
                 (lowerChar = 'e' && state.TransformedText.ToLowerInvariant().Contains "ê") ||
                 (lowerChar = 'o' && (state.TransformedText.ToLowerInvariant().Contains "ô" || state.TransformedText.ToLowerInvariant().Contains "ơ")) ||
-                (lowerChar = 'w' && not (state.TransformedText.ToLowerInvariant().Contains "o") && state.TransformedText.ToLowerInvariant().Contains "ư")
+                (lowerChar = 'w' && not (state.TransformedText.ToLowerInvariant().Contains "o") &&
+                    (state.TransformedText.ToLowerInvariant().Contains "ă" ||
+                     ((state.TransformedText.ToLowerInvariant().Contains "ư") <> (state.TransformedText.ToLowerInvariant().Contains "ơ"))))
             )
 
         // 2b. Ngoại lệ chính tả "gì": phụ âm "gi" + phím dấu thanh (f/s/r/x/j)
@@ -83,10 +96,14 @@ module TelexEngine =
             Char.ToLowerInvariant newRaw[0] = 'g' && Char.ToLowerInvariant newRaw[1] = 'i'
 
         if isUndoTone then
-            // Lặp lại phím dấu thanh -> Hủy dấu, khôi phục toàn bộ chuỗi phím thô
-            let formatted = WordBuffer.applyCase detectedCase rawString
+            // Lặp phím dấu thanh -> hủy dấu. Ưu tiên hoàn dấu trước (ưu tiên repeat-key undo):
+            // lặp liền kề luôn rút về 1 ký tự thô (goxx -> gox, horr -> hor, mass -> mas).
+            // Muốn gõ từ tiếng Anh 'mass' thì phải gõ 'masss'.
+            let resultKeys = if isConsecutiveRepeat then state.RawKeys else newRaw
+            let resultString = String(Array.ofList resultKeys)
+            let formatted = WordBuffer.applyCase detectedCase resultString
             let newState = {
-                RawKeys = newRaw
+                RawKeys = resultKeys
                 TransformedText = formatted
                 Syllable = None
                 Case = detectedCase
@@ -95,10 +112,12 @@ module TelexEngine =
             (newState, EngineAction.UpdateComposition formatted)
 
         elif isUndoModifier then
-            // Lặp lại phím modifier -> Hủy biến đổi, khôi phục chuỗi thô của lần lặp
-            let formatted = WordBuffer.applyCase detectedCase rawString
+            // Lặp phím modifier -> hủy biến đổi. Ưu tiên hoàn dấu trước: lặp liền kề luôn rút về 1 ký tự thô (ddd -> dd).
+            let resultKeys = if isConsecutiveRepeat then state.RawKeys else newRaw
+            let resultString = String(Array.ofList resultKeys)
+            let formatted = WordBuffer.applyCase detectedCase resultString
             let newState = {
-                RawKeys = newRaw
+                RawKeys = resultKeys
                 TransformedText = formatted
                 Syllable = None
                 Case = detectedCase

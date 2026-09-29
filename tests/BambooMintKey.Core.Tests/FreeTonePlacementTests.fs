@@ -85,9 +85,9 @@ module FreeTonePlacementTests =
     // =========================================================================
 
     [<Theory>]
-    [<InlineData("mass", "mass")>]       // Gõ lặp 'ss' hủy dấu sắc, trả về chuỗi thô
-    [<InlineData("pharr", "pharr")>]     // Gõ lặp 'rr' hủy dấu hỏi
-    [<InlineData("hoacss", "hoacss")>]   // Gõ lặp 'ss' sau phụ âm cuối hủy dấu
+    [<InlineData("mass", "mas")>]       // Gõ lặp 'ss' hủy dấu sắc, rút về 1 ký tự thô 's'
+    [<InlineData("pharr", "phar")>]     // Gõ lặp 'rr' hủy dấu hỏi, rút về 1 ký tự thô 'r'
+    [<InlineData("hoacss", "hoacs")>]   // Gõ lặp 'ss' sau phụ âm cuối hủy dấu, rút về 1 ký tự 's'
     let ``5. Repeating tone keys should trigger undo back to raw text`` (input: string, expected: string) =
         let result = typeWord input EngineConfig.Default
         Assert.Equal(expected, result)

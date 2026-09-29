@@ -18,23 +18,26 @@ module RestoreAndUndoTests =
         state
 
     // 1. Phục hồi nguyên thể (Undo) khi lặp phím modifier / tone
-    // - Engine BambooMintKey.Core trả về raw string hiện đang gõ
+    // - Lặp phím dấu liền kề rút gọn về 1 ký tự thô (ss -> s, xx -> x, rr -> r)
     [<Theory>]
-    [<InlineData("mass", "mass")>]
-    [<InlineData("toff", "toff")>]
-    [<InlineData("luxx", "luxx")>]
-    [<InlineData("dajj", "dajj")>]
+    [<InlineData("mass", "mas")>]    // Ưu tiên hoàn dấu: lặp 'ss' hủy dấu sắc, rút về 'mas' (muốn gõ từ Anh 'mass' -> gõ 'masss')
+    [<InlineData("toff", "tof")>]
+    [<InlineData("luxx", "lux")>]
+    [<InlineData("dajj", "daj")>]
+    [<InlineData("goxx", "gox")>]       // Issue 012: lặp x (ngã) rút về 1 chữ x
+    [<InlineData("horr", "hor")>]       // Issue 012: lặp r (hỏi) rút về 1 chữ r
     let ``1. Repeating tone key should restore raw text correctly (based on engine rule)`` (input: string, expected: string) =
         let state = typeWord input
         Assert.Equal(expected, state.TransformedText)
 
     // Xử lý các modifier a, e, o, d, w lặp lại (hủy dấu mũ, móc)
     [<Theory>]
-    [<InlineData("ddd", "ddd")>] 
-    [<InlineData("xaaa", "xaaa")>] 
-    [<InlineData("deee", "deee")>]
-    [<InlineData("cooo", "cooo")>]
-    [<InlineData("awww", "awww")>] 
+    [<InlineData("ddd", "dd")>] 
+    [<InlineData("xaaa", "xaa")>] 
+    [<InlineData("deee", "dee")>]
+    [<InlineData("cooo", "coo")>]
+    [<InlineData("awww", "aww")>]    // aw -> ă, lặp w rút về aw, w thứ 3 lại thành aw+w
+    [<InlineData("aww", "aw")>]      // aw -> ă, lặp w rút về aw
     let ``2. Repeating modifier key undoes the format back to raw string stream`` (input: string, expected: string) =
         let state = typeWord input
         Assert.Equal(expected, state.TransformedText)

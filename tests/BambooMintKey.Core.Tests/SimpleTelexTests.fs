@@ -52,3 +52,12 @@ module SimpleTelexTests =
     [<InlineData("tsaon", "tsaon")>] 
     let ``3. Irregular typing acts as fallback or parses accordingly`` (input: string, expected: string) =
         Assert.Equal(expected, typeWord input)
+
+    // 4. Modifier w sau phụ âm cuối (tự do đặt modifier)
+    [<Theory>]
+    [<InlineData("howpj", "hợp")>]   // how + p + j
+    [<InlineData("hopwj", "hợp")>]   // ho + p + w + j -> w sau p
+    [<InlineData("opwj", "ợp")>]     // op + w + j
+    [<InlineData("ngopwj", "ngợp")>] // ngop + w + j
+    let ``4. Modifier w after final consonant should still form horn vowel`` (input: string, expected: string) =
+        Assert.Equal(expected, typeWord input)

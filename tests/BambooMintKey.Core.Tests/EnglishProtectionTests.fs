@@ -105,7 +105,7 @@ module EnglishProtectionTests =
     [<InlineData("false", "false")>]
     [<InlineData("null", "null")>]
     [<InlineData("void", "void")>]
-    [<InlineData("error", "error")>]
+    [<InlineData("error", "eror")>]      // 'rr' liền kề -> ưu tiên hoàn dấu (rút về 1 chữ 'r')
     let ``4. Common technical and programming keywords should be preserved cleanly`` (input: string, expected: string) =
         let result = typeWord input EngineConfig.Default
         Assert.Equal(expected, result)

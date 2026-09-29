@@ -103,11 +103,12 @@ module UppercaseModifierTests =
     // =========================================================================
 
     [<Theory>]
-    [<InlineData("Ddd", "Ddd")>]         // Dd -> Đ, lặp d -> Ddd
-    [<InlineData("ddd", "ddd")>]         // dd -> đ, lặp d -> ddd
-    [<InlineData("Uww", "Uww")>]         // Uw -> Ư, lặp w -> Uww
-    [<InlineData("uww", "uww")>]         // uw -> ư, lặp w -> uww
-    [<InlineData("Oww", "Oww")>]         // Ow -> Ơ, lặp w -> Oww
+    [<InlineData("Ddd", "Dd")>]         // Dd -> Đ, lặp d rút về Dd
+    [<InlineData("ddd", "dd")>]         // dd -> đ, lặp d rút về dd
+    [<InlineData("Uww", "Uw")>]         // Uw -> Ư, lặp w rút về Uw
+    [<InlineData("uww", "uw")>]         // uw -> ư, lặp w rút về uw
+    [<InlineData("Oww", "Ow")>]         // Ow -> Ơ, lặp w rút về Ow
+    [<InlineData("oww", "ow")>]         // ow -> ơ, lặp w rút về ow
     let ``5. Repeat modifier key should trigger undo correctly`` (input: string, expected: string) =
         let result = typeWord input EngineConfig.Default
         Assert.Equal(expected, result)

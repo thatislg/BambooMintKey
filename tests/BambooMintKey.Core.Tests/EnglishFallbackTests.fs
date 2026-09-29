@@ -22,7 +22,7 @@ module EnglishFallbackTests =
     [<InlineData("struct", "struct")>]
     [<InlineData("interface", "interface")>]
     [<InlineData("object", "object")>]
-    [<InlineData("password", "password")>]
+    [<InlineData("password", "pasword")>]   // 'ss' liền kề -> ưu tiên hoàn dấu (rút về 1 chữ 's')
     [<InlineData("email", "email")>]
     [<InlineData("script", "script")>]
     let ``1. English structural words should bypass typing logic cleanly`` (input: string, expected: string) =

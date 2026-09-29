@@ -8,7 +8,7 @@
 
 **Mã tài liệu:** `012_SmartGrammarOptions_Duplicate_And_RepeatKeyUndoReversed`
 
-**Trạng thái:** 🟡 Đang điều tra — chờ xác nhận hành vi & tách phạm vi fix
+**Trạng thái:** 🟢 Đã xử lý (1.1/1.2 loại bỏ `AutoRestoreEnglishWords`; 1.3 sửa chiều hoàn tác + ưu tiên hoàn dấu)
 
 **Mức độ nghiêm trọng:** Trung bình (gây nhầm lẫn giao diện + một tính năng cốt lõi hoạt động sai chiều)
 
@@ -112,11 +112,27 @@ Logic hoàn tác nằm trong `src/BambooMintKey.Core/Engine/TelexEngine.fs` (`ha
 - `isUndoModifier`: lặp phím modifier (`a w e o d`).
 - `HasRepeatedToneUndo` trong `extractTokens`: phát hiện 2 phím dấu liên tiếp để kích hoạt undo khi bật `AllowFreeTonePlacement`.
 
-Giả thuyết cần kiểm chứng:
+**Nguyên nhân gốc (đã xác nhận):** ở nhánh `isUndoTone`/`isUndoModifier`, kết quả trả về luôn dùng `newRaw` (chuỗi thô ĐÃ gồm cả phím lặp) thay vì `state.RawKeys` (chuỗi thô TRƯỚC phím lặp). Vì vậy khi lặp phím dấu liền kề, chuỗi giữ nguyên cả 2 ký tự (`goxx -> goxx`, `horr -> horr`) thay vì rút về 1 (`gox`, `hor`).
 
-1. Với `goxx` / `horr`, chuỗi đi qua nhánh **free-tone placement** trước, `HasRepeatedToneUndo` trả `true` và `tryNormalizeFreeTone` trả `None` — nhưng nhánh `isUndoTone`/`isUndoModifier` không được kích hoạt đúng lúc, dẫn đến ký tự lặp bị giữ nguyên.
-2. Có thể trạng thái `state.Syllable` đã bị reset sau bước normalize, nên điều kiện `state.Syllable.Value.Tone <> Tone.None` không còn đúng khi nhận phím dấu thứ hai.
-3. Cần xác định kết quả `goxx -> goxx` là do nhánh undo không chạy, hay do undo chạy nhưng trả về sai chuỗi (giữ cả 2 ký tự thay vì rút 1).
+---
+
+## 2.3. Xung đột giữa Bảo vệ từ tiếng Anh và Repeat-key undo
+
+**Có xung đột thực sự**, nhưng chỉ xảy ra với một tập con hẹp: từ tiếng Anh **chứa ký tự lặp liền kề là phím dấu/modifier** (vd `mass`, `error`, `class`, `password`, `tests`, `add`).
+
+- **Bảo vệ từ tiếng Anh** (từ điển `isKnownEnglishWord`) muốn giữ nguyên các từ đó (`mass -> mass`).
+- **Repeat-key undo** muốn rút gọn ký tự lặp liền kề (`mass -> mas`).
+
+**Quyết định đã chốt:** ưu tiên **hoàn dấu (repeat-key undo) trước**. Ký tự lặp liền kề luôn được rút gọn, kể cả khi chuỗi là từ tiếng Anh. Hệ quả chấp nhận được: muốn gõ từ tiếng Anh `mass` thì phải gõ `masss`.
+
+| Gõ | Trước (từ Anh thắng) | Sau (hoàn dấu thắng) |
+|---|---|---|
+| `goxx` | `goxx` | `gox` |
+| `horr` | `horr` | `hor` |
+| `mass` | `mass` | `mas` |
+| `error` | `error` | `eror` |
+| `password` | `password` | `pasword` |
+| `class` | `class` | `class` (không lặp liền kề phím dấu) |
 
 ---
 
@@ -161,9 +177,10 @@ Danh sách đầy đủ tùy chọn "Tính năng thông minh" hiện tại (đ�
 - [x] Loại bỏ `AutoRestoreEnglishWords` khỏi engine (`TelexEngine.fs`), config (`EngineConfig.fs`), shared memory, UI (Windows + Linux), Taskbar, và test.
 - [x] Ẩn `EnableVietnameseDictionary` khỏi UI (chỉ là điều kiện phụ của hoàn tác tiếng Anh): đã xóa khỏi Taskbar (`LangBarItemButton.cs`, `MenuCommands.cs`), Settings UI (Windows + Linux `MainWindow.axaml`/`.axaml.fs`) và config Fcitx5 (`engine.h` `FCITX_CONFIGURATION`). Giữ cờ nội bộ (mặc định `true`) và khóa cấu hình trong `SharedConfig.fs`/shared memory để tương thích ngược; Fcitx5 gọi `bmk_set_options` với `enableVietnameseDictionary=true` cứng (giữ nguyên signature ABI).
 - [x] Đổi nhãn `EnableEnglishBacktracking` → "Tự động nhận diện từ tiếng Anh (20.000 từ)", đồng bộ Taskbar (`LangBarItemButton.cs`), Settings UI (Windows + Linux) và Fcitx5 (`engine.h`).
-- [ ] Thu thập log `BambooMintKey_Runtime.log` khi gõ `goxx`, `horr` để xác định nhánh undo (vấn đề 1.3 độc lập).
-- [ ] Viết unit test cho repeat-key undo (`goxx -> gox`, `horr -> hor`) trong `BambooMintKey.Core.Tests`.
-- [ ] Sửa chiều hoàn tác nếu xác nhận nhánh `isUndoTone`/`isUndoModifier` không được kích hoạt đúng.
+- [x] Thu thập log `BambooMintKey_Runtime.log` khi gõ `goxx`, `horr` để xác định nhánh undo (vấn đề 1.3 độc lập).
+- [x] Viết unit test cho repeat-key undo (`goxx -> gox`, `horr -> hor`) trong `BambooMintKey.Core.Tests`.
+- [x] Sửa chiều hoàn tác: nhánh `isUndoTone`/`isUndoModifier` trả về `state.RawKeys` (trước phím lặp) thay vì `newRaw`, ưu tiên hoàn dấu trước (bỏ điều kiện `not isKnownEnglish`).
+- [x] Cập nhật test tiếng Anh chứa ký tự lặp liền kề phím dấu để khóa hành vi mới: `error -> eror`, `password -> pasword`, `mass -> mas`.
 
 ---
 
