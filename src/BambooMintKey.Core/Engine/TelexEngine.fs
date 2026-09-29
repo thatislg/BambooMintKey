@@ -199,6 +199,16 @@ module TelexEngine =
                                 Tone = Tone.None
                                 Modifiers = [ ('d', Modifier.DBar) ]
                             }
+                        elif config.AllowLeadingWAsU && lowerChar = 'w' && state.RawKeys.IsEmpty then
+                            // Phím 'w' đứng đầu từ -> nguyên âm 'ư' (khi bật AllowLeadingWAsU).
+                            // w -> ư, rồi wa -> ưa, wu -> ưu, wi -> ưi, ws -> ứ.
+                            Some {
+                                InitialConsonant = ""
+                                VowelNucleus = if Char.IsUpper c then "Ư" else "ư"
+                                FinalConsonant = ""
+                                Tone = Tone.None
+                                Modifiers = [ ('w', Modifier.Horn) ]
+                            }
                         else None
 
                 match modifiedSyllableOpt with

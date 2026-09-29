@@ -27,7 +27,7 @@ with
     static member Default = {
         IsEnabled = true
         AllowRepeatKeyUndo = true
-        AllowLeadingWAsU = true
+        AllowLeadingWAsU = false
         ToneStyle = TonePlacementStyle.Modern
         AllowFreeTonePlacement = true
         EnableVietnameseDictionary = true

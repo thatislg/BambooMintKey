@@ -136,3 +136,32 @@ module UppercaseModifierTests =
     let ``7. WordBreak with space commits correctly`` (input: string, breakChar: char, expected: string) =
         let result = typeWordWithBreak input breakChar EngineConfig.Default
         Assert.Equal(expected, result)
+
+    // =========================================================================
+    // Nhóm 8: Phím 'w' đứng đầu từ -> 'ư' (AllowLeadingWAsU)
+    // =========================================================================
+
+    [<Theory>]
+    [<InlineData("w", "ư")>]          // w đơn độc -> ư
+    [<InlineData("wa", "ưa")>]        // w + a -> ưa
+    [<InlineData("wu", "ưu")>]        // w + u -> ưu
+    [<InlineData("wi", "ưi")>]        // w + i -> ưi
+    [<InlineData("ws", "ứ")>]         // w + sắc -> ứ
+    [<InlineData("wf", "ừ")>]         // w + huyền -> ừ
+    [<InlineData("W", "Ư")>]          // W hoa -> Ư
+    [<InlineData("Wa", "Ưa")>]        // W hoa + a -> Ưa
+    let ``8. Leading w maps to horn vowel ư when AllowLeadingWAsU is on`` (input: string, expected: string) =
+        let config = { EngineConfig.Default with AllowLeadingWAsU = true }
+        let result = typeWord input config
+        Assert.Equal(expected, result)
+
+    [<Theory>]
+    [<InlineData("w", "w")>]          // Tắt: w giữ nguyên
+    [<InlineData("wa", "wa")>]        // Tắt: không biến đổi
+    [<InlineData("uw", "ư")>]         // Tắt: uw vẫn ra ư bình thường
+    [<InlineData("ow", "ơ")>]         // Tắt: ow vẫn ra ơ bình thường
+    [<InlineData("aw", "ă")>]         // Tắt: aw vẫn ra ă bình thường
+    let ``8b. Leading w stays literal when AllowLeadingWAsU is off`` (input: string, expected: string) =
+        let config = { EngineConfig.Default with AllowLeadingWAsU = false }
+        let result = typeWord input config
+        Assert.Equal(expected, result)
