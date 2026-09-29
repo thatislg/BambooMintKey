@@ -1,0 +1,59 @@
+---
+title: "Survey of Vietnamese IMEs"
+description: "A landscape survey of existing Vietnamese input method systems."
+---
+
+# 2.1 Survey of Vietnamese IMEs
+
+> **TODO (VN):** Đây là bảng thống kê toàn cảnh các bộ gõ tiếng Việt đã có. Mục đích: cho người đọc thấy "đã có những gì" trước khi đi vào tổng hợp cách làm ở mục 2.2. Các trường có dấu `~` hoặc `?` là chưa kiểm chứng — cần đối chiếu nguồn (repo/trang chủ) rồi điền đúng giá trị. Có thể bổ sung thêm hàng để đạt đủ danh sách mong muốn (~39). Mỗi cột nên có chú thích nguồn ở cuối bảng.
+
+## 2.1.1 Phương pháp khảo sát
+
+> **TODO (VN):** Ghi ngắn gọn cách thu thập: lọc theo (a) còn hoạt động / đã ngừng, (b) mã nguồn mở / đóng, (c) nền tảng. Nêu tiêu chí đưa vào bảng và giới hạn (không tính bàn phím mobile stock, chỉ tính IME riêng).
+
+## 2.1.2 Bảng thống kê
+
+| Tên | Nền tảng | Năm phát hành | Lõi (ngôn ngữ) | Runtime | Kết nối hệ thống | Phương pháp | Mã nguồn mở | Tình trạng phát triển | Người dùng hiện tại | Link tham khảo |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| [UniKey](https://www.unikey.org/) | Windows | ~2000 | C++ | Native | TSF / Windows Hook | Telex, VNI, VIQR | ✗ (Bản mới) / ✓ (Bản 4.0 cũ) | Đang phát triển | Rất phổ biến (chuẩn de facto trên Windows) | https://www.unikey.org/ |
+| [EVKey](https://evkeyvn.com/) | Windows / macOS | ~2016 | C++ / Objective-C | Native | TSF / Accessibility Hook | Telex, VNI | ✗ | Đang phát triển | Phổ biến | https://evkeyvn.com/ |
+| [VietnameseTelex](https://github.com/microsoft/Windows-classic-samples/tree/main/Samples/Win7Samples/winui/tsf/tsfmark) | Windows | ~2010 | C++ | Native | TSF (Text Services Framework) | Telex | ✓ | Tham khảo (mẫu Microsoft) | Tham khảo (mẫu, không phải sản phẩm) | [https://github.com/microsoft/Windows-classic-samples](https://github.com/microsoft/Windows-classic-samples) |
+| [GoTiengViet](https://www.google.com/search?q=http://www.trankynam.com/gotiengviet/) | Windows / macOS | ~2012 | C++ / Objective-C | Native | Hook / Accessibility | Telex, VNI, VIQR | ✗ | Đang phát triển | Ít phổ biến | http://www.trankynam.com/gotiengviet/ |
+| [VietKey 2000](http://www.vietkey.com/) | Windows | 2000 | C / C++ | Native | Windows Hook | Telex, VNI | ✗ | Ngừng | ? | http://www.vietkey.com/ |
+| VietSpell | Windows | ~1998 | C++ | Native | Windows Hook | Telex, VNI | ✗ | Ngừng | ? | — |
+| [WinVNKey](http://winvnkey.sourceforge.net/) | Windows | ~2000 | C++ | Native | Windows Hook | Telex, VNI, VIQR | ✓ | Ngừng | ? | [http://winvnkey.sourceforge.net/](http://winvnkey.sourceforge.net/) |
+| VietIME | Windows | ? | C++ | Native | TSF | Telex, VNI | ✗ | Ngừng | ? | — |
+| Windows built-in (Telex/VNI) | Windows | ~2018 | C++ (OS in-box) | Native | TSF | Telex, VNI | ✗ | Đang phát triển | Rất phổ biến (đi kèm OS) | [https://support.microsoft.com/](https://support.microsoft.com/) |
+| [ibus-unikey](https://github.com/vn-input/ibus-unikey) | Linux | ~2009 | C++ | Native | IBus | Telex, VNI, VIQR | ✓ | Đang phát triển | Phổ biến | https://github.com/vn-input/ibus-unikey |
+| [ibus-bamboo](https://github.com/BambooEngine/ibus-bamboo) | Linux | 2019 | Go / C++ | Native | IBus | Telex, VNI + predict | ✓ | Đang phát triển | Phổ biến | https://github.com/BambooEngine/ibus-bamboo |
+| [ibus-bogo](https://www.google.com/search?q=https://github.com/vn-input/ibus-bogo) | Linux | ~2014 | Python / C++ | Python runtime / Native | IBus | Telex, VNI, VIQR | ✓ | Ngừng | ? | [https://github.com/vn-input/ibus-bogo](https://www.google.com/search?q=https://github.com/vn-input/ibus-bogo) |
+| [fcitx-unikey](https://gitlab.com/fcitx/fcitx-unikey) | Linux | ~2012 | C++ | Native | Fcitx4 | Telex, VNI | ✓ | Bảo trì ít | Ít phổ biến | https://gitlab.com/fcitx/fcitx-unikey |
+| [fcitx5-bamboo](https://www.google.com/search?q=https://github.com/BambooEngine/fcitx5-bamboo) | Linux | ~2021 | Go / C++ | Native | Fcitx5 | Telex, VNI + predict | ✓ | Đang phát triển | Phổ biến | https://github.com/BambooEngine/fcitx5-bamboo |
+| [fcitx5-unikey](https://github.com/fcitx/fcitx5-unikey) | Linux | ~2021 | C++ | Native | Fcitx5 | Telex, VNI | ✓ | Đang phát triển | Ít phổ biến | [https://github.com/fcitx/fcitx5-unikey](https://github.com/fcitx/fcitx5-unikey) |
+| [x-unikey](https://sourceforge.net/projects/unikey/) | Linux | ~2002 | C++ | Native | XIM (X Input Method) | Telex, VNI | ✓ | Ngừng | ? | https://sourceforge.net/projects/unikey/ |
+| SCIM Unikey | Linux | ~2005 | C++ | Native | SCIM | Telex, VNI | ✓ | Ngừng | ? | https://sourceforge.net/projects/scim/ |
+| [uim-viqr](https://github.com/uim/uim) | Linux | ? | C / Scheme | Native | uim | VIQR | ✓ | Bảo trì ít | Ngách | https://github.com/uim/uim |
+| [OpenKey](https://github.com/tuyenvm/OpenKey) | macOS / Windows | ~2018 | C++ / Objective-C / Swift | Native | IMK / Accessibility | Telex, VNI, Simple Telex | ✓ | Đang phát triển | Phổ biến | [https://github.com/tuyenvm/OpenKey](https://github.com/tuyenvm/OpenKey) |
+| [Bamboo (macOS)](https://www.google.com/search?q=https://github.com/BambooEngine/bamboo-mac) | macOS | ~2021 | Swift / Go | Native | IMK (InputMethodKit) | Telex + predict | ✓ | Bảo trì ít | Ít phổ biến | https://github.com/BambooEngine/bamboo-mac |
+| [VPSKeys](http://www.vps.org/) | macOS / Windows | ~2005 | Objective-C / C++ | Native | IMK / Hook | Telex, VNI | ✗ | Ngừng | ? | http://www.vps.org/ |
+| MacUnikey | macOS | ~2005 | Objective-C | Native | IMK | Telex, VNI | ✗ | Ngừng | ? | — |
+| macOS built-in Vietnamese | macOS | ~2016 | C++ / Swift (OS) | Native | IMK | Telex, VNI, Simple Telex | ✗ | Đang phát triển | Phổ biến (đi kèm OS) | https://support.apple.com/ |
+| [AVIM](https://www.google.com/search?q=https://github.com/whs/avim) | Web / Extension | ~2009 | JavaScript | Browser Engine | DOM key events | Telex, VNI, VIQR | ✓ | Ngừng | ? | [https://github.com/whs/avim](https://www.google.com/search?q=https://github.com/whs/avim) |
+| [Mudim](https://www.google.com/search?q=https://github.com/trung/mudim) | Web | ~2008 | JavaScript | Browser Engine | DOM key events | Telex, VNI, VIQR | ✓ | Ngừng | ? | https://github.com/trung/mudim |
+| [XChat / HIM](https://www.google.com/search?q=http://him.sf.net/) | Web | ~2004 | JavaScript | Browser Engine | DOM key events | Telex, VNI | ✓ | Ngừng | ? | — |
+| [Gõ Tiếng Việt Online](https://www.google.com/intl/vi/inputtools/try/) | Web | 2012 | JavaScript | Browser Engine | DOM key events | Telex, VNI | ✗ | Đang phát triển | Phổ biến | [https://www.google.com/intl/vi/inputtools/try/](https://www.google.com/intl/vi/inputtools/try/) |
+| [Gboard Vietnamese](https://play.google.com/store/apps/details?id=com.google.android.inputmethod.latin) | Android / iOS | ~2013 | C++ / Java / Kotlin | Android Runtime / Native | Android IME API | Telex, VNI + AI predict | ✗ | Đang phát triển | Rất phổ biến (mobile) | https://play.google.com/store/apps/details?id=com.google.android.inputmethod.latin |
+| [Laban Key](https://labankey.com/) | Android / iOS | ~2014 | C++ / Java / Swift | Android Runtime / Native | Android IME / iOS Keyboard Ext | Telex, VNI + predict | ✗ | Đang phát triển | Phổ biến (VN) | https://labankey.com/ |
+| [SwiftKey Vietnamese](https://www.microsoft.com/en-us/swiftkey) | Android / iOS | ~2012 | C++ / Kotlin / Swift | Android Runtime / Native | Android IME / iOS Keyboard Ext | Telex, VNI + AI predict | ✗ | Đang phát triển | Phổ biến | [https://www.microsoft.com/en-us/swiftkey](https://www.microsoft.com/en-us/swiftkey) |
+| iOS built-in Vietnamese | iOS / iPadOS | 2007 | C++ / Swift (OS) | Native | UIKit / TextInput Engine | Telex, VNI | ✗ | Đang phát triển | Phổ biến (đi kèm OS) | [https://support.apple.com/](https://support.apple.com/) |
+| BKED | DOS | ~1989 | C / ASM | Native | BIOS INT 9/16h Hook | Telex, VNI | ✗ | Ngừng | ? | — |
+| SmartKey | DOS | ~1991 | ASM / C | Native | TSR (Terminate and Stay Resident) | Telex | ✗ | Ngừng | ? | — |
+| VNI (DOS) | DOS | 1987 | C / ASM | Native | BIOS Hook | VNI | ✗ | Ngừng | ? | — |
+| VietStar | DOS | ~1989 | C / ASM | Native | TSR / BIOS Interrupt | Telex, VNI | ✗ | Ngừng | ? | — |
+| [BambooMintKey](https://www.google.com/search?q=https://github.com/thatislg/BambooMintKey) | Windows / Linux (macOS sau) | ~2025 | F# (lõi) + C# (AOT) | **Không** (NativeAOT) | TSF (Win) / Fcitx5 (Linux) / IMK (macOS) | Telex + predict engine | ✓ | Đang phát triển | Mới (đang xây dựng) | [https://github.com/thatislg/BambooMintKey](https://www.google.com/search?q=https://github.com/thatislg/BambooMintKey) |
+
+> **TODO (VN):** Bổ sung thêm các bộ gõ còn thiếu để đạt đủ danh sách (~39) và điền các ô `~`/`?`. Cột "Năm phát hành" và "Người dùng hiện tại" là ước lượng chủ quan — cần nguồn cụ thể (repo, bài báo, trang chủ, số liệu tải) để trích dẫn. Ghi nguồn cho từng hàng (link repo/trang chủ) ở mục References hoặc footnote.
+
+## 2.1.3 Nhận xét sơ bộ từ bảng
+
+> **TODO (VN):** Rút ra vài quan sát: (a) phần lớn lõi là C/C++ native; (b) có một nhóm "core + adapter" (ibus-bamboo/fcitx5-bamboo tách lõi) và một nhóm monolithic (Unikey); (c) predict engine không phổ biến ở các IME truyền thống. Đây là cầu nối dẫn vào mục 2.2.

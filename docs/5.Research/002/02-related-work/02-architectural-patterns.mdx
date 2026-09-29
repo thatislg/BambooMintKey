@@ -1,0 +1,28 @@
+---
+title: "Architectural Patterns"
+description: "Synthesizing the design approaches found across existing Vietnamese IMEs."
+---
+
+# 2.2 Architectural Patterns
+
+> **TODO (VN):** Phần này "tổng hợp các cách làm" — nhóm các bộ gõ ở mục 2.1 thành các mẫu kiến trúc lặp lại, kèm trade-off. Đây là phần phân tích, không phải liệt kê. Kết thúc bằng việc chỉ ra BambooMintKey nằm ở nhánh nào và vì sao.
+
+## 2.2.1 Monolithic vs. Decoupled Core
+
+> **TODO (VN):** So sánh hai cực: Unikey/EVKey (lõi gắn chặt vào lớp hệ thống của riêng Windows) vs. ibus-bamboo/fcitx5-bamboo (tách lõi xử lý khỏi adapter IBus/Fcitx5). Nêu hệ quả: tái sử dụng đa nền tảng khó hay dễ.
+
+## 2.2.2 Runtime & Interpreter in the Hot Path
+
+> **TODO (VN):** Nhóm theo runtime: native (C/C++) vs. managed (Go, JS/Node trong ibus-bamboo bản cũ). Phân tích chi phí khởi động, footprint, GC pause trong đường gõ phím. Đây là điểm BambooMintKey nhắm tới (NativeAOT: managed code nhưng không cần runtime).
+
+## 2.2.3 Buffer & Allocation Strategy
+
+> **TODO (VN):** So sánh cách quản lý chuỗi preedit/commit: dynamic string churn (phần lớn) vs. fixed-size buffer zero-allocation (BambooMintKey). Nêu lý do buffer cố định quan trọng khi đi qua biên ABI.
+
+## 2.2.4 Interop Approach
+
+> **TODO (VN):** Liệt kê các cách nối lõi với hệ thống: trực tiếp trong cùng tiến trình (native hook), plugin C++ (Fcitx5 addon), hoặc cầu C-ABI qua NativeAOT (BambooMintKey). Nêu trade-off về an toàn bộ nhớ, khả năng tái sử dụng.
+
+## 2.2.5 Summary Table of Patterns
+
+> **TODO (VN):** Bảng tóm tắt: mỗi hàng là một mẫu kiến trúc, mỗi cột là đại diện tiêu biểu + trade-off chính. Dùng để dẫn vào mục 2.3.
