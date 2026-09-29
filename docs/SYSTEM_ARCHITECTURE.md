@@ -1,5 +1,5 @@
 <!--
-  BambooMintKey - Vietnamese Telex Input Method Editor for Windows & Linux
+  BambooMintKey - Vietnamese Telex Input Method Editor for Windows, macOS & Linux
   Copyright (c) 2026 Dương Gia Long and LMO contributors
   SPDX-License-Identifier: MIT
 -->
@@ -36,10 +36,9 @@ flowchart TB
     subgraph CoreEngine ["Lõi Thuật Toán Dùng Chung (F# Pure Functional)"]
         direction TB
         SyllableParser["SyllableParser<br/>(Phan tich phu am, nguyen am, van)"]
-        TransformEngine["TransformEngine<br/>(Telex / VNI / Simple Telex / Bo dau tu do)"]
-        CharTable["CharTable<br/>(Unicode dung san, to hop, TCVN3)"]
-        MacroEngine["MacroEngine<br/>(Bang go tat sieu toc)"]
-        Dictionary["DictionaryEngine<br/>(Tu dien tieng Viet MIT)"]
+        TelexEngine["TelexEngine<br/>(Telex / VNI / Simple Telex / Bo dau tu do)"]
+        UnicodeTables["UnicodeTables<br/>(Unicode dung san, to hop, TCVN3)"]
+        FrozenDictionary["FrozenDictionaryService<br/>(Tu dien tieng Viet MIT)"]
     end
 
     subgraph WindowsPlatform ["Phan He Windows (Text Services Framework)"]
@@ -59,7 +58,7 @@ flowchart TB
     subgraph LinuxPlatform ["Phan He Linux Native (Fcitx5 Framework)"]
         direction TB
         Fcitx5Core["Fcitx5 Core Daemon"]
-        CoreNativeSo["BambooMintKeyCore.so (C# NativeAOT C-ABI)<br/>Export: bmk_init, bmk_process_key, bmk_free"]
+        CoreNativeSo["BambooMintKeyCore.so (C# NativeAOT C-ABI)<br/>Export: bmk_context_create, bmk_process_key,<br/>bmk_process_backspace, bmk_process_wordbreak,<br/>bmk_get_preedit_text, bmk_get_commit_text,<br/>bmk_set_options, bmk_load_config_json"]
         Fcitx5Addon["libbamboomintkey.so (C++ Addon)<br/>InputContext, KeyEvent, D-Bus, inotify"]
         LinuxConfig["File Cau Hinh XDG<br/>~/.config/bamboomintkey/config.json"]
         LinuxUI["bamboomintkey-ui<br/>(Avalonia F# Linux)"]
@@ -96,17 +95,18 @@ flowchart TB
 
 - **Đặc điểm:** Mã nguồn thuần F#, không phụ thuộc vào bất kỳ thư viện bên ngoài hay API nền tảng Windows/Linux. Đảm bảo deterministic 100%, dễ viết Unit Test độc lập.
 - **Các thành phần chính:**
-  - `Types.fs`: Định nghĩa các kiểu dữ liệu cốt lõi (`InputMethod`, `Charset`, `ToneStyle`, `TonePosition`, `SyllableComponents`, `EngineState`).
-  - `CharTable.fs`: Bảng mã tra cứu siêu tốc cho Unicode dựng sẵn (NFC), Unicode tổ hợp (NFD), TCVN3 (ABC).
+  - `Types.fs`: Định nghĩa các kiểu dữ liệu cốt lõi (`InputMethod`, `Charset`, `ToneStyle`, `TonePosition`, `SyllableComponents`, `EngineState`, `EngineAction`).
+  - `UnicodeTables.fs`: Bảng mã tra cứu siêu tốc cho Unicode dựng sẵn (NFC), Unicode tổ hợp (NFD), TCVN3 (ABC).
   - `SyllableParser.fs`: Thuật toán bóc tách âm tiết tiếng Việt thành 3 phần: Phụ âm đầu (Initial Consonant), Âm đệm & Âm chính (Medial & Nucleus Vowel), Phụ âm cuối (Final Consonant).
-  - `TransformEngine.fs`: Cỗ máy biến đổi âm tiết theo các quy tắc ngữ pháp tiếng Việt:
+  - `EngineConfig.fs`: Cấu hình engine và các tùy chọn gõ.
+  - `TelexEngine.fs`: Cỗ máy biến đổi âm tiết theo các quy tắc ngữ pháp tiếng Việt:
     - Quy tắc đặt dấu thanh (Mới: *òa, xòe, thủy* vs Cũ: *oà, xoè, thuỷ*).
     - Tự động phục hồi từ gốc khi gõ từ tiếng Anh sai ngữ pháp tiếng Việt (`AutoRestoreEnglishWords`).
     - Gõ lặp dấu để khôi phục ký tự thô (`AllowRepeatKeyUndo`: *ss* $\rightarrow$ *s*).
     - Phím `w` đầu từ thành `ư` (`AllowLeadingWAsU`: *w* $\rightarrow$ *ư*).
     - Bỏ dấu tự do (`AllowFreeTonePlacement`).
-  - `MacroEngine.fs`: Khớp chuỗi gõ tắt cực nhanh từ bộ nhớ đệm.
-  - `DictionaryEngine.fs`: Kiểm tra tính hợp lệ của từ tiếng Việt dựa trên tập từ điển mã nguồn mở MIT.
+  - Các module hỗ trợ: `ModifierRules.fs`, `ToneRules.fs`, `WordBuffer.fs`, `EnglishProtection.fs`, `FreeTonePlacement.fs`.
+  - `FrozenDictionaryService.fs`: Dịch vụ từ điển dùng `FrozenDictionary` để tra cứu nhanh từ tiếng Việt và tiếng Anh đã nhúng vào assembly.
 
 ---
 
@@ -158,11 +158,16 @@ flowchart TB
 ### 3.3. Phân Hệ Linux Native (Fcitx5 & C-ABI)
 
 #### 3.3.1. C-ABI NativeAOT Library: `BambooMintKey.Core.Native`
-- Đóng gói lõi F# thành `BambooMintKeyCore.so` xuất khẩu các hàm C-ABI thuần (`bmk_*`):
-  - `bmk_init()`: Khởi tạo engine instance.
-  - `bmk_process_key(instance, keycode, modifiers, out_result)`: Xử lý phím gõ và trả về kết quả biến đổi (preedit string, commit string, backspace count).
-  - `bmk_free(instance)`: Giải phóng tài nguyên engine.
-  - `bmk_set_config(instance, config_json)`: Cập nhật cấu hình engine theo định dạng JSON.
+- Đóng gói lõi F# thành `BambooMintKeyCore.so` xuất khẩu các hàm C-ABI thuần (`bmk_*`) qua `UnmanagedCallersOnly`:
+  - `bmk_context_create()`: Tạo engine context mới, trả về handle (dùng `GCHandle`).
+  - `bmk_context_free(handle)`: Giải phóng context và thu hồi `GCHandle`.
+  - `bmk_context_reset(handle)`: Đặt lại trạng thái về rỗng.
+  - `bmk_process_key(handle, unicodeChar)`: Xử lý ký tự Unicode và trả về mã hành động (`PassThrough`, `UpdatePreedit`, `CommitString`).
+  - `bmk_process_backspace(handle)`: Xử lý phím Backspace.
+  - `bmk_process_wordbreak(handle, breakChar)`: Xử lý ký tự ngắt từ (space, enter, dấu câu).
+  - `bmk_get_preedit_text(handle)` / `bmk_get_commit_text(handle)`: Trích xuất chuỗi UTF-8 hiện tại (read-only, null-terminated).
+  - `bmk_set_options(handle, ...)` / `bmk_load_config_json(handle, jsonUtf8)`: Cập nhật tùy chọn gõ từ addon C++.
+  - `bmk_version()` / `bmk_get_live_context_count()` / `bmk_gc_collect()`: Hỗ trợ diagnostics và kiểm tra rò rỉ.
 - **Tính độc lập & Portable:**
   - Biên dịch NativeAOT chỉ liên kết với `libc.so.6` và `libm.so.6`.
   - Được gán `-Wl,-soname,BambooMintKeyCore.so` để tránh bị hardcode đường dẫn tuyệt đối khi liên kết với addon C++.
@@ -241,7 +246,7 @@ sequenceDiagram
     participant Fcitx as Fcitx5 Daemon
     participant Addon as libbamboomintkey.so (C++)
     participant CABI as BambooMintKeyCore.so (C-ABI)
-    participant Core as TransformEngine (F#)
+    participant Core as TelexEngine (F#)
 
     User->>App: Bam phim ky tu (VD: w)
     App->>Fcitx: Fcitx5 KeyEvent
@@ -252,12 +257,13 @@ sequenceDiagram
         Addon->>Fcitx: Update Status Icon V/E
         Addon-->>Fcitx: return true (Filter phím tắt)
     else Dang o che do Tieng Viet
-        Addon->>CABI: bmk_process_key(engine, keyChar, modifiers, &result)
-        CABI->>Core: ProcessKey(state, key)
-        Core-->>CABI: Ket qua bien doi (commit / preedit)
-        CABI-->>Addon: bmk_result_t
-        Addon->>Fcitx: ic->commitString(result.commit)
-        Addon-->>Fcitx: return true (Phím da duoc xu ly)
+        Addon->>CABI: bmk_process_key(handle, unicodeChar)
+        CABI->>Core: processKey(state, key, config)
+        Core-->>CABI: UpdatePreedit / CommitString
+        CABI-->>Addon: ActionCode (UpdatePreedit / CommitString)
+        Addon->>Fcitx: ic->setClientPreedit(result) / ic->commitString(result)
+        Addon->>Fcitx: ic->updatePreedit()
+        Addon-->>Fcitx: keyEvent.filterAndAccept()
     else Che do Tieng Anh
         Addon-->>Fcitx: return false (De nguyen phim cho app)
     end

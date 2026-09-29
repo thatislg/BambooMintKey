@@ -1,24 +1,56 @@
 <!--
-  BambooMintKey - Vietnamese Telex Input Method Editor for Windows & Linux
+  BambooMintKey - Vietnamese Telex Input Method Editor for Windows, macOS & Linux
   Copyright (c) 2026 Dương Gia Long and LMO contributors
   SPDX-License-Identifier: MIT
 -->
 
 # BambooMintKey
 
-**Bộ gõ tiếng Việt Telex cho Windows (TSF), Linux (Fcitx5) và Steam Deck (Flatpak).**
+A zero-dependency, high-performance cross-platform Vietnamese IME for **Windows, macOS & Linux** (bao gồm cả **Steam Deck / SteamOS** qua Flatpak), powered by **.NET 10, F# and NativeAOT**.
 
 <a href="https://get.microsoft.com/installer/download/xpdp9v267ntq42?referrer=appbadge" target="_self" >
 	<img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200"/>
 </a>
 
-BambooMintKey là bộ gõ tiếng Việt với **lõi xử lý ngôn ngữ thuần chức năng (F#) dùng chung** cho cả hai nền tảng:
+**BambooMintKey** là bộ gõ tiếng Việt Telex với **lõi xử lý ngôn ngữ thuần chức năng (F#) dùng chung** trên đa nền tảng. Bằng cách biên dịch toàn bộ engine và giao diện bằng **NativeAOT**, BambooMintKey đạt được hiệu năng gần mức native, kích thước nhỏ gọn và không phụ thuộc vào runtime .NET trên máy người dùng.
 
 - **Windows** — Text Input Processor (TIP) chạy như In-Process COM Server bên trong tiến trình ứng dụng, tích hợp sâu vào Text Services Framework (TSF).
 - **Linux** — Fcitx5 addon (C++) gọi engine qua C-ABI, kèm giao diện cài đặt Avalonia độc lập.
 - **Steam Deck (SteamOS)** — Flathub Addon Extension tích hợp tự động với Fcitx5 Flatpak mà không sửa đổi phân vùng hệ thống read-only.
 
 ![Demo gõ tiếng Việt với BambooMintKey](screenshot/DemoBogo.gif)
+
+## Tổng quan Công nghệ
+
+| Thành phần | Windows | Linux | macOS (mục tiêu tiếp theo) |
+|---|---|---|---|
+| **Hệ thống con IME** | TSF (Text Services Framework) | Fcitx5 | InputMethodKit (IMK) |
+| **Cầu nối tầng ngoài** | COM In-Process Server | C++ Addon + D-Bus | Objective-C / Swift |
+| **Cầu nối Native (.NET 10)** | C# NativeAOT `BambooMintKey.dll` (`BambooMintKey.NativeBridge`) | C# NativeAOT `BambooMintKeyCore.so` (`BambooMintKey.Core.Native` via C-ABI) | C# NativeAOT `libBambooMintKey.dylib` via C-ABI |
+| **Lõi xử lý từ vựng** | F# `BambooMintKey.Core` (Telex, Syllable, Unicode) | F# `BambooMintKey.Core` (dùng chung 100%) | F# `BambooMintKey.Core` (dùng chung 100%) |
+| **Giao diện cấu hình** | Avalonia UI (`BambooMintKey.UI`) | Avalonia UI (`BambooMintKey.UI.Linux`) + D-Bus client | Avalonia UI (chạy native macOS) |
+
+### Kiến trúc chung
+
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           BambooMintKey                                 │
+├─────────────────────┬─────────────────────┬─────────────────────────────┤
+│       Windows       │        Linux        │        macOS (TBD)          │
+│  TSF In-Proc COM    │   Fcitx5 C++ Addon  │      InputMethodKit         │
+│  (NativeAOT DLL)    │   + D-Bus V/E       │      (NativeAOT)            │
+├─────────────────────┴─────────────────────┴─────────────────────────────┤
+│              BambooMintKey.NativeBridge / Core.Native                   │
+│                   — C# NativeAOT bridge —                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│              BambooMintKey.Core (F#) — Telex/Syllable/Unicode           │
+├─────────────────────────────────────────────────────────────────────────┤
+│   BambooMintKey.UI (Windows) │ BambooMintKey.UI.Linux (Linux+D-Bus)     │
+│                    — Avalonia configuration UI —                        │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+Chi tiết kiến trúc từng nền tảng: xem [`docs/SYSTEM_ARCHITECTURE.md`](docs/SYSTEM_ARCHITECTURE.md).
 
 ---
 
@@ -75,22 +107,34 @@ Hướng dẫn chi tiết: [`docs/BUILD_LINUX.md`](docs/BUILD_LINUX.md) · Kiế
 
 ---
 
-## Trạng Thái Hiện Tại (Windows)
+## Trạng Thái Hiện Tại
 
-Dự án đã hoàn thành **Phase 1** (nguyên cứu & thiết kế), **Phase 2** (core engine F# + TSF NativeAOT bridge) và **triển khai phần lớn Phase 3** (User Interface & Context Management).
+Dự án đã hoàn thành **Phase 9**, bộ gõ hiện **đã sử dụng được trên Windows và Linux**, đồng thời hỗ trợ đóng gói phân phối qua nhiều kênh.
 
-### Phase 3 — Đã triển khai
+### Windows
 
 | Hạng mục | Trạng thái | Ghi chú |
-|----------|------------|---------|
-| Taskbar Button COM Bridge (`ITfLangBarItemButton`) | ✅ Hoạt động | Đăng ký / gỡ bỏ qua `ITfLangBarItemMgr`. |
-| Icon động V/E trên Taskbar | ✅ Hoạt động | Vẽ GDI năng động, caching + `CopyIcon`, đồng bộ `Input Mode Compartment`. |
-| Context menu chuột phải | ✅ Hoạt động | Toggle tiếng Việt, chọn kiểu gõ, bảng mã, mở Settings/About. |
-| Shared Configuration (`config.json`) | ✅ Hoạt động | Lưu tại `%AppData%\BambooMintKey\config.json`, reload không cần restart. |
-| Settings GUI (Avalonia) | ✅ Hoạt động | 4 tab: Bàn phím & Phím tắt, Tùy chọn gõ, Gõ thử, Thông tin. |
-| Đồng bộ trạng thái cross-process | ✅ Hoạt động | Shared memory + Manual-Reset event broadcast giữa các tiến trình. |
+|---|---|---|
+| TSF Text Input Processor (TIP) | ✅ Hoạt động | In-Process COM Server NativeAOT (`BambooMintKey.dll`). |
+| Key event xử lý phím hệ thống | ✅ Hoạt động | `ITfKeyEventSink`, không dùng giả lập phím. |
+| Taskbar icon động V/E | ✅ Hoạt động | Vẽ GDI, đồng bộ qua `Input Mode Compartment`. |
+| Context menu trên Taskbar | ✅ Hoạt động | Chuyển chế độ gõ, kiểu gõ, bảng mã, mở Settings/About. |
+| Settings GUI (Avalonia) | ✅ Hoạt động | 4 tab cấu hình đầy đủ. |
+| Cấu hình `config.json` + đồng bộ cross-process | ✅ Hoạt động | Shared memory + Manual-Reset event. |
+| Bộ cài Inno Setup / Microsoft Store | ✅ Hoạt động | Đã đăng và kiểm thử trên Microsoft Store. |
 
-Các tính năng còn lại của Phase 3 (nếu có) đang trong giai đoạn tinh chỉnh và ổn định hóa dựa trên log/runtime.
+### Linux (Fcitx5)
+
+| Hạng mục | Trạng thái | Ghi chú |
+|---|---|---|
+| Fcitx5 engine addon | ✅ Hoạt động | `libbamboomintkey.so`, gọi engine qua `BambooMintKeyCore.so`. |
+| Xử lý phím và preedit | ✅ Hoạt động | `fcitx::KeyEvent`, client preedit + input panel. |
+| Đồng bộ V/E qua D-Bus | ✅ Hoạt động | `ModeChanged` signal, single-owner service. |
+| Hot-reload cấu hình | ✅ Hoạt động | `inotify` trên `~/.config/bamboomintkey/config.json`. |
+| Settings GUI (Avalonia) | ✅ Hoạt động | 6 tab, kết nối D-Bus đến engine. |
+| Gói phân phối `.deb` / `.rpm` | ✅ Đã build thử | Ubuntu/Debian và Fedora đều ổn thỏa. |
+
+Các giai đoạn tiếp theo đang tập trung vào **ổn định hóa**, **hiệu năng**, và **mở rộng sang macOS**.
 
 ### Ảnh Chụp Màn Hình
 
