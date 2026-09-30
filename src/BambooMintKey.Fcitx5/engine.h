@@ -126,6 +126,8 @@ private:
 
     // Trạng thái V/E và tùy chọn engine (single-owner).
     bool vietnameseMode_ = true;
+    // Đánh dấu V/E đã được khởi tạo từ config.json (chỉ một lần, tránh ghi đè runtime toggle).
+    bool vietnameseModeLoaded_ = false;
     int toneStyle_ = ToneModern;
     bool allowRepeatUndo_ = true;
     bool allowLeadingW_ = false;

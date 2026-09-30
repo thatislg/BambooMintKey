@@ -453,7 +453,13 @@ void BambooMintKeyEngine::reloadConfigFromFile() {
     }
 
     applyOptionsFromJson(json);
-    vietnameseMode_ = jsonGetBool(json, "isVietnameseMode", true);
+    // V/E là trạng thái runtime (toggle bằng phím ` / D-Bus): chỉ khởi tạo MỘT lần từ
+    // config.json lúc khởi động, KHÔNG ghi đè mỗi lần reload (inotify / setConfig).
+    // Nếu ghi đè, toggle V/E của người dùng sẽ bị reset về giá trị cũ trong config.json.
+    if (!vietnameseModeLoaded_) {
+        vietnameseMode_ = jsonGetBool(json, "isVietnameseMode", true);
+        vietnameseModeLoaded_ = true;
+    }
 }
 
 void BambooMintKeyEngine::applyConfigToState(BambooMintKeyState *state) {
