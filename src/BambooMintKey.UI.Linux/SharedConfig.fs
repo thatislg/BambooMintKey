@@ -55,7 +55,7 @@ module ConfigStore =
         let path = configPath ()
         if File.Exists(path) then
             try
-                File.ReadAllText(path) |> JsonSerializer.Deserialize<AppConfig>
+                JsonSerializer.Deserialize<AppConfig>(File.ReadAllText(path), options)
             with _ ->
                 AppConfig()
         else
