@@ -165,7 +165,7 @@ jobs:
           files: |
             bin/dist/BambooMintKey-Setup.exe
             bin/dist/BambooMintKey-Setup.exe.sha256
-          draft: false
+          draft: true
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
