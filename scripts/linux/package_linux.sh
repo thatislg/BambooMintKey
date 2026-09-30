@@ -18,7 +18,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-VERSION="1.1.0"
+VERSION="1.1.1"
 ARCH="$(dpkg-architecture -qDEB_HOST_ARCH 2>/dev/null || uname -m)"
 MULTIARCH="$(dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null || echo "lib")"
 BUILD_DEB=true

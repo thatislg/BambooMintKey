@@ -53,6 +53,12 @@
     <addon>bamboomintkey</addon>
   </provides>
   <releases>
+    <release version="1.1.1" date="2026-09-30">
+      <description>
+        <p>Release 1.1.1: Bug fixes for leading 'w' (ư/ươ) handling and repeat-key undo; removed AutoRestoreEnglishWords; dictionary flag hidden in UI.</p>
+        <p xml:lang="vi">Bản phát hành 1.1.1: Sửa lỗi phím 'w' đầu từ (ư/ươ) và undo lặp phím; bỏ AutoRestoreEnglishWords; ẩn cờ từ điển trên giao diện.</p>
+      </description>
+    </release>
     <release version="1.1.0" date="2026-09-27">
       <description>
         <p>Release 1.1.0: First stable release supporting Linux Fcitx5 with MIT syllable dictionary, NativeAOT C-ABI, and Steam Deck Flatpak support.</p>

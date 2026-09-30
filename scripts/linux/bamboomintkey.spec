@@ -5,7 +5,7 @@
 # RPM spec cho Fedora (build bằng rpmbuild). Xem scripts/package_linux.sh.
 
 Name:           bamboomintkey
-Version:        1.1.0
+Version:        1.1.1
 Release:        1%{?dist}
 Summary:        Vietnamese Telex Input Method for Fcitx5
 License:        MIT
@@ -78,5 +78,8 @@ update-desktop-database %{_datadir}/applications &>/dev/null || :
 %{_datadir}/applications/bamboomintkey-settings.desktop
 
 %changelog
+* Sun Sep 27 2026 Dương Gia Long <thatislg@users.noreply.github.com> - 1.1.1-1
+- Loại bỏ AutoRestoreEnglishWords, ẩn cờ từ điển, thêm w đầu từ thành ư và sửa undo
+
 * Sun Sep 27 2026 Dương Gia Long <thatislg@users.noreply.github.com> - 1.1.0-1
 - Initial package

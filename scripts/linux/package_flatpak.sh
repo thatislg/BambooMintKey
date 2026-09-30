@@ -19,6 +19,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+VERSION="1.1.1"
 
 MANIFEST="$PROJECT_ROOT/manifests/flatpak/org.fcitx.Fcitx5.Addon.BambooMintKey.yaml"
 OUT_DIR="$PROJECT_ROOT/delivery/flatpak"
@@ -125,7 +126,7 @@ echo "=== [3/3] Build hoàn tất thành công! ==="
 echo "Artifact repo: $REPO_DIR"
 
 if [ "$DO_BUNDLE" = true ]; then
-    BUNDLE_FILE="$OUT_DIR/org.fcitx.Fcitx5.Addon.BambooMintKey.flatpak"
+    BUNDLE_FILE="$OUT_DIR/org.fcitx.Fcitx5.Addon.BambooMintKey_${VERSION}.flatpak"
     echo "Đang tạo bundle $BUNDLE_FILE..."
     flatpak build-bundle --runtime "$REPO_DIR" "$BUNDLE_FILE" org.fcitx.Fcitx5.Addon.BambooMintKey stable
     echo "Đã tạo bundle thành công: $BUNDLE_FILE"
