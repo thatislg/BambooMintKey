@@ -89,6 +89,8 @@ public:
     // Đọc các tùy chọn engine (không gồm trạng thái V/E) từ config.json.
     void applyOptionsFromJson(const std::string &json);
     void applyConfigToState(BambooMintKeyState *state);
+    // Ghi ngược trạng thái V/E vào config.json (persist xuyên phiên).
+    void persistVietnameseMode(bool enabled);
 
 private:
     // Xử lý phím theo mã hành động trả về từ C-ABI.

@@ -17,6 +17,7 @@
 #include <fcitx-utils/log.h>
 
 #include <cctype>
+#include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
@@ -138,6 +139,8 @@ void BambooMintKeyEngine::setVietnameseMode(bool enabled) {
     }
     vietnameseMode_ = enabled;
     dbusObject_->modeChanged(vietnameseMode_);
+    // Persist trạng thái V/E vào config.json để giữ xuyên phiên (giống Unikey).
+    persistVietnameseMode(vietnameseMode_);
 }
 
 bool BambooMintKeyEngine::toggleVietnameseMode() {
@@ -436,6 +439,67 @@ int jsonGetInt(const std::string &json, const std::string &key,
     return static_cast<int>(value);
 }
 
+// Đặt (hoặc thay) giá trị boolean cho một khóa JSON top-level; trả về chuỗi JSON mới.
+std::string jsonSetBool(const std::string &json, const std::string &key,
+                        bool value) {
+    const std::string token = "\"" + key + "\"";
+    const std::string val = value ? "true" : "false";
+    const auto keyPos = json.find(token);
+
+    if (keyPos == std::string::npos) {
+        // Khóa chưa tồn tại -> chèn vào trước dấu '}' đóng của object gốc.
+        const auto close = json.find_last_of('}');
+        if (close == std::string::npos) {
+            return "{\n  \"" + key + "\": " + val + "\n}\n";
+        }
+        std::string result = json.substr(0, close);
+        while (!result.empty() &&
+               (result.back() == ' ' || result.back() == '\t' ||
+                result.back() == '\n' || result.back() == '\r')) {
+            result.pop_back();
+        }
+        if (!result.empty() && result.back() != '{' && result.back() != ',') {
+            result += ',';
+        }
+        result += "\n  \"" + key + "\": " + val;
+        result += json.substr(close);
+        return result;
+    }
+
+    const auto colon = json.find(':', keyPos + token.size());
+    if (colon == std::string::npos) {
+        return json;
+    }
+    const auto vStart = json.find_first_not_of(" \t\r\n", colon + 1);
+    if (vStart == std::string::npos) {
+        return json;
+    }
+    size_t len = 0;
+    if (json.compare(vStart, 4, "true") == 0) {
+        len = 4;
+    } else if (json.compare(vStart, 5, "false") == 0) {
+        len = 5;
+    } else {
+        return json; // Không phải boolean -> giữ nguyên (an toàn).
+    }
+
+    std::string result = json;
+    result.replace(vStart, len, val);
+    return result;
+}
+
+// Ghi file nguyên tử (tmp + rename) để tránh đọc phải file ghi dở.
+void writeFile(const std::string &path, const std::string &content) {
+    const std::string tmp = path + ".tmp." + std::to_string(::getpid());
+    std::ofstream out(tmp, std::ios::trunc);
+    if (!out) {
+        return;
+    }
+    out << content;
+    out.close();
+    ::rename(tmp.c_str(), path.c_str());
+}
+
 } // namespace
 
 void BambooMintKeyEngine::applyOptionsFromJson(const std::string &json) {
@@ -460,6 +524,18 @@ void BambooMintKeyEngine::reloadConfigFromFile() {
         vietnameseMode_ = jsonGetBool(json, "isVietnameseMode", true);
         vietnameseModeLoaded_ = true;
     }
+}
+
+void BambooMintKeyEngine::persistVietnameseMode(bool enabled) {
+    const auto path = configFilePath();
+    std::string json = readFile(path);
+    if (json.empty()) {
+        json = "{\n  \"isVietnameseMode\": " +
+               std::string(enabled ? "true" : "false") + "\n}\n";
+    } else {
+        json = jsonSetBool(json, "isVietnameseMode", enabled);
+    }
+    writeFile(path, json);
 }
 
 void BambooMintKeyEngine::applyConfigToState(BambooMintKeyState *state) {
