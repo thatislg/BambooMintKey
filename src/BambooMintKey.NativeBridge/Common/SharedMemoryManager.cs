@@ -200,6 +200,7 @@ public static unsafe class SharedMemoryManager
                 string defaultJson = """
                 {
                   "version": 2,
+                  "isVietnameseMode": true,
                   "inputMethod": 0,
                   "charset": 0,
                   "toggleHotkey": 0,
@@ -247,6 +248,7 @@ public static unsafe class SharedMemoryManager
                 return defaultVal;
             }
 
+            pShared[0] = (byte)(ParseBool("isVietnameseMode", true) ? 1 : 0);
             pShared[1] = (byte)ParseUint("toneStyle", 0);
             pShared[3] = (byte)(ParseBool("allowRepeatKeyUndo", true) ? 1 : 0);
             pShared[4] = (byte)(ParseBool("allowLeadingWAsU", false) ? 1 : 0);
@@ -270,6 +272,130 @@ public static unsafe class SharedMemoryManager
         catch (Exception ex)
         {
             DebugLog.Write($"LoadInitialConfigFromDisk error: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Thay (hoặc thêm) giá trị boolean cho một khóa JSON top-level; trả về chuỗi JSON mới.
+    /// Giữ nguyên các khóa khác (vd macros) bằng cách chỉ sửa đúng khóa cần đổi.
+    /// </summary>
+    private static string SetBoolKey(string json, string key, bool value)
+    {
+        string token = $"\"{key}\"";
+        string val = value ? "true" : "false";
+        int keyPos = json.IndexOf(token, StringComparison.Ordinal);
+
+        if (keyPos < 0)
+        {
+            int close = json.LastIndexOf('}');
+            if (close < 0)
+            {
+                return "{\n  \"" + key + "\": " + val + "\n}";
+            }
+            string prefix = json.Substring(0, close).TrimEnd();
+            if (!prefix.EndsWith("{") && !prefix.EndsWith(","))
+            {
+                prefix += ",";
+            }
+            return prefix + "\n  \"" + key + "\": " + val + json.Substring(close);
+        }
+
+        int colon = json.IndexOf(':', keyPos + token.Length);
+        if (colon < 0) return json;
+        int vStart = colon + 1;
+        while (vStart < json.Length && (json[vStart] == ' ' || json[vStart] == '\t' || json[vStart] == '\r' || json[vStart] == '\n'))
+        {
+            vStart++;
+        }
+        if (vStart >= json.Length) return json;
+
+        int len = 0;
+        if (json.AsSpan(vStart).StartsWith("true")) len = 4;
+        else if (json.AsSpan(vStart).StartsWith("false")) len = 5;
+        else return json; // Không phải boolean -> giữ nguyên.
+
+        return json.Substring(0, vStart) + val + json.Substring(vStart + len);
+    }
+
+    /// <summary>
+    /// Thay (hoặc thêm) giá trị số nguyên cho một khóa JSON top-level; trả về chuỗi JSON mới.
+    /// </summary>
+    private static string SetIntKey(string json, string key, int value)
+    {
+        string token = $"\"{key}\"";
+        string val = value.ToString();
+        int keyPos = json.IndexOf(token, StringComparison.Ordinal);
+
+        if (keyPos < 0)
+        {
+            int close = json.LastIndexOf('}');
+            if (close < 0)
+            {
+                return "{\n  \"" + key + "\": " + val + "\n}";
+            }
+            string prefix = json.Substring(0, close).TrimEnd();
+            if (!prefix.EndsWith("{") && !prefix.EndsWith(","))
+            {
+                prefix += ",";
+            }
+            return prefix + "\n  \"" + key + "\": " + val + json.Substring(close);
+        }
+
+        int colon = json.IndexOf(':', keyPos + token.Length);
+        if (colon < 0) return json;
+        int vStart = colon + 1;
+        while (vStart < json.Length && (json[vStart] == ' ' || json[vStart] == '\t' || json[vStart] == '\r' || json[vStart] == '\n'))
+        {
+            vStart++;
+        }
+        if (vStart >= json.Length) return json;
+
+        int end = vStart;
+        while (end < json.Length && json[end] >= '0' && json[end] <= '9')
+        {
+            end++;
+        }
+        if (end == vStart) return json; // Không phải số -> giữ nguyên.
+
+        return json.Substring(0, vStart) + val + json.Substring(end);
+    }
+
+    /// <summary>
+    /// Ghi ngược cấu hình engine hiện tại (từ shared memory) vào config.json để giữ xuyên phiên.
+    /// Dùng khi người dùng đổi tùy chọn qua menu taskbar / phím tắt (không qua Settings GUI).
+    /// </summary>
+    public static void SaveConfigToDisk()
+    {
+        EnsureInitialized();
+        if (_pShared == null) return;
+
+        try
+        {
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string dir = Path.Combine(appData, "BambooMintKey");
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            string path = Path.Combine(dir, "config.json");
+
+            string json = File.Exists(path) ? File.ReadAllText(path) : "{}";
+
+            json = SetBoolKey(json, "isVietnameseMode", IsVietnameseMode);
+            json = SetBoolKey(json, "allowRepeatKeyUndo", AllowRepeatKeyUndo);
+            json = SetBoolKey(json, "allowLeadingWAsU", AllowLeadingWAsU);
+            json = SetBoolKey(json, "allowFreeTonePlacement", AllowFreeTonePlacement);
+            json = SetBoolKey(json, "enableVietnameseDictionary", EnableVietnameseDictionary);
+            json = SetBoolKey(json, "enableEnglishBacktracking", EnableEnglishBacktracking);
+            json = SetIntKey(json, "toneStyle", ToneStyle);
+            json = SetIntKey(json, "inputMethod", InputMethod);
+            json = SetIntKey(json, "charset", Charset);
+
+            // Ghi nguyên tử (tmp + rename) để tránh đọc phải file ghi dở.
+            string tmp = path + ".tmp." + Guid.NewGuid().ToString("N");
+            File.WriteAllText(tmp, json);
+            File.Move(tmp, path, true);
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Write($"SaveConfigToDisk error: {ex.Message}");
         }
     }
 
@@ -370,6 +496,7 @@ public static unsafe class SharedMemoryManager
                     byte next = (byte)(current == 0 ? 1 : 0);
                     _pShared[0] = next;
                     SignalStateChanged();
+                    SaveConfigToDisk();
                     return next != 0;
                 }
             }
@@ -418,6 +545,7 @@ public static unsafe class SharedMemoryManager
                     byte next = (byte)(value ? 1 : 0);
                     _pShared[0] = next;
                     SignalStateChanged();
+                    SaveConfigToDisk();
                     return value;
                 }
             }

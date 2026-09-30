@@ -638,6 +638,9 @@ public static unsafe class LangBarItemButton
                 SettingsLauncher.LaunchSettingsGui("--about");
                 break;
         }
+
+        // Persist các tùy chọn vừa đổi qua menu taskbar vào config.json (giữ xuyên phiên).
+        SharedMemoryManager.SaveConfigToDisk();
     }
 
     /// <summary>[WinSDK: ITfLangBarItemButton::GetIcon] - Cung cấp con trỏ HICON để Windows vẽ icon Taskbar.</summary>

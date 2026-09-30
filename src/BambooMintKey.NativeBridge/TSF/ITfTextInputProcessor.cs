@@ -22,6 +22,9 @@ public static class TsfFlags
 
     /// <summary>TF_INVALID_CLIENT_ID - Client ID không hợp lệ.</summary>
     public const uint TfInvalidClientId = 0;
+
+    /// <summary>TF_CLIENTID_NULL - Client ID đặc biệt: đặt compartment toàn cục (mọi app), không theo từng client.</summary>
+    public const uint TfClientIdNull = 0xFFFFFFFF;
 }
 
 // =========================================================================

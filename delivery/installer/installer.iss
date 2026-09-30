@@ -1,6 +1,6 @@
 #define MyAppName "BambooMintKey"
 #ifndef MyAppVersion
-  #define MyAppVersion "1.1.1"
+  #define MyAppVersion "1.1.2"
 #endif
 #define MyAppPublisher "LMO-LAB"
 #define MyAppURL "https://github.com/thatislg/BambooMintKey"

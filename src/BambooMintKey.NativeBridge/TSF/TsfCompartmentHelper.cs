@@ -96,7 +96,9 @@ public static unsafe class TsfCompartmentHelper
                     vt = VtI4,
                     lVal = isVietnamese ? 1 : 0
                 };
-                int setHr = compVTable->SetValue(pComp, clientId, &varVal);
+                // Đặt toàn cục (TF_CLIENTID_NULL) để trạng thái V/E được chia sẻ xuyên suốt mọi app,
+                // thay vì mỗi app ghi nhớ trạng thái riêng.
+                int setHr = compVTable->SetValue(pComp, TsfFlags.TfClientIdNull, &varVal);
                 DebugLog.Write($"TsfCompartmentHelper.SetConversionMode isVietnamese={isVietnamese}, hr=0x{setHr:X8}");
                 return setHr;
             }
@@ -189,7 +191,8 @@ public static unsafe class TsfCompartmentHelper
                     vt = VtI4,
                     lVal = isOpen ? 1 : 0
                 };
-                int setHr = compVTable->SetValue(pComp, clientId, &varVal);
+                // Đặt toàn cục (TF_CLIENTID_NULL) để trạng thái V/E được chia sẻ xuyên suốt mọi app.
+                int setHr = compVTable->SetValue(pComp, TsfFlags.TfClientIdNull, &varVal);
                 DebugLog.Write($"TsfCompartmentHelper.SetOpenClose isOpen={isOpen}, hr=0x{setHr:X8}");
                 return setHr;
             }

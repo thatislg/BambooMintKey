@@ -195,6 +195,7 @@ module ConfigStore =
 
                 // Nếu chưa nạp từ Shared Memory thì nạp các thuộc tính chính từ JSON
                 if not loadedFromMemory then
+                    if has "isVietnameseMode" "false" then cfg.IsVietnameseMode <- false
                     if has "toneStyle" "1" then cfg.ToneStyle <- 1uy
                     if has "allowRepeatKeyUndo" "false" then cfg.AllowRepeatKeyUndo <- false
                     if has "allowLeadingWAsU" "true" then cfg.AllowLeadingWAsU <- true
@@ -257,8 +258,9 @@ module ConfigStore =
                 if String.IsNullOrWhiteSpace(macroEntries) then "  \"macros\": {}"
                 else sprintf "  \"macros\": {\n%s\n  }" macroEntries
 
-            let json = sprintf "{\n  \"version\": %d,\n  \"inputMethod\": %d,\n  \"charset\": %d,\n  \"toggleHotkey\": %d,\n  \"hotkeyVKey\": %u,\n  \"hotkeyModifiers\": %u,\n  \"toneStyle\": %d,\n  \"allowRepeatKeyUndo\": %b,\n  \"allowLeadingWAsU\": %b,\n  \"allowFreeTonePlacement\": %b,\n  \"enablePreedit\": %b,\n  \"enableVietnameseDictionary\": %b,\n  \"enableEnglishBacktracking\": %b,\n  \"startWithWindows\": %b,\n  \"macroEnabled\": %b,\n%s\n}"
+            let json = sprintf "{\n  \"version\": %d,\n  \"isVietnameseMode\": %b,\n  \"inputMethod\": %d,\n  \"charset\": %d,\n  \"toggleHotkey\": %d,\n  \"hotkeyVKey\": %u,\n  \"hotkeyModifiers\": %u,\n  \"toneStyle\": %d,\n  \"allowRepeatKeyUndo\": %b,\n  \"allowLeadingWAsU\": %b,\n  \"allowFreeTonePlacement\": %b,\n  \"enablePreedit\": %b,\n  \"enableVietnameseDictionary\": %b,\n  \"enableEnglishBacktracking\": %b,\n  \"startWithWindows\": %b,\n  \"macroEnabled\": %b,\n%s\n}"
                         cfg.Version
+                        cfg.IsVietnameseMode
                         (int cfg.InputMethod)
                         (int cfg.Charset)
                         (int cfg.ToggleHotkey)
