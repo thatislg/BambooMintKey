@@ -159,22 +159,6 @@ jobs:
           echo "RELEASE_URL=https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/BambooMintKey-Setup.exe" >> $env:GITHUB_OUTPUT
           Write-Host "Generated SHA256: $hash"
 
-      - name: Update Local WinGet Manifest
-        shell: pwsh
-        run: |
-          $version = "${{ github.ref_name }}".TrimStart('v')
-          $url = "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/BambooMintKey-Setup.exe"
-          .\scripts\windows\update-winget-manifest.ps1 `
-            -Version $version `
-            -InstallerUrl $url `
-            -InstallerSha256 "${{ steps.compute_hash.outputs.INSTALLER_SHA256 }}"
-
-      - name: Commit Updated WinGet Manifest
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "chore: update winget manifest for ${{ github.ref_name }}"
-          file_pattern: "manifests/**/*.yaml"
-
       - name: Upload GitHub Release Assets
         uses: softprops/action-gh-release@v2
         with:
@@ -194,22 +178,3 @@ jobs:
             Remove-Item "cert.pfx" -Force
             Write-Host "Removed cert.pfx"
           }
-
-  winget-submission:
-    name: Submit Manifest to WinGet
-    needs: build-and-sign
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install Komac
-        run: |
-          python -m pip install --upgrade pip
-          pip install komac
-
-      - name: Update and Submit WinGet Manifest
-        env:
-          WINGET_TOKEN: ${{ secrets.WINGET_PAT_TOKEN }}
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          url="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/BambooMintKey-Setup.exe"
-          echo "Updating WinGet manifest for version $version from $url"
-          komac update LMO-LAB.BambooMintKey --version "$version" --urls "$url" --token "$WINGET_TOKEN" --submit

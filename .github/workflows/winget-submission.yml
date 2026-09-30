@@ -1,0 +1,68 @@
+name: WinGet Manifest Submission
+
+# Chạy thủ công sau khi bản Release đã được public và test xong.
+# Workflow này tách riêng khỏi release.yml vì:
+#  - Komac không cài được bằng pip (là binary Rust, không phải package Python).
+#  - Release phải public trước thì URL tải installer mới khả dụng cho WinGet bot.
+#  - Người dùng cần thời gian test bộ cài trước khi submit lên kho WinGet chính thức.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version cần submit (bỏ tiền tố "v"), ví dụ 1.1.2'
+        required: true
+        type: string
+      tag:
+        description: 'Git tag của Release, ví dụ v1.1.2'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  generate-manifest:
+    name: Generate WinGet Manifest
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download Installer
+        shell: pwsh
+        env:
+          TAG: ${{ github.event.inputs.tag }}
+        run: |
+          $url = "https://github.com/${{ github.repository }}/releases/download/$env:TAG/BambooMintKey-Setup.exe"
+          New-Item -ItemType Directory -Path "bin\dist" -Force | Out-Null
+          Invoke-WebRequest -Uri $url -OutFile "bin\dist\BambooMintKey-Setup.exe" -UseBasicParsing
+          Write-Host "Downloaded installer from $url"
+
+      - name: Calculate SHA-256
+        id: compute_hash
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash "bin\dist\BambooMintKey-Setup.exe" -Algorithm SHA256).Hash
+          echo "INSTALLER_SHA256=$hash" >> $env:GITHUB_OUTPUT
+          Write-Host "SHA256: $hash"
+
+      - name: Generate WinGet Manifest
+        shell: pwsh
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+          TAG: ${{ github.event.inputs.tag }}
+        run: |
+          $url = "https://github.com/${{ github.repository }}/releases/download/$env:TAG/BambooMintKey-Setup.exe"
+          .\scripts\windows\update-winget-manifest.ps1 `
+            -Version $env:VERSION `
+            -InstallerUrl $url `
+            -InstallerSha256 "${{ steps.compute_hash.outputs.INSTALLER_SHA256 }}"
+
+      - name: Upload Manifest Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: winget-manifest-${{ github.event.inputs.version }}
+          path: |
+            manifests/l/LMO-LAB/BambooMintKey/${{ github.event.inputs.version }}/**
+          if-no-files-found: error
