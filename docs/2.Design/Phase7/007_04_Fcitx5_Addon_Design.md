@@ -224,18 +224,22 @@ THUẬT TOÁN ThiếtLậpChếĐộGõ(TrạngTháiMới):
 HẾT THUẬT TOÁN
 ```
 
+> **Lưu ý trạng thái runtime:** Trạng thái V/E là trạng thái **runtime** — chỉ **khởi tạo MỘT lần** từ `config.json` lúc khởi động (cờ `vietnameseModeLoaded_`). Các lần reload sau (inotify / `setConfig`) **không** ghi đè `vietnameseMode_`, để tránh reset toggle của người dùng về giá trị cũ trong `config.json`. Chỉ có thao tác toggle (phím `` ` `` hoặc D-Bus) mới thay đổi và ghi ngược (persist) vào `config.json`.
+
 ---
 
 ## 6. Cơ Chế File Watcher (`inotify`) Cho Cấu Hình Ít Đổi
 
-Các cấu hình như kiểu đặt dấu, bảng mã, khôi phục từ tiếng Anh được lưu trong `~/.config/bamboomintkey/config.json`.
+Các tùy chọn engine (kiểu đặt dấu, bảng mã, bỏ dấu tự do, thẩm định từ điển, nhận diện từ tiếng Anh) được lưu trong `~/.config/bamboomintkey/config.json` (key camelCase).
 Fcitx5 Addon sử dụng cơ chế lắng nghe sự kiện hệ thống tệp:
 
 1. **Khởi tạo giám sát**: Đặt bộ theo dõi sự kiện trên thư mục `$XDG_CONFIG_HOME/bamboomintkey/`.
-2. **Bắt sự kiện ghi xong (`IN_CLOSE_WRITE`)**: Khi nhận được tín hiệu hoàn tất ghi trên file `config.json`:
+2. **Bắt sự kiện ghi xong (`IN_CLOSE_WRITE` / `IN_MOVED_TO`)**: Khi nhận được tín hiệu hoàn tất ghi trên file `config.json`:
    - Đọc nội dung tệp JSON.
    - Nạp lại cấu hình mới qua hàm C-ABI `bmk_set_options` hoặc `bmk_load_config_json`.
    - Áp dụng ngay lập tức cho các phiên gõ tiếp theo mà không cần khởi động lại tiến trình Fcitx5.
+
+> **Lưu ý:** inotify chỉ nạp lại **tùy chọn engine**; trạng thái V/E là runtime và không bị ghi đè khi reload (xem mục 5.3).
 
 ---
 

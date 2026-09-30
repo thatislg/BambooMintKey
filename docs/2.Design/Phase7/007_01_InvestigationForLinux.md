@@ -270,10 +270,11 @@ Từ `SharedConfig.fs` và `EngineConfig.fs`, chia 2 nhóm:
 |---|---|---|
 | `IsVietnameseMode` (V/E) | Bật/tắt gõ tiếng Việt | **Hai chiều, qua D-Bus** |
 | `ToneStyle` | Dấu kiểu mới (`hòa`) / cũ (`hoà`) | UI → addon (file watcher) |
-| `AutoRestoreEnglishWords` | Tự phục hồi từ tiếng Anh | UI → addon |
 | `AllowRepeatKeyUndo` | Gõ lặp phím để undo | UI → addon |
 | `AllowLeadingWAsU` | `w` đầu từ thành `ư` | UI → addon |
 | `AllowFreeTonePlacement` | Bỏ dấu tự do | UI → addon |
+| `EnableEnglishBacktracking` | Nhận diện từ tiếng Anh (20.000 từ) | UI → addon |
+| `EnableVietnameseDictionary` | Thẩm định âm tiết qua từ điển | UI → addon |
 | `InputMethod` | Telex / VNI / Simple Telex | UI → addon |
 | `Charset` | Unicode dựng sẵn / tổ hợp / TCVN3 | UI → addon |
 | `EnablePreedit` | Hiển thị preedit gạch chân | UI → addon |

@@ -130,7 +130,6 @@ public static class MenuCommands
     public const uint ToneStyleClassic           = Base + 12; // Kiểu cũ (oà, xoè, thuỷ)
 
     // 3. Tùy chọn ngữ pháp thông minh
-    public const uint ToggleAutoRestoreEnglish   = Base + 20; // Khôi phục từ tiếng Anh
     public const uint ToggleRepeatKeyUndo        = Base + 21; // Gõ lặp để hoàn tác dấu
     public const uint ToggleLeadingWAsU          = Base + 22; // Phím 'w' đầu từ thành 'ư'
 
@@ -221,9 +220,6 @@ private static int InitMenu(IntPtr thisPtr, IntPtr pMenu)
     }
 
     // 3. Tùy chọn thông minh
-    uint autoRestoreFlag = SharedMemoryManager.AutoRestoreEnglishWords ? TsfMenuFlags.TfLbMenuFlagChecked : 0;
-    AddMenuItemText(menuVTable, pMenu, MenuCommands.ToggleAutoRestoreEnglish, autoRestoreFlag, "Tự động khôi phục từ tiếng Anh");
-
     uint repeatUndoFlag = SharedMemoryManager.AllowRepeatKeyUndo ? TsfMenuFlags.TfLbMenuFlagChecked : 0;
     AddMenuItemText(menuVTable, pMenu, MenuCommands.ToggleRepeatKeyUndo, repeatUndoFlag, "Gõ lặp dấu để khôi phục (ss -> s)");
 
@@ -336,9 +332,6 @@ public static void ShowNativeContextMenu(Point pt)
         IntPtr hSubCharset = CreatePopupMenu();
 
         // 3. Tùy chọn ngữ pháp thông minh
-        uint autoRestore = SharedMemoryManager.AutoRestoreEnglishWords ? MF_CHECKED : 0;
-        AppendMenuW(hMenu, MF_STRING | autoRestore, MenuCommands.ToggleAutoRestoreEnglish, "Tự động khôi phục từ tiếng Anh");
-
         uint repeatUndo = SharedMemoryManager.AllowRepeatKeyUndo ? MF_CHECKED : 0;
         AppendMenuW(hMenu, MF_STRING | repeatUndo, MenuCommands.ToggleRepeatKeyUndo, "Gõ lặp dấu để khôi phục (ss -> s)");
 
@@ -452,10 +445,6 @@ public static void ExecuteMenuCommand(uint cmdId)
 
         case MenuCommands.ToneStyleClassic:
             SharedMemoryManager.ToneStyle = 1;
-            break;
-
-        case MenuCommands.ToggleAutoRestoreEnglish:
-            SharedMemoryManager.AutoRestoreEnglishWords = !SharedMemoryManager.AutoRestoreEnglishWords;
             break;
 
         case MenuCommands.ToggleRepeatKeyUndo:

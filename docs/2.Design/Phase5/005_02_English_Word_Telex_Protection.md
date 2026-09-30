@@ -6,6 +6,8 @@
 
 # Thiết Kế: Xử Lý Từ Tiếng Anh Trong Chế Độ Telex (Core/Corre)
 
+> **⚠️ Đã lỗi thời (deprecated):** Tính năng `AutoRestoreEnglishWords` đã bị loại bỏ khỏi code (thay bằng `EnableEnglishBacktracking` nhận diện từ tiếng Anh 20.000 từ, triển khai ở Phase 8, file `EnglishProtection.fs` cũng đã bị xóa). Tài liệu này chỉ còn giá trị tham khảo lịch sử.
+
 **Mã tài liệu:** `005_02_English_Word_Telex_Protection`
 
 **Giai đoạn:** Phase 5 - Cải Tiến Trải Nghiệm Gõ

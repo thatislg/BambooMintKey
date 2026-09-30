@@ -34,6 +34,8 @@ Theo chuẩn FreeDesktop XDG Base Directory:
 * **Thư mục ứng dụng**: `bamboomintkey/` nằm trong thư mục cơ sở.
 * **Tệp cấu hình**: `config.json` nằm trong thư mục ứng dụng.
 
+> **Quy ước khóa JSON (camelCase):** UI Linux serialize `config.json` bằng `System.Text.Json` với `PropertyNamingPolicy = JsonNamingPolicy.CamelCase`, nên các khóa được ghi dạng camelCase (`allowLeadingWAsU`, `toneStyle`, `isVietnameseMode`, …) — khớp 1:1 với schema chuẩn, Windows UI, và bộ đọc `jsonGetBool`/`jsonGetInt` trong Fcitx5 addon. Cả `saveConfig` lẫn `loadConfig` đều dùng chung `JsonSerializerOptions` (case-insensitive + camelCase) để tránh lệch casing giữa ghi và đọc.
+
 ### 2.2. Thuật Toán Ghi Tệp Nguyên Tử (Mã giả)
 
 Để ngăn chặn việc trình theo dõi file của Fcitx5 đọc phải tệp JSON đang ghi dở (gây lỗi phân tích cú pháp), quy trình lưu file phải được thực hiện theo 2 bước: ghi vào file tạm rồi đổi tên đè.
@@ -141,7 +143,7 @@ KHI NhậnĐượcTínHiệuDbus("ModeChanged", TrạngTháiMới):
 Giao diện bao gồm 6 tab chức năng trực quan:
 
 1. **Tab Cơ Bản**: Lựa chọn kiểu gõ (Telex), bảng mã hiển thị (Unicode dựng sẵn, tổ hợp, TCVN3), công tắc bật/tắt gõ tiếng Việt.
-2. **Tab Nâng Cao**: Cấu hình quy tắc đặt dấu (Mới/Cũ), cơ chế tự động khôi phục từ tiếng Anh, cơ chế bỏ dấu tự do, cho phép ký tự `w` đầu từ thành `ư`.
+2. **Tab Nâng Cao**: Cấu hình quy tắc đặt dấu (Mới/Cũ), cơ chế bỏ dấu tự do, cho phép ký tự `w` đầu từ thành `ư`, tự động nhận diện từ tiếng Anh (20.000 từ).
 3. **Tab Phím Tắt**: Danh mục các tổ hợp phím tắt nhanh để lật chế độ V/E (`Ctrl+Shift`, `Alt+Z`).
 4. **Tab Bảng Gõ Tắt (Macro)**: Danh sách bảng từ viết tắt tùy biến của người dùng.
 5. **Tab Gõ Thử Nghiệm**: Khung nhập liệu độc lập kết nối trực tiếp với F# Core, cho phép thử nghiệm ngay các thay đổi cấu hình mà không phụ thuộc vào trạng thái chạy của Fcitx5.

@@ -96,7 +96,7 @@ Giải pháp gồm 4 trụ cột kỹ thuật đồng bộ:
 |---|---|---|---|
 | `0` | 1 byte | `byte` | `IsVietnameseMode` (1 = V, 0 = E) |
 | `1` | 1 byte | `byte` | `ToneStyle` (0 = Mới, 1 = Cũ) |
-| `2` | 1 byte | `byte` | `AutoRestoreEnglishWords` (1 = Bật, 0 = Tắt) |
+| `2` | 1 byte | `byte` | (đã bỏ — trước là `AutoRestoreEnglishWords`) |
 | `3` | 1 byte | `byte` | `AllowRepeatKeyUndo` (1 = Bật, 0 = Tắt) |
 | `4` | 1 byte | `byte` | `AllowLeadingWAsU` (1 = Bật, 0 = Tắt) |
 | `5` | 1 byte | `byte` | `InputMethod` (0 = Telex, 1 = VNI, 2 = Simple Telex) |
@@ -105,7 +105,11 @@ Giải pháp gồm 4 trụ cột kỹ thuật đồng bộ:
 | `8 - 11` | 4 bytes | `uint` | **`StateSequence`**: Số đếm phiên bản trạng thái (tăng 1 mỗi lần có thay đổi) |
 | `12 - 15` | 4 bytes | `uint32` | `HotkeyVKey`: Win32 Virtual Key code của phím tắt tùy chọn |
 | `16 - 19` | 4 bytes | `uint32` | `HotkeyModifiers`: Cờ bổ trợ TSF của phím tắt tùy chọn |
-| `20 - 63`| 44 bytes | - | Reserved cho cấu hình mở rộng tương lai |
+| `20` | 1 byte | `byte` | `AllowFreeTonePlacement` (1 = Bật, 0 = Tắt) |
+| `21` | 1 byte | `byte` | `EnablePreedit` (1 = Bật, 0 = Tắt) |
+| `22` | 1 byte | `byte` | `EnableVietnameseDictionary` (1 = Bật, 0 = Tắt) |
+| `23` | 1 byte | `byte` | `EnableEnglishBacktracking` (1 = Bật, 0 = Tắt) |
+| `24 - 63`| 40 bytes | - | Reserved cho cấu hình mở rộng tương lai |
 
 #### 3.1.2. Chuyển đổi sang Manual-Reset Event
 - Thay đổi tham số `bManualReset` trong `CreateEventW`:

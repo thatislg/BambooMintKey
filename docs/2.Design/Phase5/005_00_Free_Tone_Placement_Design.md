@@ -42,7 +42,7 @@ Tất cả đều cho ra cùng một kết quả đúng.
 2. **Tự động chuyển dấu:** Khi bật, bất kỳ phím dấu thanh nào xuất hiện trong chuỗi phím thô đều được nhận diện và đặt vào đúng vị trí nguyên âm theo quy tắc thanh điệu tiếng Việt.
 3. **Hỗ trợ cả hai kiểu gõ mới và cũ:** Dấu vẫn phải đặt đúng theo `TonePlacementStyle` (Modern/Traditional) sau khi được chuyển về vị trí chuẩn.
 4. **Không phá vỡ undo bằng lặp phím:** Ví dụ `mass` (`ma` + `s` + `s`) vẫn phải hoạt động để trả về `mas` (xoá dấu) hoặc `ma` + `s` (tùy chính sách undo).
-5. **Xử lý từ tiếng Anh và fallback:** Khi từ không phải tiếng Việt, engine phải quyết định hợp lý: giữ nguyên chuỗi phím thô hoặc fallback theo `AutoRestoreEnglishWords`.
+5. **Xử lý từ tiếng Anh và fallback:** Khi từ không phải tiếng Việt, engine phải quyết định hợp lý: giữ nguyên chuỗi phím thô hoặc fallback tiếng Anh luôn bật + `EnableEnglishBacktracking`.
 
 ---
 
@@ -200,8 +200,8 @@ Ví dụ: `phr` → chưa đủ nguyên âm để xác định vị trí. Engine
 
 Nếu `baseChars` không parse được thành âm tiết tiếng Việt:
 
-- Nếu `AutoRestoreEnglishWords = true`: giữ nguyên chuỗi phím thô (không áp dụng dấu).
-- Nếu `AutoRestoreEnglishWords = false`: vẫn cố gắng áp dụng theo cách nào đó, nhưng có thể gây ra kết quả lạ.
+- Fallback tiếng Anh **luôn bật**: giữ nguyên chuỗi phím thô (không áp dụng dấu).
+- Tùy chọn `EnableEnglishBacktracking` (thẩm định bằng từ điển 20.000 từ tiếng Anh) giúp nhận diện từ tiếng Anh và tự hoàn tác các biến đổi tiếng Việt không mong muốn.
 
 ---
 
@@ -260,7 +260,7 @@ Module này chịu trách nhiệm:
 | Phá vỡ hành vi Telex chuẩn | Trung bình | Thêm cờ `AllowFreeTonePlacement`, mặc định bật nhưng cho phép tắt trong Settings. |
 | Xung đột với undo lặp phím | Trung bình | Định nghĩa rõ quy tắc ưu tiên giữa free tone và repeat-key undo. |
 | Tăng độ phức tạp parser | Thấp | Tách thành module `FreeTonePlacement.fs`, giữ `SyllableParser` không đổi. |
-| Lỗi với từ tiếng Anh | Cao | Kết hợp với `AutoRestoreEnglishWords` và detection từ tiếng Anh. |
+| Lỗi với từ tiếng Anh | Cao | Kết hợp với `EnableEnglishBacktracking` và detection từ tiếng Anh. |
 
 ---
 

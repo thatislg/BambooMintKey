@@ -144,23 +144,29 @@ type TonePlacementStyle =
 type EngineConfig = {
     /// Bật/tắt chế độ gõ tiếng Việt (True: V, False: E)
     IsEnabled: bool
-    /// Kiểu đặt dấu thanh (Modern vs Traditional)
-    ToneStyle: TonePlacementStyle
-    /// Tự động phục hồi từ gốc khi gõ từ sai ngữ pháp tiếng Việt (Fallback tiếng Anh)
-    AutoRestoreEnglishWords: bool
     /// Cho phép gõ lặp dấu để khôi phục ký tự thô (ví dụ: 'ss' -> 's', 'aa' -> 'a')
     AllowRepeatKeyUndo: bool
     /// Cho phép phím 'w' đứng đầu từ biến thành 'ư' (True: w -> ư, False: w -> w)
     AllowLeadingWAsU: bool
+    /// Kiểu đặt dấu thanh (Modern vs Traditional)
+    ToneStyle: TonePlacementStyle
+    /// Cho phép bỏ dấu tự do ở bất kỳ vị trí nào trong từ (Ví dụ: phari -> phải)
+    AllowFreeTonePlacement: bool
+    /// Bật thẩm định âm tiết on-the-fly qua từ điển tiếng Việt
+    EnableVietnameseDictionary: bool
+    /// Bật tự động nhận diện từ tiếng Anh (backtracking 20.000 từ)
+    EnableEnglishBacktracking: bool
 }
 with
     /// Cấu hình mặc định của BambooMintKey
     static member Default = {
         IsEnabled = true
-        ToneStyle = TonePlacementStyle.Modern
-        AutoRestoreEnglishWords = true
         AllowRepeatKeyUndo = true
-        AllowLeadingWAsU = true
+        AllowLeadingWAsU = false
+        ToneStyle = TonePlacementStyle.Modern
+        AllowFreeTonePlacement = true
+        EnableVietnameseDictionary = true
+        EnableEnglishBacktracking = true
     }
 ```
 

@@ -56,9 +56,12 @@ Lộ trình triển khai **Phase 3: User Interface & Context Management** cho Ba
     "hotkeyVKey": 16,
     "hotkeyModifiers": 514,
     "toneStyle": 0,
-    "autoRestoreEnglishWords": true,
     "allowRepeatKeyUndo": true,
     "allowLeadingWAsU": false,
+    "allowFreeTonePlacement": true,
+    "enablePreedit": false,
+    "enableVietnameseDictionary": true,
+    "enableEnglishBacktracking": true,
     "startWithWindows": true,
     "macroEnabled": false,
     "macros": {

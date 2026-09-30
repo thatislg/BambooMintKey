@@ -815,10 +815,12 @@ public static bool ToggleVietnameseMode()
 {
     var newConfig = new EngineConfig.EngineConfig(
         !_currentConfig.IsEnabled,
-        _currentConfig.AutoRestoreEnglishWords,
         _currentConfig.AllowRepeatKeyUndo,
         _currentConfig.AllowLeadingWAsU,
-        _currentConfig.ToneStyle
+        _currentConfig.ToneStyle,
+        _currentConfig.AllowFreeTonePlacement,
+        _currentConfig.EnableVietnameseDictionary,
+        _currentConfig.EnableEnglishBacktracking
     );
     _currentConfig = newConfig;
     return _currentConfig.IsEnabled;

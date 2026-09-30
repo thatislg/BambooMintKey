@@ -174,7 +174,7 @@ Trước khi code bất kỳ dòng nào, hoàn thiện 4 tài liệu đặc tả
    - Phát signal `ModeChanged(bool isVietnamese)`: Mỗi khi chế độ V/E thay đổi (do phím tắt hoặc do UI), Addon phát signal này cho toàn hệ thống.
 5. **Đồng Bộ Cấu Hình qua File Watcher (`inotify`)**:
    - Theo dõi thư mục `$XDG_CONFIG_HOME/bamboomintkey/`.
-   - Bắt sự kiện `IN_CLOSE_WRITE` trên `config.json` để reload các tùy chọn (toneStyle, charset, autoRestoreEnglishWords...) tức thì.
+   - Bắt sự kiện `IN_CLOSE_WRITE` trên `config.json` để reload các tùy chọn (toneStyle, charset, allowLeadingWAsU, allowFreeTonePlacement...) tức thì.
 
 ---
 

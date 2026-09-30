@@ -289,7 +289,7 @@ let ``Modifier-only syllable can accept following vowel`` (input, expected) = ..
 | Rủi ro | Mô tả | Giải pháp giảm thiểu |
 |--------|-------|---------------------|
 | Phá vỡ undo lặp phím | `dd` → `đ`, gõ `d` tiếp → `đd`? Cần định nghĩa rõ hành vi undo khi `Syllable` ở trạng thái chờ nguyên âm. | Thử nghiệm kỹ các case `Ddd`, `Dddi`, `Uww`, `Uwwu`. |
-| Từ tiếng Anh bị nhầm | `Uwe`, `Ddie` có thể bị chuyển thành tiếng Việt không mong muốn. | Kết hợp `AutoRestoreEnglishWords` và `isValidVietnamesePhonotactics`. |
+| Từ tiếng Anh bị nhầm | `Uwe`, `Ddie` có thể bị chuyển thành tiếng Việt không mong muốn. | Kết hợp `EnableEnglishBacktracking` và `isValidVietnamesePhonotactics`. |
 | Tăng độ phức tạp parser | Việc mở rộng nguyên âm sau modifier làm tăng số trạng thái cần xử lý. | Giới hạn `ValidVowelClusters` chỉ gồm các cụm nguyên âm thực sự tồn tại trong tiếng Việt. |
 
 ---

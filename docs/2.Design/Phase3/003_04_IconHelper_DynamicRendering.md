@@ -995,7 +995,7 @@ Mã nguồn tại [`src/BambooMintKey.NativeBridge/Common/SharedMemoryManager.cs
 |---|---|---|---|
 | `0` | 1 byte | `byte` | `IsVietnameseMode` (1 = V, 0 = E) |
 | `1` | 1 byte | `byte` | `ToneStyle` (0 = Mới, 1 = Cũ) |
-| `2` | 1 byte | `byte` | `AutoRestoreEnglishWords` |
+| `2` | 1 byte | `byte` | (đã bỏ — trước là `AutoRestoreEnglishWords`) |
 | `3` | 1 byte | `byte` | `AllowRepeatKeyUndo` |
 | `4` | 1 byte | `byte` | `AllowLeadingWAsU` |
 | `5` | 1 byte | `byte` | `InputMethod` (0 = Telex, 1 = VNI, 2 = Simple Telex) |
@@ -1004,7 +1004,11 @@ Mã nguồn tại [`src/BambooMintKey.NativeBridge/Common/SharedMemoryManager.cs
 | `8 - 11` | 4 bytes | `uint` | `StateSequence`: Số đếm phiên bản trạng thái |
 | `12 - 15` | 4 bytes | `uint32` | `HotkeyVKey`: Win32 Virtual Key code của phím tắt tùy chọn |
 | `16 - 19` | 4 bytes | `uint32` | `HotkeyModifiers`: Cờ bổ trợ TSF của phím tắt tùy chọn |
-| `20 - 63` | 44 bytes | - | Reserved cho cấu hình mở rộng |
+| `20` | 1 byte | `byte` | `AllowFreeTonePlacement` (1 = Bật, 0 = Tắt) |
+| `21` | 1 byte | `byte` | `EnablePreedit` (1 = Bật, 0 = Tắt) |
+| `22` | 1 byte | `byte` | `EnableVietnameseDictionary` (1 = Bật, 0 = Tắt) |
+| `23` | 1 byte | `byte` | `EnableEnglishBacktracking` (1 = Bật, 0 = Tắt) |
+| `24 - 63` | 40 bytes | - | Reserved cho cấu hình mở rộng |
 
 ### 6.2. Khởi tạo Manual-Reset Event & StateSequence
 
@@ -1051,7 +1055,6 @@ public static unsafe class SharedMemoryManager
                 {
                     _pShared[0] = 1; // IsVietnameseMode On (V)
                     _pShared[1] = 0; // ToneStyle New
-                    _pShared[2] = 1; // AutoRestoreEnglishWords
                     _pShared[3] = 1; // AllowRepeatKeyUndo
                     _pShared[4] = 0; // AllowLeadingWAsU
                     *(uint*)(_pShared + 8) = 1; // StateSequence ban đầu

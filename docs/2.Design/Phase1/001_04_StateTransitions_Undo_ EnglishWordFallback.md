@@ -38,9 +38,10 @@ Khi người dùng đã có một ký tự biến đổi (dấu thanh hoặc d�
 Khi người dùng gõ các từ ngoại ngữ (ví dụ: `code`, `start`, `text`, `system`, `filter`, `print`), cấu trúc phụ âm hoặc nguyên âm sẽ vi phạm bảng ngữ pháp tiếng Việt:
 
 - Bộ phân rã âm tiết `SyllableParser.parse` sẽ trả về `None`.
-- Khi phát hiện không thể tạo thành âm tiết tiếng Việt hợp lệ và tùy chọn `AutoRestoreEnglishWords = true` được bật:
+- Fallback tiếng Anh **luôn được bật** (không còn tùy chọn `AutoRestoreEnglishWords`): khi không thể tạo thành âm tiết tiếng Việt hợp lệ:
   - Trạng thái từ chuyển `IsInvalidVietnamese = true`.
   - Văn bản biến đổi (`TransformedText`) được gán ngược lại bằng đúng chuỗi ký tự thô ban đầu (`RawKeys`), loại bỏ mọi biến dạng sai lệch.
+- Ngoài ra, tùy chọn `EnableEnglishBacktracking` (thẩm định bằng từ điển 20.000 từ tiếng Anh) giúp nhận diện từ tiếng Anh và tự hoàn tác các biến đổi tiếng Việt không mong muốn (xem Phase 8).
 
 #### D. Thuật toán Bảo toàn Trạng thái Viết hoa / Viết thường (Case Preservation)
 

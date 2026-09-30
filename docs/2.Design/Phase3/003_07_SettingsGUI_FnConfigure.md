@@ -117,8 +117,6 @@ Cửa sổ có kích thước **`580 x 540`** pixel, căn giữa màn hình (`Ce
 - **Quy chuẩn đặt vị trí dấu thanh:**
   - `Kiểu mới (hòa, thúy, xòe)` — Mặc định theo chuẩn ngôn ngữ học hiện đại.
   - `Kiểu cũ (hoá, thuý, xoè)` — Chuẩn truyền thống.
-- **Tự động khôi phục từ tiếng Anh (Auto Restore):**
-  - Toggle Switch bật/tắt `AutoRestoreEnglishWords`. Khi gõ từ sai ngữ pháp tiếng Việt (như `word`, `start`), bộ gõ tự trả về ký tự thô.
 - **Gõ lặp dấu để khôi phục ký tự thô (Repeat Key Undo):**
   - Toggle Switch bật/tắt `AllowRepeatKeyUndo` (`ss -> s`, `aa -> a`).
 - **Phím 'w' đứng đầu từ biến thành 'ư':**
@@ -153,7 +151,7 @@ Cửa sổ có kích thước **`580 x 540`** pixel, căn giữa màn hình (`Ce
        │             SharedMemoryManager (64 Bytes)             │
        │  [0] IsVietnameseMode     (1 = V, 0 = E)               │
        │  [1] ToneStyle            (0 = Mới, 1 = Cũ)            │
-       │  [2] AutoRestoreEnglish   (1 = Bật, 0 = Tắt)           │
+       │  [2] (đã bỏ)                                          │
        │  [3] AllowRepeatKeyUndo   (1 = Bật, 0 = Tắt)           │
        │  [4] AllowLeadingWAsU     (1 = Bật, 0 = Tắt)           │
        │  [5] InputMethod          (0 = Telex, 1 = VNI, 2 = S.) │
