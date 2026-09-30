@@ -47,6 +47,7 @@ module ConfigStore =
         JsonSerializerOptions(
             WriteIndented = true,
             PropertyNameCaseInsensitive = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)
 
     /// Nạp cấu hình; nếu chưa có file thì trả về cấu hình mặc định.
