@@ -14,6 +14,18 @@ module TelexEngine =
         let normVowel = ToneRules.normalizeVowels s.VowelNucleus s.InitialConsonant s.FinalConsonant
         s.InitialConsonant + normVowel + s.FinalConsonant
 
+    /// Ký tự xuống dòng (\n / \r) là tín hiệu "chốt chữ" của phím Enter, không phải ký tự
+    /// thuộc về nội dung từ. Khi gặp Enter, chuỗi commit KHÔNG được dính ký tự xuống dòng.
+    let private isLineBreakChar (c: char) : bool = c = '\n' || c = '\r'
+
+    /// Tạo action Commit cho phím ngắt từ: giữ nguyên ký tự ngắt (Space, dấu câu...),
+    /// riêng Enter (\n/\r) thì loại bỏ để tránh tên file/văn bản dính mã xuống dòng.
+    let private commitWordBreak (state: WordState) (breakChar: char) : WordState * EngineAction =
+        let finalWord =
+            if isLineBreakChar breakChar then state.TransformedText
+            else state.TransformedText + string breakChar
+        (WordState.Empty, EngineAction.Commit finalWord)
+
     /// Quyết định có hoàn tác về chuỗi thô tiếng Anh hay không:
     /// chỉ khi âm tiết đã đủ dài (hoàn chỉnh), KHÔNG hợp lệ tiếng Việt, VÀ chuỗi thô là từ tiếng Anh.
     let private shouldBacktrackEnglish (viText: string) (rawString: string) (config: EngineConfig) : bool =
@@ -267,8 +279,7 @@ module TelexEngine =
                     }
                     (newState, EngineAction.PassThrough)
             | KeyInput.WordBreak breakChar ->
-                let finalWord = state.TransformedText + string breakChar
-                (WordState.Empty, EngineAction.Commit finalWord)
+                commitWordBreak state breakChar
             | KeyInput.NonCharacter ->
                 (state, EngineAction.PassThrough)
         else
@@ -294,8 +305,7 @@ module TelexEngine =
                 if state.RawKeys.IsEmpty then
                     (WordState.Empty, EngineAction.PassThrough)
                 else
-                    let finalWord = state.TransformedText + string breakChar
-                    (WordState.Empty, EngineAction.Commit finalWord)
+                    commitWordBreak state breakChar
 
             | KeyInput.NonCharacter ->
                 (state, EngineAction.PassThrough)

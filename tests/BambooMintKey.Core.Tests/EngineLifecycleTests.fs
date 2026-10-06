@@ -44,3 +44,23 @@ module EngineLifecycleTests =
         
         Assert.Equal(WordState.Empty, finalState)
         Assert.Equal(EngineAction.PassThrough, action)
+
+    // 3. Phím Enter chốt chữ nhưng KHÔNG dính ký tự xuống dòng vào chuỗi commit
+    // (lỗi đặt tên file/thư mục: tenfile\n — xem docs/3.Issue/014_Trailing newline_Error.md)
+    [<Theory>]
+    [<InlineData('\n')>]
+    [<InlineData('\r')>]
+    let ``3. Enter commits the word without trailing newline`` (breakChar: char) =
+        let config = EngineConfig.Default
+        let mutable state = WordState.Empty
+
+        for c in "hoas" do
+            let newState, _ = TelexEngine.processKey state (KeyInput.Char c) config
+            state <- newState
+
+        let finalState, action = TelexEngine.processKey state (KeyInput.WordBreak breakChar) config
+
+        Assert.Equal(WordState.Empty, finalState)
+        match action with
+        | EngineAction.Commit text -> Assert.Equal("hóa", text)
+        | _ -> Assert.Fail("Expected action to be Commit")
