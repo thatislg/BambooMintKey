@@ -64,6 +64,7 @@ jobs:
           dnf install -y \
             cmake gcc-c++ clang \
             zlib-devel krb5-devel openssl-devel \
+            libicu \
             fcitx5-devel rpm-build \
             git curl tar ca-certificates
 
