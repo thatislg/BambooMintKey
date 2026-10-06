@@ -18,7 +18,17 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-VERSION="1.1.1"
+# Version lấy động: env VERSION (CI truyền từ git tag) hoặc tự đọc git tag.
+# Không hardcode số version trong script.
+VERSION="${VERSION:-}"
+if [ -z "$VERSION" ]; then
+    VERSION="$(git -C "$PROJECT_ROOT" describe --tags --abbrev=0 2>/dev/null || true)"
+fi
+VERSION="${VERSION#v}"
+if [ -z "$VERSION" ]; then
+    echo "Lỗi: chưa đặt VERSION (env) và không có git tag. Truyền qua env VERSION." >&2
+    exit 1
+fi
 ARCH="$(dpkg-architecture -qDEB_HOST_ARCH 2>/dev/null || uname -m)"
 MULTIARCH="$(dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null || echo "lib")"
 BUILD_DEB=true
@@ -147,6 +157,8 @@ if command -v rpmbuild >/dev/null 2>&1; then
     cp -a "$STAGE/usr/lib/bamboomintkey/ui" "$RPM_ROOT/SOURCES/ui"
     cp "$STAGE/usr/share/applications/bamboomintkey-settings.desktop" "$RPM_ROOT/SOURCES/"
     cp "$SCRIPT_DIR/bamboomintkey.spec" "$RPM_ROOT/SPECS/"
+    # Ghi đè version trong spec theo VERSION (tránh hardcode trong spec).
+    sed -i "s|^Version:.*|Version:        $VERSION|" "$RPM_ROOT/SPECS/bamboomintkey.spec"
 
     rpmbuild -ba \
         --define "_topdir $RPM_ROOT" \

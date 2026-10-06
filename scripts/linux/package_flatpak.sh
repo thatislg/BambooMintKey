@@ -19,7 +19,16 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-VERSION="1.1.1"
+# Version lấy động: env VERSION (CI truyền từ git tag) hoặc tự đọc git tag.
+VERSION="${VERSION:-}"
+if [ -z "$VERSION" ]; then
+    VERSION="$(git -C "$PROJECT_ROOT" describe --tags --abbrev=0 2>/dev/null || true)"
+fi
+VERSION="${VERSION#v}"
+if [ -z "$VERSION" ]; then
+    echo "Lỗi: chưa đặt VERSION (env) và không có git tag. Truyền qua env VERSION." >&2
+    exit 1
+fi
 
 MANIFEST="$PROJECT_ROOT/manifests/flatpak/org.fcitx.Fcitx5.Addon.BambooMintKey.yaml"
 OUT_DIR="$PROJECT_ROOT/delivery/flatpak"

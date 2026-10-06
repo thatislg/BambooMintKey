@@ -1,0 +1,93 @@
+name: Release Linux (deb + rpm)
+
+# Workflow riêng cho Linux. Không gộp chung với Windows (release.yml) vì
+# mỗi nền tảng có thể có version riêng và môi trường build khác nhau.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-deb:
+    name: Build .deb + .tar.gz (Ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake g++ clang \
+            zlib1g-dev libkrb5-dev \
+            libfcitx5core-dev libfcitx5config-dev libfcitx5utils-dev \
+            dpkg-dev
+
+      - name: Build and package .deb + .tar.gz
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          bash scripts/linux/package_linux.sh
+          echo "--- Artifacts ---"
+          ls -la delivery/linux
+
+      - name: Upload .deb + .tar.gz
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            delivery/linux/*.deb
+            delivery/linux/*.tar.gz
+          draft: true
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-rpm:
+    name: Build .rpm (Fedora)
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          dnf install -y \
+            cmake gcc-c++ clang \
+            zlib-devel krb5-devel openssl-devel \
+            fcitx5-devel rpm-build \
+            git curl tar ca-certificates
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build and package .rpm
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          bash scripts/linux/package_linux.sh
+          # Gom file .rpm về delivery/linux/ cho dễ upload.
+          find delivery/linux/rpmbuild/RPMS -name '*.rpm' -exec cp {} delivery/linux/ \;
+          echo "--- Artifacts ---"
+          ls -la delivery/linux
+
+      - name: Upload .rpm
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            delivery/linux/*.rpm
+          draft: true
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
