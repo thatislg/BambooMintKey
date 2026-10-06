@@ -53,19 +53,24 @@ public static class SettingsLauncher
                 catch { }
             }
 
-            // 2. Nếu chưa chạy, tìm file thực thi và khởi chạy tiến trình mới
+            // 2. Nếu chưa chạy, tìm file thực thi và khởi chạy tiến trình mới.
+            //    Ưu tiên file UI.exe nằm cạnh DLL đang được TSF load (thư mục cài đặt).
+            //    Không được hardcode đường dẫn máy dev vào code production — việc này
+            //    từng khiến UI mở nhầm bản cũ (vd. publish\ui\... vẫn là 1.1.2).
             string dllPath = NativeMethods.GetCurrentDllPath();
             string dir = !string.IsNullOrEmpty(dllPath) ? Path.GetDirectoryName(dllPath)! : AppDomain.CurrentDomain.BaseDirectory;
             string uiPath = Path.Combine(dir, "BambooMintKey.UI.exe");
 
             if (!File.Exists(uiPath))
             {
-                // Fallback nếu chạy trong dev
+                // GetCurrentDllPath() có thể trả về sai/trống khi chạy in-proc trong
+                // TSF (NativeAOT), nên dự phòng theo thư mục cài đặt chuẩn.
+                string? programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+                string? programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+
                 string[] candidates = [
-                    @"D:\Kojin\BambooMintKey\publish\ui\BambooMintKey.UI.exe",
-                    @"D:\Kojin\BambooMintKey\publish\win-x64\BambooMintKey.UI.exe",
-                    @"D:\Kojin\BambooMintKey\src\BambooMintKey.UI\bin\Release\net10.0\BambooMintKey.UI.exe",
-                    @"D:\Kojin\BambooMintKey\src\BambooMintKey.UI\bin\Debug\net10.0\BambooMintKey.UI.exe"
+                    Path.Combine(programFiles ?? "", "BambooMintKey", "BambooMintKey.UI.exe"),
+                    Path.Combine(programFilesX86 ?? "", "BambooMintKey", "BambooMintKey.UI.exe")
                 ];
                 foreach (var cand in candidates)
                 {

@@ -99,19 +99,12 @@ public static class NativeMethods
 
     /// <summary>
     /// Lấy đường dẫn tuyệt đối của file DLL hiện tại đang thực thi trong bộ nhớ.
-    /// Dùng một delegate trỏ đến hàm trong chính assembly này để tìm Module Handle.
+    /// Dùng con trỏ hàm export DllRegisterServer (chắc chắn nằm trong DLL) thay vì
+    /// delegate thunk — vốn trả về rỗng/sai khi chạy in-proc trong TSF dưới NativeAOT.
     /// </summary>
-    public static string GetCurrentDllPath()
+    public static unsafe string GetCurrentDllPath()
     {
-        var dummyDelegate = (Action)DummyMethod;
-        IntPtr functionPtr = Marshal.GetFunctionPointerForDelegate(dummyDelegate);
-        var path = GetDllPathFromFunctionPointer(functionPtr);
-        GC.KeepAlive(dummyDelegate);
-        return path;
+        delegate* unmanaged[Stdcall]<int> fn = &BambooMintKey.NativeBridge.Exports.DllRegisterServer;
+        return GetDllPathFromFunctionPointer((IntPtr)fn);
     }
-
-    /// <summary>
-    /// Hàm dummy chỉ dùng để lấy con trỏ hàm nằm trong assembly này.
-    /// </summary>
-    private static void DummyMethod() { }
 }
