@@ -6,6 +6,7 @@ namespace BambooMintKey.Core.Engine
 open System
 open BambooMintKey.Core.Domain.EngineConfig
 open BambooMintKey.Core.Domain.Types
+open BambooMintKey.Core.Domain.UnicodeTables
 open BambooMintKey.Core.Dictionary
 
 module TelexEngine =
@@ -26,20 +27,39 @@ module TelexEngine =
             else state.TransformedText + string breakChar
         (WordState.Empty, EngineAction.Commit finalWord)
 
+    /// Kiểm tra dấu thanh có bị ép từ hỏi/huyền/ngã (r/f/x) thành sắc do âm tắc cuối (t/c/p/ch) hay không.
+    /// Dùng để ưu tiên backtrack tiếng Anh (vd "sort" -> giữ "sort" thay vì ép thành "sót").
+    let private hasForcedStopTone (syllable: Syllable) (rawString: string) : bool =
+        let finalLower = syllable.FinalConsonant.ToLowerInvariant()
+        let isStopFinal = finalLower = "t" || finalLower = "c" || finalLower = "p" || finalLower = "ch"
+        if not isStopFinal || syllable.Tone <> Tone.Acute then false
+        else
+            FreeTonePlacement.extractTokens (rawString.ToCharArray() |> Array.toList)
+            |> fun extraction ->
+                extraction.CandidateTones
+                |> List.exists (fun (c, _) ->
+                    match Char.ToLowerInvariant c with
+                    | 'f' | 'r' | 'x' -> true
+                    | _ -> false)
+
     /// Quyết định có hoàn tác về chuỗi thô tiếng Anh hay không:
-    /// chỉ khi âm tiết đã đủ dài (hoàn chỉnh), KHÔNG hợp lệ tiếng Việt, VÀ chuỗi thô là từ tiếng Anh.
-    let private shouldBacktrackEnglish (viText: string) (rawString: string) (config: EngineConfig) : bool =
+    /// khi âm tiết KHÔNG hợp lệ tiếng Việt, hoặc dấu thanh bị ép đổi (hỏi/huyền/ngã -> sắc do âm tắc cuối),
+    /// VÀ chuỗi thô là từ tiếng Anh đã biết.
+    let private shouldBacktrackEnglish (viText: string) (rawString: string) (syllable: Syllable option) (config: EngineConfig) : bool =
         viText.Length >= 3 &&
         config.EnableVietnameseDictionary && config.EnableEnglishBacktracking &&
-        not (DictionaryProvider.Default.IsValidVietnameseSyllable (viText.ToLowerInvariant())) &&
-        EnglishProtection.isKnownEnglishWord (rawString.ToLowerInvariant())
+        EnglishProtection.isKnownEnglishWord (rawString.ToLowerInvariant()) &&
+        (not (DictionaryProvider.Default.IsValidVietnameseSyllable (viText.ToLowerInvariant())) ||
+         (match syllable with
+          | Some syl -> hasForcedStopTone syl rawString
+          | None -> false))
 
     /// Tạo kết quả composition từ một âm tiết, kèm thẩm định On-the-fly & backtrack tiếng Anh.
     let private makeComposition (syllable: Syllable option) (case: LetterCase) (rawKeys: char list) (rawString: string) (config: EngineConfig) : WordState * EngineAction =
         match syllable with
         | Some syl ->
             let reconstructed = reconstructSyllableText syl
-            let backtrack = shouldBacktrackEnglish reconstructed rawString config
+            let backtrack = shouldBacktrackEnglish reconstructed rawString syllable config
             let finalText = if backtrack then rawString else reconstructed
             let formatted = WordBuffer.applyCase case finalText
             let newState = {
@@ -63,6 +83,14 @@ module TelexEngine =
                 IsInvalidVietnamese = true
             }
             (newState, EngineAction.UpdateComposition fallbackText)
+
+    /// Kiểm tra chuỗi có chứa ký tự mang modifier (mũ/móc/trăng/gạch) với base char cụ thể hay không,
+    /// kể cả khi ký tự đó đã được ghép thêm dấu thanh (vd "ễ" vẫn mang mũ ê => base 'e' + Hat).
+    let private containsBaseModifier (baseChar: char) (modifier: Modifier) (text: string) : bool =
+        text.ToCharArray()
+        |> Array.exists (fun c ->
+            let b, m, _ = decomposeChar c
+            b = baseChar && m = modifier)
 
     let private handleCharInput (c: char) (state: WordState) (config: EngineConfig) : WordState * EngineAction =
         let lowerChar = Char.ToLowerInvariant c
@@ -99,13 +127,13 @@ module TelexEngine =
             config.AllowRepeatKeyUndo && isModifierKey &&
             not (rawString.ToLowerInvariant().Contains "uwow") &&
             (
-                (lowerChar = 'd' && state.TransformedText.ToLowerInvariant().Contains "đ") ||
-                (lowerChar = 'a' && (state.TransformedText.ToLowerInvariant().Contains "â" || state.TransformedText.ToLowerInvariant().Contains "ă")) ||
-                (lowerChar = 'e' && state.TransformedText.ToLowerInvariant().Contains "ê") ||
-                (lowerChar = 'o' && (state.TransformedText.ToLowerInvariant().Contains "ô" || state.TransformedText.ToLowerInvariant().Contains "ơ")) ||
+                (lowerChar = 'd' && containsBaseModifier 'd' Modifier.DBar state.TransformedText) ||
+                (lowerChar = 'a' && (containsBaseModifier 'a' Modifier.Hat state.TransformedText || containsBaseModifier 'a' Modifier.Breve state.TransformedText)) ||
+                (lowerChar = 'e' && containsBaseModifier 'e' Modifier.Hat state.TransformedText) ||
+                (lowerChar = 'o' && (containsBaseModifier 'o' Modifier.Hat state.TransformedText || containsBaseModifier 'o' Modifier.Horn state.TransformedText)) ||
                 (lowerChar = 'w' && not (state.TransformedText.ToLowerInvariant().Contains "o") &&
-                    (state.TransformedText.ToLowerInvariant().Contains "ă" ||
-                     ((state.TransformedText.ToLowerInvariant().Contains "ư") <> (state.TransformedText.ToLowerInvariant().Contains "ơ"))))
+                    (containsBaseModifier 'a' Modifier.Breve state.TransformedText ||
+                     ((containsBaseModifier 'u' Modifier.Horn state.TransformedText) <> (containsBaseModifier 'o' Modifier.Horn state.TransformedText))))
             )
 
         // 2b. Ngoại lệ chính tả "gì": phụ âm "gi" + phím dấu thanh (f/s/r/x/j)

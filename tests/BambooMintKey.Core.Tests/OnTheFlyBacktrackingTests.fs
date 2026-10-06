@@ -47,6 +47,8 @@ module OnTheFlyBacktrackingTests =
     [<InlineData("start", "start")>]   // đuôi -rt
     [<InlineData("learn", "learn")>]   // đuôi -rn (hardcode)
     [<InlineData("term", "term")>]     // đuôi -rm (qua hardcode, vì "rm" bị loại khỏi cluster)
+    [<InlineData("sort", "sort")>]     // 'r' hỏi + âm tắc 't' -> không ép thành 'sót'
+    [<InlineData("corp", "corp")>]     // 'r' hỏi + âm tắc 'p' -> không ép thành 'cóp'
     let ``M4.3 - từ tiếng Anh được hoàn tác đúng`` (input: string, expected: string) =
         let result = typeWord input EngineConfig.Default
         Assert.Equal(expected, result)

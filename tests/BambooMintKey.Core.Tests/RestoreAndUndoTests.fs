@@ -38,6 +38,8 @@ module RestoreAndUndoTests =
     [<InlineData("cooo", "coo")>]
     [<InlineData("awww", "aww")>]    // aw -> ă, lặp w rút về aw, w thứ 3 lại thành aw+w
     [<InlineData("aww", "aw")>]      // aw -> ă, lặp w rút về aw
+    [<InlineData("exee", "exe")>]    // Issue 014/015: ễ (ê + ngã) lặp 'e' hủy mũ ê -> exe
+    [<InlineData("xeee", "xee")>]    // xê lặp 'e' hủy mũ ê -> xee
     let ``2. Repeating modifier key undoes the format back to raw string stream`` (input: string, expected: string) =
         let state = typeWord input
         Assert.Equal(expected, state.TransformedText)
