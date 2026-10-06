@@ -128,7 +128,10 @@ jobs:
             Write-Error "Inno Setup compiler (ISCC.exe) not found on the runner."
             exit 1
           }
-          & $iscc delivery\installer\installer.iss
+          # Truyền version thật (bỏ tiền tố 'v' của tag) để bộ cài ghi đúng version
+          # thay vì fallback cứng trong installer.iss (trước đây mọi tag đều ra 1.1.2).
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          & $iscc "/DMyAppVersion=$version" delivery\installer\installer.iss
 
       - name: Sign Final Installer
         shell: pwsh
