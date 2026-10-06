@@ -44,6 +44,16 @@ module RestoreAndUndoTests =
         let state = typeWord input
         Assert.Equal(expected, state.TransformedText)
 
+    // Undo lặp phím dấu phải "bám" (sticky): sau khi hủy dấu, các phím gõ tiếp theo không được
+    // tái áp dụng Bỏ dấu tự do lên phím dấu đã bị hủy (Issue: chorr -> chỏe, tesst -> tét).
+    [<Theory>]
+    [<InlineData("chorre", "chore")>]    // chor + r (undo hỏi) + e -> chore (không bị tái thành chỏe)
+    [<InlineData("tesst", "test")>]      // tes + s (undo sắc) + t -> test (không bị tái thành tét)
+    [<InlineData("horre", "hore")>]      // hor + r (undo hỏi) + e -> hore
+    let ``2b. Undone tone stays undone when typing continues`` (input: string, expected: string) =
+        let state = typeWord input
+        Assert.Equal(expected, state.TransformedText)
+
     // 2. Bảo toàn chữ HOA, chữ thường (Case Preservation)
     [<Theory>]
     [<InlineData("VIEETJ", "VIỆT")>]

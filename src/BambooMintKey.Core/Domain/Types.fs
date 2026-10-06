@@ -64,6 +64,10 @@ type WordState = {
     Case: LetterCase
     // Cờ đánh dấu từ này có vi phạm cấu trúc tiếng Việt hay không (để fallback tiếng Anh)
     IsInvalidVietnamese: bool
+    // Cờ đánh dấu từ đã được "chốt" sang chế độ tiếng Anh sau khi người dùng undo dấu thanh/modifier
+    // (gõ lặp phím). Khi bật, các phím gõ tiếp theo được giữ nguyên thô, KHÔNG tái áp dụng bỏ dấu tự do
+    // lên phím dấu đã bị hủy (vd chorr + e -> chore, tesst -> test).
+    IsEnglishCommitted: bool
 }
 with
     // Trạng thái rỗng khởi tạo ban đầu
@@ -73,6 +77,7 @@ with
         Syllable = Option.None
         Case = LetterCase.Lower
         IsInvalidVietnamese = false
+        IsEnglishCommitted = false
     }
 
 // Lệnh kết quả trả về từ Engine cho lớp TSF NativeBridge thực thi

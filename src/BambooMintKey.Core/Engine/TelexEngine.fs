@@ -71,6 +71,7 @@ module TelexEngine =
                 Syllable = Some syl
                 Case = case
                 IsInvalidVietnamese = backtrack
+                IsEnglishCommitted = false
             }
             (newState, EngineAction.UpdateComposition formatted)
         | None ->
@@ -81,6 +82,7 @@ module TelexEngine =
                 Syllable = None
                 Case = case
                 IsInvalidVietnamese = true
+                IsEnglishCommitted = false
             }
             (newState, EngineAction.UpdateComposition fallbackText)
 
@@ -155,6 +157,7 @@ module TelexEngine =
                 Syllable = None
                 Case = detectedCase
                 IsInvalidVietnamese = true
+                IsEnglishCommitted = true
             }
             (newState, EngineAction.UpdateComposition formatted)
 
@@ -177,6 +180,7 @@ module TelexEngine =
                 Syllable = None
                 Case = detectedCase
                 IsInvalidVietnamese = true
+                IsEnglishCommitted = true
             }
             (newState, EngineAction.UpdateComposition formatted)
 
@@ -195,8 +199,24 @@ module TelexEngine =
                 Syllable = Some toned
                 Case = detectedCase
                 IsInvalidVietnamese = false
+                IsEnglishCommitted = false
             }
             (newState, EngineAction.UpdateComposition formatted)
+
+        elif state.IsEnglishCommitted then
+            // Đã "chốt" tiếng Anh sau khi người dùng undo dấu thanh/modifier (gõ lặp phím).
+            // Giữ nguyên chuỗi thô, KHÔNG tái áp dụng Bỏ dấu tự do lên phím dấu đã bị hủy
+            // (vd chorr + e -> chore, tesst -> test).
+            let fallbackText = WordBuffer.applyCase detectedCase rawString
+            let newState = {
+                RawKeys = newRaw
+                TransformedText = fallbackText
+                Syllable = None
+                Case = detectedCase
+                IsInvalidVietnamese = true
+                IsEnglishCommitted = true
+            }
+            (newState, EngineAction.UpdateComposition fallbackText)
 
         else
             // 3. Cơ chế Bỏ dấu tự do (Free Tone Placement)
@@ -291,6 +311,7 @@ module TelexEngine =
                     Syllable = None
                     Case = LetterCase.Lower
                     IsInvalidVietnamese = true
+                    IsEnglishCommitted = false
                 }
                 (newState, EngineAction.PassThrough)
             | KeyInput.Backspace ->
@@ -304,6 +325,7 @@ module TelexEngine =
                         Syllable = None
                         Case = LetterCase.Lower
                         IsInvalidVietnamese = true
+                        IsEnglishCommitted = false
                     }
                     (newState, EngineAction.PassThrough)
             | KeyInput.WordBreak breakChar ->
