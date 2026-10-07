@@ -6,6 +6,7 @@ build/
 build-pkg/
 delivery/*
 !delivery/commit-message/
+!delivery/installer/
 .flatpak-builder/
 *.aot.json
 
