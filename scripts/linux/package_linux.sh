@@ -24,6 +24,7 @@ VERSION="${VERSION:-}"
 if [ -z "$VERSION" ]; then
     VERSION="$(git -C "$PROJECT_ROOT" describe --tags --abbrev=0 2>/dev/null || true)"
 fi
+VERSION="${VERSION#linux-}"
 VERSION="${VERSION#v}"
 if [ -z "$VERSION" ]; then
     echo "Lỗi: chưa đặt VERSION (env) và không có git tag. Truyền qua env VERSION." >&2

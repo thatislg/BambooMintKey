@@ -5,7 +5,7 @@ name: Release Linux (deb + rpm)
 on:
   push:
     tags:
-      - 'v*'
+      - 'linux-v*'
 
 permissions:
   contents: write

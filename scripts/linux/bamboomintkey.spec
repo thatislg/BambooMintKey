@@ -5,7 +5,7 @@
 # RPM spec cho Fedora (build bằng rpmbuild). Xem scripts/package_linux.sh.
 
 Name:           bamboomintkey
-Version:        1.1.3
+Version:        1.1.4
 Release:        1%{?dist}
 Summary:        Vietnamese Telex Input Method for Fcitx5
 License:        MIT
@@ -78,6 +78,9 @@ update-desktop-database %{_datadir}/applications &>/dev/null || :
 %{_datadir}/applications/bamboomintkey-settings.desktop
 
 %changelog
+* Tue Oct 07 2026 Dương Gia Long <thatislg@users.noreply.github.com> - 1.1.4-1
+- Sửa lỗi preedit dở dang: commit trước khi forward phím mũi tên/phím tắt, sửa thứ tự commit (Antigravity/Chromium)
+
 * Mon Oct 06 2026 Dương Gia Long <thatislg@users.noreply.github.com> - 1.1.3-1
 - Sửa lỗi xuống dòng khi Enter, undo lặp phím (exee), backtrack tiếng Anh (sort/corp), tái áp dụng dấu (chorre/tesst)
 
