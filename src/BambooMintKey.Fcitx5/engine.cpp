@@ -189,14 +189,16 @@ void BambooMintKeyEngine::keyEvent(const fcitx::InputMethodEntry &entry,
         return;
     }
 
-    // 3. Bỏ qua tổ hợp phím tắt hệ thống (Ctrl/Alt/Super).
-    if (isSystemModifier(keyEvent.key())) {
-        return;
-    }
-
     auto *ic = keyEvent.inputContext();
     auto *state = ic->propertyFor(&factory_);
     auto *handle = state->handle();
+
+    // 3. Bỏ qua tổ hợp phím tắt hệ thống (Ctrl/Alt/Super).
+    // Commit chuỗi dở dang trước để phím tắt không làm rối preedit.
+    if (isSystemModifier(keyEvent.key())) {
+        flushPendingComposition(ic, state);
+        return;
+    }
 
     const auto sym = keyEvent.key().sym();
 
@@ -208,7 +210,12 @@ void BambooMintKeyEngine::keyEvent(const fcitx::InputMethodEntry &entry,
 
     const uint32_t unicode = fcitx::Key::keySymToUnicode(sym);
     if (unicode == 0) {
-        return; // Ký tự không in được -> bỏ qua.
+        // Phím không in được (mũi tên, Home/End, PageUp/Down, F1-F12...):
+        // commit chuỗi dở dang trước khi nhả phím cho ứng dụng, tránh app
+        // (vd omnibox Chromium) tự commit/điền lại preedit sai vị trí
+        // (Issue 015 - Bug B).
+        flushPendingComposition(ic, state);
+        return;
     }
 
     // 5. Phím ngắt từ (space/enter/tab/dấu câu).
@@ -321,12 +328,15 @@ void BambooMintKeyEngine::drawAll(fcitx::InputContext *ic,
 void BambooMintKeyEngine::commitText(fcitx::InputContext *ic,
                                      BambooMintKeyState *state) {
     const char *text = bmk_get_commit_text(state->handle());
-    ic->inputPanel().reset();
-    ic->updatePreedit();
-    ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
+    // Commit trước, rồi mới xóa preedit & làm mới UI — theo chuẩn fcitx5-bamboo,
+    // tránh app Electron/Chromium nhận "preedit rỗng" trước "commit" rồi xóa chữ
+    // (Issue 015 - Bug A).
     if (text && text[0] != '\0') {
         ic->commitString(text);
     }
+    ic->inputPanel().reset();
+    ic->updatePreedit();
+    ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
 }
 
 // =========================================================================

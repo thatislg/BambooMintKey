@@ -4,7 +4,8 @@ obj/
 publish/
 build/
 build-pkg/
-delivery/
+delivery/*
+!delivery/commit-message/
 .flatpak-builder/
 *.aot.json
 
