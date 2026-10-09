@@ -8,6 +8,7 @@
     <Project Path="src/BambooMintKey.Shared/BambooMintKey.Shared.fsproj" />
     <Project Path="src/BambooMintKey.UI/BambooMintKey.UI.fsproj" />
     <Project Path="src/BambooMintKey.UI.Linux/BambooMintKey.UI.Linux.fsproj" />
+    <Project Path="src/BambooMintKey.UI.Mac/BambooMintKey.UI.Mac.fsproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/BambooMintKey.Core.Tests/BambooMintKey.Core.Tests.fsproj" />

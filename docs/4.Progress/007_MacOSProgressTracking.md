@@ -8,7 +8,7 @@
 
 **Ngày khởi tạo:** 2026-10-09  
 **Giai đoạn:** Phase 10 — Khảo sát & Triển khai nền tảng macOS (InputMethodKit)  
-**Trạng thái chung:** 🛠️ Đã hoàn thành 100% Milestone 1 (Thiết kế kiến trúc bằng lời), 100% Milestone 2 (Biên dịch C-ABI NativeAOT macOS) và 100% Milestone 3 (Bộ gõ IMK Engine Service), chuẩn bị khởi động Milestone 4 (M4: Xây dựng giao diện cài đặt UI.Mac).  
+**Trạng thái chung:** 🛠️ Đã hoàn thành 100% Milestone 1 (Thiết kế kiến trúc bằng lời), 100% Milestone 2 (Biên dịch C-ABI NativeAOT macOS), 100% Milestone 3 (Bộ gõ IMK Engine Service) và 100% Milestone 4 (Giao diện cài đặt UI.Mac), chuẩn bị khởi động Milestone 5 (M5: Đồng bộ trạng thái V/E & Menu Bar).  
 **Tài liệu tham chiếu:**
 - Khảo sát khả thi & Kế hoạch: [010_01_Investigation.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_01_Investigation.md)
 - Thiết kế Kiến trúc & C-ABI: [010_02_Architecture_and_CABI_Design.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_02_Architecture_and_CABI_Design.md)
@@ -36,11 +36,11 @@
 | **M1** | **Thiết Kế Kiến Trúc Bằng Lời (No Sample Code)** | 15% | ✅ Hoàn thành | 100% | Hoàn thành 4 tài liệu đặc tả: C-ABI, IMK Engine, UI.Mac, E2E Test & Delivery |
 | **M2** | **Thư Viện Lõi C-ABI NativeAOT macOS (`.dylib`)** | 20% | ✅ Hoàn thành | 100% | Xuất Mach-O dylib cho arm64 (4.4MB) & x86_64 (4.6MB), 14 hàm C-ABI, 9/9 PASS |
 | **M3** | **Bộ Gõ Bản Địa macOS (IMK Engine Service)** | 25% | ✅ Hoàn thành | 100% | Swift `IMKInputController` + C-ABI, Marked Text & commit string, bundle hợp lệ |
-| **M4** | **Giao Diện Cài Đặt Bản Địa (`BambooMintKey.UI.Mac`)** | 15% | ⏳ Chưa bắt đầu | 0% | Clone UI Avalonia, bỏ D-Bus, cấu hình JSON Application Support |
+| **M4** | **Giao Diện Cài Đặt Bản Địa (`BambooMintKey.UI.Mac`)** | 15% | ✅ Hoàn thành | 100% | Clone UI Avalonia, bỏ D-Bus, cấu hình JSON Application Support, single instance |
 | **M5** | **Đồng Bộ Trạng Thái V/E & Menu Bar** | 10% | ⏳ Chưa bắt đầu | 0% | Biểu tượng V/E Menu Bar, IPC thông báo hai chiều nội bộ |
 | **M6** | **Kiểm Thử E2E Tính Đúng Đắn & Tương Thích** | 10% | ⏳ Chưa bắt đầu | 0% | Ma trận kiểm thử ngữ pháp tiếng Việt và tương thích đa ứng dụng |
 | **M7** | **Đóng Gói Bundle & Script Cài Đặt Tự Động** | 5% | ⏳ Chưa bắt đầu | 0% | Cấu trúc `BambooMintKey.app` và script cài/gỡ tự động một chạm |
-| **Tổng** | **Toàn bộ Phase 10 (macOS / IMK)** | **100%** | 🛠️ **Đang triển khai** | **60%** | Sẵn sàng bước vào Milestone 4 |
+| **Tổng** | **Toàn bộ Phase 10 (macOS / IMK)** | **100%** | 🛠️ **Đang triển khai** | **75%** | Sẵn sàng bước vào Milestone 5 |
 
 ---
 
@@ -157,27 +157,27 @@
 > **Mục tiêu:** Nhân bản và độc lập hóa giao diện cấu hình Avalonia UI cho người dùng macOS, loại bỏ hoàn toàn tầng D-Bus của Linux.  
 > **Tài liệu tham chiếu:** [010_04_UIMac_Design.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_04_UIMac_Design.md)
 
-- [ ] **M4.1 — Khởi tạo dự án `BambooMintKey.UI.Mac`**
-  - [ ] Tạo thư mục dự án độc lập tại `src/BambooMintKey.UI.Mac/`.
-  - [ ] Tạo file dự án F# nhắm mục tiêu .NET 10, tham chiếu Avalonia UI và các thư viện cần thiết.
-  - [ ] Kế thừa toàn bộ giao diện trực quan và tài nguyên kiểu dáng hiện đại từ phiên bản Linux.
-  - [ ] *Tiêu chuẩn hoàn thành (DoD):* Dự án biên dịch thành công ứng dụng giao diện trên macOS.
+- [x] **M4.1 — Khởi tạo dự án `BambooMintKey.UI.Mac`**
+  - [x] Tạo thư mục dự án độc lập tại `src/BambooMintKey.UI.Mac/`.
+  - [x] Tạo file dự án F# nhắm mục tiêu .NET 10, tham chiếu Avalonia UI và các thư viện cần thiết.
+  - [x] Kế thừa toàn bộ giao diện trực quan và tài nguyên kiểu dáng hiện đại từ phiên bản Linux.
+  - [x] *Tiêu chuẩn hoàn thành (DoD):* Dự án biên dịch thành công ứng dụng giao diện trên macOS.
 
-- [ ] **M4.2 — Thay thế tầng D-Bus bằng lớp quản lý cấu hình chuẩn macOS**
-  - [ ] Loại bỏ hoàn toàn mã kết nối D-Bus và các thư viện phụ thuộc của Linux.
-  - [ ] Xây dựng lớp quản lý cấu hình đọc ghi tệp JSON tại `~/Library/Application Support/BambooMintKey/config.json`.
-  - [ ] Áp dụng cơ chế ghi tệp nguyên tử (ghi tệp tạm rồi đổi tên) để đảm bảo toàn vẹn dữ liệu.
-  - [ ] *Tiêu chuẩn hoàn thành (DoD):* Cấu hình được tải và lưu chính xác theo đường dẫn chuẩn của macOS.
+- [x] **M4.2 — Thay thế tầng D-Bus bằng lớp quản lý cấu hình chuẩn macOS**
+  - [x] Loại bỏ hoàn toàn mã kết nối D-Bus và các thư viện phụ thuộc của Linux.
+  - [x] Xây dựng lớp quản lý cấu hình đọc ghi tệp JSON tại `~/Library/Application Support/BambooMintKey/config.json`.
+  - [x] Áp dụng cơ chế ghi tệp nguyên tử (ghi tệp tạm rồi đổi tên) để đảm bảo toàn vẹn dữ liệu.
+  - [x] *Tiêu chuẩn hoàn thành (DoD):* Cấu hình được tải và lưu chính xác theo đường dẫn chuẩn của macOS.
 
-- [ ] **M4.3 — Cài đặt cơ chế chạy đơn phiên bản (Single Instance)**
-  - [ ] Xây dựng cơ chế đảm bảo chỉ một cửa sổ Cài đặt duy nhất được mở.
-  - [ ] Nếu người dùng mở lại từ Menu Bar, ứng dụng tự động đưa cửa sổ hiện có lên trước màn hình.
-  - [ ] *Tiêu chuẩn hoàn thành (DoD):* Không xảy ra tình trạng mở trùng lặp nhiều cửa sổ Cài đặt.
+- [x] **M4.3 — Cài đặt cơ chế chạy đơn phiên bản (Single Instance)**
+  - [x] Xây dựng cơ chế đảm bảo chỉ một cửa sổ Cài đặt duy nhất được mở.
+  - [x] Nếu người dùng mở lại từ Menu Bar, ứng dụng tự động đưa cửa sổ hiện có lên trước màn hình.
+  - [x] *Tiêu chuẩn hoàn thành (DoD):* Không xảy ra tình trạng mở trùng lặp nhiều cửa sổ Cài đặt.
 
-- [ ] **M4.4 — Tích hợp tab gõ thử nghiệm trực tiếp**
-  - [ ] Kết nối trực tiếp vào lõi F# Core để người dùng thử nghiệm gõ phím ngay trong cửa sổ Cài đặt.
-  - [ ] Thử nghiệm tức thì các tùy chọn gõ: Telex/VNI, kiểu đặt dấu mới/cũ, khôi phục từ tiếng Anh on-the-fly.
-  - [ ] *Tiêu chuẩn hoàn thành (DoD):* Tab gõ thử nghiệm phản ánh chính xác cấu hình người dùng vừa thiết lập.
+- [x] **M4.4 — Tích hợp tab gõ thử nghiệm trực tiếp**
+  - [x] Kết nối trực tiếp vào lõi F# Core để người dùng thử nghiệm gõ phím ngay trong cửa sổ Cài đặt.
+  - [x] Thử nghiệm tức thì các tùy chọn gõ: Telex/VNI, kiểu đặt dấu mới/cũ, khôi phục từ tiếng Anh on-the-fly.
+  - [x] *Tiêu chuẩn hoàn thành (DoD):* Tab gõ thử nghiệm phản ánh chính xác cấu hình người dùng vừa thiết lập.
 
 ---
 
@@ -262,4 +262,5 @@
 | **2026-10-09** | **Milestone 1** | Hoàn thành toàn diện 4 tài liệu thiết kế kỹ thuật kiến trúc bằng lời (hoàn toàn không dùng code mẫu) tại `docs/2.Design/Phase10/`: [010_02_Architecture_and_CABI_Design.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_02_Architecture_and_CABI_Design.md), [010_03_IMK_Engine_Design.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_03_IMK_Engine_Design.md), [010_04_UIMac_Design.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_04_UIMac_Design.md), [010_05_E2E_TestPlan_and_Delivery.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_05_E2E_TestPlan_and_Delivery.md). Đã liên kết đầy đủ vào Progress Tracking, đạt 100% Milestone 1 (tổng tiến độ Phase 10 đạt 15%). | ✅ Hoàn thành |
 | **2026-10-09** | **Milestone 2** | Biên dịch thành công thư viện lõi C-ABI NativeAOT macOS `BambooMintKeyCore.dylib` (Mach-O) cho cả `osx-arm64` (4.4MB) và `osx-x64` (4.6MB). Xuất đủ 14 hàm C-ABI (`bmk_*`). Bộ kiểm thử C-ABI `scripts/tests/test-cabi.py` được điều chỉnh chạy đa nền tảng (bỏ phụ thuộc `/proc/self/statm`, thêm đường dẫn mặc định macOS) và đạt 9/9 PASS (lifecycle, telex cơ bản, tổ hợp dấu, backspace, wordbreak, khôi phục tiếng Anh, đa context song song, chống rò rỉ bộ nhớ, config JSON). Đạt 100% Milestone 2 (tổng tiến độ Phase 10 đạt 35%). | ✅ Hoàn thành |
 | **2026-10-09** | **Milestone 3** | Xây dựng Bộ Gõ Bản Địa macOS (IMK Engine Service) bằng Swift tại `src/BambooMintKey.Mac.IMK/`: `main.swift` (điểm vào `IMKServer`), `BambooMintKeyController.swift` (kế thừa `IMKInputController`, quản lý context C-ABI riêng từng phiên, `handleEvent` phân loại phím Command/Control/Backspace/ngắt từ, Marked Text ẩn gạch chân, commit string). Giải quyết triệt để Issue 016 (đăng ký Input Sources), sửa lỗi nhân đôi ký tự (`thuwrthử`), sửa lỗi mất gõ chữ khi đổi focus, chuẩn hóa tên hiển thị `BambooMintKey` và icon Retina 16x16/32x32 Aqua kèm Menu Bar thả xuống ([008_MacOS_M3_Verification_And_Fixes_Report.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/4.Progress/008_MacOS_M3_Verification_And_Fixes_Report.md)). Người dùng nghiệm thu thực tế đạt 100% Milestone 3 (tổng tiến độ Phase 10 đạt 60%). | ✅ Hoàn thành |
-| *Tiếp theo* | **M4** | Bắt đầu Milestone 4: Xây dựng Giao Diện Cài Đặt Bản Địa (`BambooMintKey.UI.Mac`) — Clone UI Avalonia, bỏ D-Bus, cấu hình JSON Application Support. | ⏳ Sẵn sàng |
+| **2026-10-09** | **Milestone 4** | Xây dựng Giao Diện Cài Đặt Bản Địa `src/BambooMintKey.UI.Mac/` (F# .NET 10 + Avalonia): `MainWindow.axaml` (6 tab clone từ Linux, đổi text macOS), `MainWindow.axaml.fs` (tab gõ thử nghiệm trực tiếp qua F# Core), `SharedConfig.fs` (đọc/ghi `~/Library/Application Support/BambooMintKey/config.json` theo chuẩn macOS, atomic write), `SingleInstance.fs` (Unix socket đưa cửa sổ lên trước), `Program.fs`, `App.axaml`. Loại bỏ hoàn toàn tầng D-Bus. Đã thêm vào `BambooMintKey.slnx`. Khắc phục lỗi Avalonia macOS (thoát app bằng `Environment.Exit(0)` thay `Close()`/`Shutdown()` vì treo Not Responding). Người dùng nghiệm thu giao diện hiển thị + lưu cấu hình đúng, đạt 100% Milestone 4 (tổng tiến độ Phase 10 đạt 75%). | ✅ Hoàn thành |
+| *Tiếp theo* | **M5** | Bắt đầu Milestone 5: Đồng Bộ Trạng Thái V/E & Tích Hợp Menu Bar — Biểu tượng V/E, file watcher config, IPC thông báo hai chiều. | ⏳ Sẵn sàng |
