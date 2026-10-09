@@ -6,7 +6,7 @@
 
 # BambooMintKey macOS (InputMethodKit) Progress Tracking
 
-**Ngày khởi tạo:** 2026-10-09**Giai đoạn:** Phase 10 — Khảo sát & Triển khai nền tảng macOS (InputMethodKit)**Trạng thái chung:** 🛠️ Đã hoàn thành 100% Milestone 1 (Thiết kế kiến trúc bằng lời), 100% Milestone 2 (Biên dịch C-ABI NativeAOT macOS), 100% Milestone 3 (Bộ gõ IMK Engine Service), 100% Milestone 4 (Giao diện cài đặt UI.Mac) và 100% Milestone 5 (Đồng bộ V/E & Menu Bar), chuẩn bị khởi động Milestone 6 (M6: Kiểm thử E2E tính đúng đắn & tương thích).**Tài liệu tham chiếu:**
+**Ngày khởi tạo:** 2026-10-09**Giai đoạn:** Phase 10 — Khảo sát & Triển khai nền tảng macOS (InputMethodKit)**Trạng thái chung:** 🎉 ĐÃ HOÀN THÀNH 100% TOÀN BỘ PHASE 10 (Từ Milestone 1 đến Milestone 7). Bộ gõ BambooMintKey cho macOS bản địa (IMK Engine + StatusBar EV + Avalonia UI.Mac) đã được kiểm thử thực tế và phát hành thành công ở phiên bản 1.1.5.
 
 - Khảo sát khả thi & Kế hoạch: [010_01_Investigation.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_01_Investigation.md)
 - Thiết kế Kiến trúc & C-ABI: [010_02_Architecture_and_CABI_Design.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_02_Architecture_and_CABI_Design.md)
@@ -37,9 +37,9 @@
 |  **M3**  | **Bộ Gõ Bản Địa macOS (IMK Engine Service)**               |      25%      |         ✅ Hoàn thành         |      100%      | Swift`IMKInputController` + C-ABI, Marked Text & commit string, bundle hợp lệ   |
 |  **M4**  | **Giao Diện Cài Đặt Bản Địa (`BambooMintKey.UI.Mac`)** |      15%      |         ✅ Hoàn thành         |      100%      | Clone UI Avalonia, bỏ D-Bus, cấu hình JSON Application Support, single instance  |
 |  **M5**  | **Đồng Bộ Trạng Thái V/E & Menu Bar**                      |      10%      |         ✅ Hoàn thành         |      100%      | StatusBar app icon B (cờ VN), file watcher config, IPC hai chiều                  |
-|  **M6**  | **Kiểm Thử E2E Tính Đúng Đắn & Tương Thích**          |      10%      |       ⏳ Chưa bắt đầu       |       0%       | Ma trận kiểm thử ngữ pháp tiếng Việt và tương thích đa ứng dụng       |
-|  **M7**  | **Đóng Gói Bundle & Script Cài Đặt Tự Động**           |       5%       |       ⏳ Chưa bắt đầu       |       0%       | Cấu trúc`BambooMintKey.app` và script cài/gỡ tự động một chạm           |
-| **Tổng** | **Toàn bộ Phase 10 (macOS / IMK)**                            | **100%** | 🛠️**Đang triển khai** | **85%** | Sẵn sàng bước vào Milestone 6                                                  |
+|  **M6**  | **Kiểm Thử E2E Tính Đúng Đắn & Tương Thích**          |      10%      |         ✅ Hoàn thành         |      100%      | Kiểm thử thực tế ma trận ngữ pháp tiếng Việt, mũi tên điều hướng, đa app Cocoa/WebKit |
+|  **M7**  | **Đóng Gói Bundle, Script & Pipeline CI/CD**           |       5%       |         ✅ Hoàn thành         |      100%      | Bundle, .dmg, .pkg, script cài/gỡ và GitHub Actions release pipeline tự động       |
+| **Tổng** | **Toàn bộ Phase 10 (macOS / IMK)**                            | **100%** | 🎉 **Hoàn thành** | **100%** | Đã phát hành chính thức bản 1.1.5 cho macOS                                         |
 
 ---
 
@@ -248,39 +248,39 @@
 > **Mục tiêu:** Xây dựng gói ứng dụng bundle chuẩn, kịch bản cài đặt/gỡ cài đặt tự động một chạm, và đường ống CI/CD tự động build phát hành trên GitHub Actions cho macOS.
 > **Tài liệu tham chiếu:** [010_05_E2E_TestPlan_and_Delivery.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_05_E2E_TestPlan_and_Delivery.md) ([010_05_E2E_TestPlan_and_Delivery.txt](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_05_E2E_TestPlan_and_Delivery.txt))
 
-- [ ] **M7.1 — Xây dựng cấu trúc Application Bundle (`BambooMintKey.app`)**
+- [X] **M7.1 — Xây dựng cấu trúc Application Bundle (`BambooMintKey.app`)**
 
-  - [ ] Tổ chức cấu trúc thư mục bundle chuẩn: file thực thi chính, thư viện `BambooMintKeyCore.dylib`, tài nguyên icon và file thông tin `Info.plist`.
-  - [ ] Nhúng ứng dụng nền `BambooMintKeyStatusBar.app` vào `Contents/SharedSupport` để tự động kích hoạt icon EV cùng bộ gõ.
-  - [ ] Kiểm tra phân quyền thực thi và tính toàn vẹn của gói bundle.
-  - [ ] *Tiêu chuẩn hoàn thành (DoD):* Gói bundle đạt chuẩn định dạng ứng dụng Input Method của macOS.
-- [ ] **M7.2 — Viết kịch bản cài đặt tự động (`scripts/macos/install_macos.sh`)**
+  - [X] Tổ chức cấu trúc thư mục bundle chuẩn: file thực thi chính, thư viện `BambooMintKeyCore.dylib`, tài nguyên icon và file thông tin `Info.plist`.
+  - [X] Nhúng ứng dụng nền `BambooMintKeyStatusBar.app` vào `Contents/SharedSupport` để tự động kích hoạt icon EV cùng bộ gõ.
+  - [X] Kiểm tra phân quyền thực thi và tính toàn vẹn của gói bundle.
+  - [X] *Tiêu chuẩn hoàn thành (DoD):* Gói bundle đạt chuẩn định dạng ứng dụng Input Method của macOS.
+- [X] **M7.2 — Viết kịch bản cài đặt tự động (`scripts/macos/install_macos.sh`)**
 
-  - [ ] Tự động kiểm tra môi trường: công cụ biên dịch .NET 10 và Swift/Xcode command line tools (hoặc cài đặt từ bản phân phối đóng gói sẵn).
-  - [ ] Tự động biên dịch/sao chép thư viện lõi C-ABI, ứng dụng IMK, StatusBar và giao diện Cài đặt.
-  - [ ] Đóng gói và cài đặt bundle vào thư mục `~/Library/Input Methods/BambooMintKey.app` và `~/Applications/BambooMintKey.app`.
-  - [ ] Đăng ký dịch vụ với hệ thống để người dùng có thể kích hoạt ngay trong System Settings.
-  - [ ] *Tiêu chuẩn hoàn thành (DoD):* Người dùng chỉ cần chạy một lệnh trong Terminal là hoàn tất cài đặt toàn bộ hệ thống.
-- [ ] **M7.3 — Viết kịch bản gỡ cài đặt sạch sẽ (`scripts/macos/uninstall_macos.sh`)**
+  - [X] Tự động kiểm tra môi trường: công cụ biên dịch .NET 10 và Swift/Xcode command line tools (hoặc cài đặt từ bản phân phối đóng gói sẵn).
+  - [X] Tự động biên dịch/sao chép thư viện lõi C-ABI, ứng dụng IMK, StatusBar và giao diện Cài đặt.
+  - [X] Đóng gói và cài đặt bundle vào thư mục `~/Library/Input Methods/BambooMintKey.app` và `~/Applications/BambooMintKey.app`.
+  - [X] Đăng ký dịch vụ với hệ thống để người dùng có thể kích hoạt ngay trong System Settings.
+  - [X] *Tiêu chuẩn hoàn thành (DoD):* Người dùng chỉ cần chạy một lệnh trong Terminal là hoàn tất cài đặt toàn bộ hệ thống.
+- [X] **M7.3 — Viết kịch bản gỡ cài đặt sạch sẽ (`scripts/macos/uninstall_macos.sh`)**
 
-  - [ ] Dừng an toàn các tiến trình bộ gõ (`BambooMintKey`, `BambooMintKeyStatusBar`, `BambooMintKey.UI.Mac`).
-  - [ ] Xóa sạch bundle trong thư mục Input Methods (`~/Library/Input Methods/BambooMintKey.app`) và `~/Applications/BambooMintKey.app`.
-  - [ ] Dọn dẹp tệp cấu hình nếu được yêu cầu.
-  - [ ] Trả lại trạng thái sạch sẽ cho hệ thống macOS.
-  - [ ] *Tiêu chuẩn hoàn thành (DoD):* Kịch bản gỡ cài đặt thực thi an toàn, không để lại rác trong hệ thống.
-- [ ] **M7.4 — Viết kịch bản đóng gói phân phối (`scripts/macos/package_macos.sh`)**
+  - [X] Dừng an toàn các tiến trình bộ gõ (`BambooMintKey`, `BambooMintKeyStatusBar`, `BambooMintKey.UI.Mac`).
+  - [X] Xóa sạch bundle trong thư mục Input Methods (`~/Library/Input Methods/BambooMintKey.app`) và `~/Applications/BambooMintKey.app`.
+  - [X] Dọn dẹp tệp cấu hình nếu được yêu cầu.
+  - [X] Trả lại trạng thái sạch sẽ cho hệ thống macOS.
+  - [X] *Tiêu chuẩn hoàn thành (DoD):* Kịch bản gỡ cài đặt thực thi an toàn, không để lại rác trong hệ thống.
+- [X] **M7.4 — Viết kịch bản đóng gói phân phối (`scripts/macos/package_macos.sh`)**
 
-  - [ ] Tự động build trọn gói các thành phần cho kiến trúc chỉ định (arm64 hoặc x86_64).
-  - [ ] Đóng gói thành `.zip` / `.dmg` lưu vào `delivery/macos/` sẵn sàng phát hành.
-  - [ ] *Tiêu chuẩn hoàn thành (DoD):* Sinh file nén phân phối chuẩn chứa cả bộ gõ, UI cài đặt và script cài đặt một chạm.
-- [ ] **M7.5 — Xây dựng Pipeline CI/CD Tự Động Build & Release Trên GitHub Actions (`.github/workflows/release-macos.yml`)**
+  - [X] Tự động build trọn gói các thành phần cho kiến trúc chỉ định (arm64 hoặc x86_64).
+  - [X] Đóng gói thành `.dmg` (đĩa ảo kéo thả chuẩn Mac), `.pkg` (bộ cài đặt hệ thống) và `.zip` lưu vào `delivery/macos/` sẵn sàng phát hành.
+  - [X] *Tiêu chuẩn hoàn thành (DoD):* Sinh các file phân phối chuẩn chứa cả bộ gõ, UI cài đặt và script cài đặt một chạm.
+- [X] **M7.5 — Xây dựng Pipeline CI/CD Tự Động Build & Release Trên GitHub Actions (`.github/workflows/release-macos.yml`)**
 
-  - [ ] Kích hoạt khi có tag phiên bản (ví dụ `macos-v*`).
-  - [ ] Thiết lập môi trường runner `macos-latest` với .NET 10 SDK và công cụ Apple Xcode/Swift CLI.
-  - [ ] Tự động biên dịch C-ABI NativeAOT, IMK Engine Service, StatusBar app và Avalonia UI.Mac.
-  - [ ] Đóng gói artifacts (`delivery/macos/*.zip` / `*.dmg`).
-  - [ ] Tự động upload và tạo GitHub Release draft tương tự như Windows (`release.yml`) và Linux (`release-linux.yml`).
-  - [ ] *Tiêu chuẩn hoàn thành (DoD):* Đẩy tag lên GitHub là toàn bộ bản build macOS được tự động tạo và đính kèm vào Release.
+  - [X] Kích hoạt khi có tag phiên bản (ví dụ `macos-v*`).
+  - [X] Thiết lập môi trường runner `macos-latest` với .NET 10 SDK và công cụ Apple Xcode/Swift CLI.
+  - [X] Tự động biên dịch C-ABI NativeAOT, IMK Engine Service, StatusBar app và Avalonia UI.Mac (self-contained).
+  - [X] Đóng gói artifacts (`delivery/macos/*.dmg`, `*.pkg`, `*.zip`).
+  - [X] Tự động upload và tạo GitHub Release draft/publish kèm ghi chú phát hành `1.1.5.md`.
+  - [X] *Tiêu chuẩn hoàn thành (DoD):* Đẩy tag lên GitHub là toàn bộ bản build macOS được tự động tạo và đính kèm vào Release.
 
 ---
 
@@ -294,5 +294,6 @@
 | **2026-10-09** |      **Milestone 3**      | Xây dựng Bộ Gõ Bản Địa macOS (IMK Engine Service) bằng Swift tại`src/BambooMintKey.Mac.IMK/`: `main.swift` (điểm vào `IMKServer`), `BambooMintKeyController.swift` (kế thừa `IMKInputController`, quản lý context C-ABI riêng từng phiên, `handleEvent` phân loại phím Command/Control/Backspace/ngắt từ, Marked Text ẩn gạch chân, commit string). Giải quyết triệt để Issue 016 (đăng ký Input Sources), sửa lỗi nhân đôi ký tự (`thuwrthử`), sửa lỗi mất gõ chữ khi đổi focus, chuẩn hóa tên hiển thị `BambooMintKey` và icon Retina 16x16/32x32 Aqua kèm Menu Bar thả xuống ([008_MacOS_M3_Verification_And_Fixes_Report.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/4.Progress/008_MacOS_M3_Verification_And_Fixes_Report.md)). Người dùng nghiệm thu thực tế đạt 100% Milestone 3 (tổng tiến độ Phase 10 đạt 60%).                                                                                                    | ✅ Hoàn thành |
 | **2026-10-09** |      **Milestone 4**      | Xây dựng Giao Diện Cài Đặt Bản Địa`src/BambooMintKey.UI.Mac/` (F# .NET 10 + Avalonia): `MainWindow.axaml` (6 tab clone từ Linux, đổi text macOS), `MainWindow.axaml.fs` (tab gõ thử nghiệm trực tiếp qua F# Core), `SharedConfig.fs` (đọc/ghi `~/Library/Application Support/BambooMintKey/config.json` theo chuẩn macOS, atomic write), `SingleInstance.fs` (Unix socket đưa cửa sổ lên trước), `Program.fs`, `App.axaml`. Loại bỏ hoàn toàn tầng D-Bus. Đã thêm vào `BambooMintKey.slnx`. Khắc phục lỗi Avalonia macOS (thoát app bằng `Environment.Exit(0)` thay `Close()`/`Shutdown()` vì treo Not Responding). Người dùng nghiệm thu giao diện hiển thị + lưu cấu hình đúng, đạt 100% Milestone 4 (tổng tiến độ Phase 10 đạt 75%).                                                                                                                                                                                                 | ✅ Hoàn thành |
 | **2026-10-09** |      **Milestone 5**      | Đồng bộ trạng thái V/E & Menu Bar: đổi icon Input Source (M3) thành chữ`B` vàng/nền đỏ (cờ VN) qua `rendered_b_64x64.png`; tạo app nền `BambooMintKey.Mac.StatusBar` (Swift, `NSStatusItem`, `LSUIElement`) hiển thị icon động `V`/`E` thể hiện trạng thái gõ, menu thả xuống (chuyển V/E, Cài đặt…, Thoát). Thêm `ConfigWatcher.swift` (`DispatchSourceFileSystemObject`) để IMK nạp lại cấu hình tức thì khi UI.Mac lưu. Đồng bộ V/E hai chiều qua `NSDistributedNotificationCenter` giữa Menu Bar ↔ IMK. Thêm mục `Cài đặt…` vào `menu()` của IMK. Giải quyết triệt để Issue 017 (thêm phím `chuyển V/E + lưu config) và Issue 018 (fix Bug A: apply V/E ngay; fix Bug B: chế độ E nhường phím không gọi engine, hết lỗi nhân đôi`testtest`). Người dùng nghiệm thu gõ tiếng Việt có dấu (V) và tiếng Anh không dấu (E) đều đúng, đạt 100% Milestone 5 (tổng tiến độ Phase 10 đạt 85%). | ✅ Hoàn thành |
-| **2026-10-10** |     **M5 (bổ sung)**     | Tinh chỉnh & hoàn thiện Menu Bar/UI sau nghiệm thu: (1) Chuyển toàn bộ tùy chọn gõ từ menu IMK sang Menu Bar app (V/E, kiểu đặt dấu, bỏ dấu tự do, lặp phím undo, phím w đầu từ, khôi phục tiếng Anh) + Cài đặt…/Thông tin…; menu IMK gốc chỉ giữ 1 mục`BambooMintKey` disabled (giữ `target=self` để không bị `deinit` sau mỗi phím — fix triệt để lỗi mất trạng thái gõ). (2) Icon V/E tự ẩn/hiện theo input source đang chọn (Carbon TIS API + notification đổi source). (3) Đồng bộ options 3 chiều IMK ↔ StatusBar ↔ UI qua `config.json` (chuyển `ConfigWatcher` sang watch thư mục để bắt atomic rename). (4) Fix font tiếng Việt (`.AppleSystemUIFont`), nhãn `ÁP DỤNG & ĐÓNG`, fix crash khi bấm Close X. (5) Xóa chức năng Quit và chặn Cmd+Q (icon E/V phụ thuộc input source, không tự tắt).                                                                                                              | ✅ Hoàn thành |
-|    *Tiếp theo*    |          **M6**          | Bắt đầu Milestone 6: Kiểm Thử E2E Tính Đúng Đắn & Tương Thích — Ma trận ngữ pháp tiếng Việt và tương thích đa ứng dụng.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |  ⏳ Sẵn sàng  |
+| **2026-10-10** |     **M5 (bổ sung)**     | Tinh chỉnh & hoàn thiện Menu Bar/UI sau nghiệm thu: (1) Chuyển toàn bộ tùy chọn gõ từ menu IMK sang Menu Bar app (V/E, kiểu đặt dấu, bỏ dấu tự do, lặp phím undo, phím w đầu từ, khôi phục tiếng Anh) + Cài đặt…/Thông tin…; menu IMK gốc chỉ giữ 1 mục`BambooMintKey` disabled. (2) Icon V/E tự ẩn/hiện theo input source đang chọn (Carbon TIS API + notification đổi source). (3) Đồng bộ options 3 chiều IMK ↔ StatusBar ↔ UI qua `config.json` (chuyển `ConfigWatcher` sang watch thư mục để bắt atomic rename). (4) Fix font tiếng Việt (`.AppleSystemUIFont`), nhãn `ÁP DỤNG & ĐÓNG`, fix crash khi bấm Close X. (5) Xóa chức năng Quit và chặn Cmd+Q (icon E/V phụ thuộc input source, không tự tắt).                                                                                                              | ✅ Hoàn thành |
+| **2026-10-10** |      **Milestone 6**      | Kiểm thử E2E thực tế trên máy: (1) Sửa lỗi phím mũi tên và điều hướng (Home, End, PageUp, PageDown) khi đang có preedit — tự động commit chuỗi trước khi nhường phím, khắc phục biến dạng từ và ký tự rác `\u{F700}`..`\u{F703}`. (2) Tự động kích hoạt `BambooMintKeyStatusBar.app` từ `Contents/SharedSupport` trong `BambooMintKey.app` để icon EV luôn xuất hiện cùng chữ B kể cả sau khi reset máy. Người dùng nghiệm thu thực địa xác nhận hoạt động chuẩn xác 100%. | ✅ Hoàn thành |
+| **2026-10-10** |      **Milestone 7**      | Đóng gói phát hành và thiết lập pipeline CI/CD GitHub Actions: (1) Nâng phiên bản lên `1.1.5` trên toàn dự án (UI XAML, props, Info.plist). (2) Xây dựng `package_macos.sh` đóng gói 4 định dạng (.dmg, .pkg, .zip, .tar.gz). (3) Xuất bản UI.Mac ở chế độ `self-contained` để các máy Mac khác không cần cài .NET vẫn chạy được. (4) Tạo pipeline `.github/workflows/release-macos.yml` tự động build và đính kèm artifacts vào GitHub Release khi đẩy tag `macos-v*`. (5) Người dùng cài đặt thực tế từ bản build và nghiệm thu thành công. | ✅ Hoàn thành |

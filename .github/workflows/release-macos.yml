@@ -49,7 +49,7 @@ jobs:
             delivery/macos/*.zip
             delivery/macos/*.tar.gz
           body_path: delivery/commit-message/1.1.5.md
-          draft: false
+          draft: true
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
