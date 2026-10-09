@@ -30,9 +30,10 @@ enum StatusBarLauncher {
             Bundle.main.bundleURL.appendingPathComponent("Contents/SharedSupport/BambooMintKeyStatusBar.app")
         )
 
-        // 2. Trong bundle cài đặt chuẩn ~/Library/Input Methods/
+        // 2. Trong bundle cài đặt chuẩn ~/Library/Input Methods/ hoặc /Library/Input Methods/
         let imkSharedSupport = URL(fileURLWithPath: "\(home)/Library/Input Methods/BambooMintKey.app/Contents/SharedSupport/BambooMintKeyStatusBar.app")
         candidateURLs.append(imkSharedSupport)
+        candidateURLs.append(URL(fileURLWithPath: "/Library/Input Methods/BambooMintKey.app/Contents/SharedSupport/BambooMintKeyStatusBar.app"))
 
         // 3. Trong thư mục build workspace (môi trường phát triển)
         candidateURLs.append(URL(fileURLWithPath: "\(home)/Self-App/BambooMintKey/build/statusbar-arm64/BambooMintKeyStatusBar.app"))

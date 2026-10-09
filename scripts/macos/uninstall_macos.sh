@@ -20,13 +20,21 @@ pkill -f "BambooMintKey.app/Contents/MacOS/BambooMintKey" || true
 pkill -f "BambooMintKeyStatusBar" || true
 pkill -f "BambooMintKey.UI.Mac" || true
 
-# 2. Xóa bundle khỏi ~/Library/Input Methods/
+# 2. Xóa bundle khỏi Input Methods
+if [ -d "/Library/Input Methods/BambooMintKey.app" ]; then
+    echo "==> Xóa /Library/Input Methods/BambooMintKey.app"
+    rm -rf "/Library/Input Methods/BambooMintKey.app" 2>/dev/null || sudo rm -rf "/Library/Input Methods/BambooMintKey.app" || true
+fi
 if [ -d "$INPUT_METHODS_DIR/BambooMintKey.app" ]; then
     echo "==> Xóa $INPUT_METHODS_DIR/BambooMintKey.app"
     rm -rf "$INPUT_METHODS_DIR/BambooMintKey.app"
 fi
 
-# 3. Xóa UI khỏi ~/Applications/
+# 3. Xóa UI khỏi Applications
+if [ -d "/Applications/BambooMintKey.app" ]; then
+    echo "==> Xóa /Applications/BambooMintKey.app"
+    rm -rf "/Applications/BambooMintKey.app" 2>/dev/null || sudo rm -rf "/Applications/BambooMintKey.app" || true
+fi
 if [ -d "$APPLICATIONS_DIR/BambooMintKey.app" ]; then
     echo "==> Xóa $APPLICATIONS_DIR/BambooMintKey.app"
     rm -rf "$APPLICATIONS_DIR/BambooMintKey.app"

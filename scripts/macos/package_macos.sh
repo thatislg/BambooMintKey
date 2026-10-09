@@ -76,8 +76,63 @@ Chạy lệnh:
    bash uninstall.sh
 EOF
 
-# 6. Nén thành .zip và .tar.gz lưu vào delivery/macos/
-mkdir -p "$OUT_DELIVERY"
+# 6. Tạo file cài đặt bản địa macOS (.pkg Installer)
+PKG_FILE="$OUT_DELIVERY/$PACKAGE_NAME.pkg"
+echo "==> Đang đóng gói installer .pkg: $PKG_FILE ..."
+
+PKG_ROOT="$STAGE_DIR/pkg_root"
+PKG_SCRIPTS="$STAGE_DIR/pkg_scripts"
+rm -rf "$PKG_ROOT" "$PKG_SCRIPTS"
+mkdir -p "$PKG_ROOT/Library/Input Methods"
+mkdir -p "$PKG_ROOT/Applications"
+mkdir -p "$PKG_SCRIPTS"
+
+cp -R "$ROOT/build/imk-$ARCH/BambooMintKey.app" "$PKG_ROOT/Library/Input Methods/"
+cp -R "$ROOT/build/ui-mac-$ARCH/BambooMintKey.app" "$PKG_ROOT/Applications/"
+
+cat << 'EOF' > "$PKG_SCRIPTS/postinstall"
+#!/bin/bash
+set -e
+
+# Đóng các tiến trình cũ nếu đang chạy
+pkill -f "BambooMintKey.app/Contents/MacOS/BambooMintKey" || true
+pkill -f "BambooMintKeyStatusBar" || true
+pkill -f "BambooMintKey.UI.Mac" || true
+
+# Xóa bản cài cũ trong ~/Library nếu có để tránh xung đột
+CONSOLE_USER=$(stat -f "%Su" /dev/console 2>/dev/null || echo "")
+if [ -n "$CONSOLE_USER" ] && [ "$CONSOLE_USER" != "root" ]; then
+    USER_HOME=$(eval echo "~$CONSOLE_USER")
+    if [ -d "$USER_HOME/Library/Input Methods/BambooMintKey.app" ]; then
+        rm -rf "$USER_HOME/Library/Input Methods/BambooMintKey.app"
+    fi
+    if [ -d "$USER_HOME/Applications/BambooMintKey.app" ]; then
+        rm -rf "$USER_HOME/Applications/BambooMintKey.app"
+    fi
+fi
+
+chmod -R 755 "/Library/Input Methods/BambooMintKey.app"
+chmod -R 755 "/Applications/BambooMintKey.app"
+/System/Library/Frameworks/CoreServices.framework/Frameworks/CarbonCore.framework/Support/lsregister -f "/Library/Input Methods/BambooMintKey.app" || true
+
+exit 0
+EOF
+chmod +x "$PKG_SCRIPTS/postinstall"
+
+COMPONENT_PKG="$STAGE_DIR/BambooMintKey-component.pkg"
+pkgbuild \
+    --root "$PKG_ROOT" \
+    --identifier "com.bamboomintkey.installer" \
+    --version "1.1.5" \
+    --scripts "$PKG_SCRIPTS" \
+    --install-location "/" \
+    "$COMPONENT_PKG"
+
+productbuild \
+    --package "$COMPONENT_PKG" \
+    "$PKG_FILE"
+
+# 7. Nén thành .zip và .tar.gz lưu vào delivery/macos/
 ZIP_FILE="$OUT_DELIVERY/$PACKAGE_NAME.zip"
 TAR_FILE="$OUT_DELIVERY/$PACKAGE_NAME.tar.gz"
 
@@ -89,6 +144,7 @@ echo "==> Đang nén $TAR_FILE ..."
 
 echo "=================================================="
 echo "  ✅ Đóng gói hoàn tất!"
-echo "  - ZIP:    $ZIP_FILE"
-echo "  - TAR.GZ: $TAR_FILE"
+echo "  - PKG (Cài trực tiếp): $PKG_FILE"
+echo "  - ZIP:                 $ZIP_FILE"
+echo "  - TAR.GZ:              $TAR_FILE"
 echo "=================================================="
