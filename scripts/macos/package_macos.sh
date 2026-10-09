@@ -77,6 +77,7 @@ Chạy lệnh:
 EOF
 
 # 6. Tạo file cài đặt bản địa macOS (.pkg Installer)
+mkdir -p "$OUT_DELIVERY"
 PKG_FILE="$OUT_DELIVERY/$PACKAGE_NAME.pkg"
 echo "==> Đang đóng gói installer .pkg: $PKG_FILE ..."
 
