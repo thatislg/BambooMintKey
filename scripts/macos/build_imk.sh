@@ -49,6 +49,7 @@ swiftc \
     "$SRC_DIR/BambooMintKeyController.swift" \
     "$SRC_DIR/CABIBridge.swift" \
     "$SRC_DIR/ConfigWatcher.swift" \
+    "$SRC_DIR/StatusBarLauncher.swift" \
     "$DYLIB" \
     -o "$MACOS_DIR/BambooMintKey"
 
@@ -76,6 +77,14 @@ fi
 # Sao chép localization strings (InfoPlist.strings để macOS hiển thị tên đẹp thay vì bundle ID)
 if [ -d "$SRC_DIR/Resources" ]; then
     cp -R "$SRC_DIR/Resources/"* "$RESOURCES_DIR/"
+fi
+
+# Nhúng BambooMintKeyStatusBar.app (nếu đã build) vào Contents/SharedSupport để IMK tự khởi chạy
+STATUSBAR_APP="$ROOT/build/statusbar-$ARCH/BambooMintKeyStatusBar.app"
+if [ -d "$STATUSBAR_APP" ]; then
+    SHARED_SUPPORT_DIR="$APP_DIR/Contents/SharedSupport"
+    mkdir -p "$SHARED_SUPPORT_DIR"
+    cp -R "$STATUSBAR_APP" "$SHARED_SUPPORT_DIR/"
 fi
 
 # Ký ad-hoc bundle (bắt buộc trên Apple Silicon): macOS từ chối nạp Input Method

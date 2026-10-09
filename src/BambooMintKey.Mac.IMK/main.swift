@@ -27,5 +27,8 @@ InputSettings.registerModeObserver()
 let configWatcher = ConfigWatcher()
 configWatcher.start()
 
+// Đảm bảo app StatusBar (icon EV) luôn được khởi chạy cùng bộ gõ.
+StatusBarLauncher.ensureRunning()
+
 // Giữ tiến trình sống để lắng nghe các yêu cầu mở phiên gõ từ ứng dụng.
 NSApplication.shared.run()

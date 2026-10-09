@@ -113,6 +113,7 @@ final class BambooMintKeyController: IMKInputController {
 
     override func activateServer(_ sender: Any!) {
         super.activateServer(sender)
+        StatusBarLauncher.ensureRunning()
         _ = ensureContext()
         if let handle = contextHandle {
             CABIBridge.contextReset(handle)
@@ -166,24 +167,32 @@ final class BambooMintKeyController: IMKInputController {
             return handleAction(action, client: sender)
         }
 
-        // 5. Trích xuất mã Unicode của ký tự (dùng event.characters để giữ hoa/thường theo Shift).
+        // 5. Phím điều hướng & phím chức năng (mũi tên trái/phải/lên/xuống, Escape, Home/End, PgUp/PgDn...):
+        // Chốt từ dở dang trước khi nhường phím cho ứng dụng (khớp chuẩn Linux Issue 015).
+        // Ngăn chặn app nhận phím điều hướng khi preedit còn dở dẫn đến chèn ký tự lạ (0xF700..0xF703)
+        // hoặc làm hỏng vị trí con trỏ gây rác chữ khi gõ space tiếp theo.
+        if isNavigationOrFunctionKey(event) {
+            flushPendingComposition(sender)
+            return false
+        }
+
+        // 6. Trích xuất mã Unicode của ký tự (dùng event.characters để giữ hoa/thường theo Shift).
         guard let characters = event.characters,
               let scalar = characters.unicodeScalars.first else {
-            // Phím không sinh ký tự in được (mũi tên, Home/End, F1-F12...):
-            // chốt từ dở dang trước khi nhường phím, tránh mất chữ.
+            // Phím không sinh ký tự in được: chốt từ dở dang trước khi nhường phím.
             flushPendingComposition(sender)
             return false
         }
 
         let unicode: UInt32 = scalar.value
 
-        // 6. Phím ngắt từ (space, enter, tab, dấu câu...).
+        // 7. Phím ngắt từ (space, enter, tab, dấu câu...).
         if isWordBreak(unicode) {
             let action = CABIBridge.processWordbreak(handle, unicode)
             return handleAction(action, client: sender)
         }
 
-        // 7. Ký tự in được thông thường (ASCII).
+        // 8. Ký tự in được thông thường (ASCII).
         if unicode >= 0x20 && unicode <= 0x7E {
             let action = CABIBridge.processKey(handle, unicode)
             return handleAction(action, client: sender)
@@ -237,9 +246,13 @@ final class BambooMintKeyController: IMKInputController {
             return
         }
 
-        // Chuỗi thuộc tính yêu cầu ẩn đường gạch chân (Stealth Mode):
-        // không dùng underline để tránh che khuất dấu nặng (.) tiếng Việt.
-        let attributed = NSAttributedString(string: text, attributes: stealthAttributes)
+        // Lấy thuộc tính marked text chuẩn của Apple InputMethodKit (style 0: kTSMHiliteRawText).
+        // Trả về NSMarkedClauseSegment = 1 (không chứa NSUnderline).
+        // Nhờ đó, các ứng dụng Apple bản địa (Safari, Notes, TextEdit, Pages...)
+        // sẽ KHÔNG hiển thị đường gạch chân (giống hệt Simple Telex của Apple).
+        let range = NSRange(location: 0, length: text.utf16.count)
+        let attrs = (self.mark(forStyle: 0, at: range) as? [NSAttributedString.Key: Any]) ?? [:]
+        let attributed = NSAttributedString(string: text, attributes: attrs)
 
         // Con trỏ đặt ở cuối chuỗi (nhấp nháy tự nhiên sau từ đang gõ).
         let selection = NSRange(location: text.utf16.count, length: 0)
@@ -247,14 +260,6 @@ final class BambooMintKeyController: IMKInputController {
         // Luôn truyền notFoundRange để thay thế đúng vùng marked text hiện tại,
         // không truyền location 0 vì sẽ gây lỗi nhân đôi chữ (thuwrthử).
         input.setMarkedText(attributed, selectionRange: selection, replacementRange: notFoundRange)
-    }
-
-    /// Thuộc tính hiển thị không gạch chân cho chuỗi đang soạn thảo.
-    private var stealthAttributes: [NSAttributedString.Key: Any] {
-        [
-            .underlineStyle: 0,
-            .underlineColor: NSColor.clear,
-        ]
     }
 
     // MARK: - Chốt chuỗi (Commit)
@@ -271,9 +276,9 @@ final class BambooMintKeyController: IMKInputController {
         }
     }
 
-    // MARK: - Chốt từ dở dang khi mất focus
+    // MARK: - Chốt từ dở dang khi mất focus hoặc gặp phím điều hướng
 
-    /// Chốt chuỗi đang gõ dở vào văn bản rồi đặt lại bộ đệm (tránh mất chữ).
+    /// Chốt chuỗi đang gõ dở vào văn bản rồi đặt lại bộ đệm (tránh mất chữ / kẹt preedit).
     private func flushPendingComposition(_ client: Any?) {
         guard let handle = contextHandle,
               let input = getTextInput(client) else { return }
@@ -300,6 +305,35 @@ final class BambooMintKeyController: IMKInputController {
     }
 
     // MARK: - Phân loại phím
+
+    /// Nhận diện các phím điều hướng và phím chức năng không in được:
+    /// - Mũi tên: Trái (123), Phải (124), Xuống (125), Lên (126)
+    /// - Điều hướng trang: Home (115), End (119), Page Up (116), Page Down (121)
+    /// - Hủy / Xóa phía trước: Escape (53), Forward Delete (117)
+    /// - Dải Cocoa Special Function Keys (0xF700...0xF8FF) bao gồm mũi tên và F1..F20
+    /// - Ký tự điều khiển ASCII (< 0x20 ngoại trừ Tab \t, LF \n, CR \r)
+    private func isNavigationOrFunctionKey(_ event: NSEvent) -> Bool {
+        // Phím mũi tên (Left: 123, Right: 124, Down: 125, Up: 126)
+        if event.keyCode >= 123 && event.keyCode <= 126 {
+            return true
+        }
+        // Phím điều hướng & hệ thống khác
+        if event.keyCode == 53 || event.keyCode == 115 || event.keyCode == 119 ||
+           event.keyCode == 116 || event.keyCode == 121 || event.keyCode == 117 {
+            return true
+        }
+        // Ký tự trong dải function key hoặc điều khiển của Cocoa
+        if let chars = event.characters, let scalar = chars.unicodeScalars.first {
+            let val = scalar.value
+            if val >= 0xF700 && val <= 0xF8FF {
+                return true
+            }
+            if val < 0x20 && val != 0x09 && val != 0x0A && val != 0x0D {
+                return true
+            }
+        }
+        return false
+    }
 
     /// Xác định ký tự ngắt từ: space, tab, enter hoặc dấu câu ASCII.
     private func isWordBreak(_ unicode: UInt32) -> Bool {

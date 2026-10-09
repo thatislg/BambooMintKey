@@ -44,11 +44,20 @@ final class StatusBarController: NSObject {
             object: nil
         )
 
-        // Lắng nghe sự kiện đổi input source của hệ thống.
+        // Lắng nghe sự kiện đổi input source của hệ thống (phát lập tức).
         DistributedNotificationCenter.default().addObserver(
             self,
             selector: #selector(inputSourceChanged),
             name: NSNotification.Name("com.apple.Carbon.TISNotifySelectedKeyboardInputSourceChanged"),
+            object: nil,
+            suspensionBehavior: .deliverImmediately
+        )
+
+        // Lắng nghe chuyển ứng dụng (hỗ trợ chế độ mỗi app một input source).
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(inputSourceChanged),
+            name: NSWorkspace.didActivateApplicationNotification,
             object: nil
         )
 
@@ -60,6 +69,7 @@ final class StatusBarController: NSObject {
 
     deinit {
         DistributedNotificationCenter.default().removeObserver(self)
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
         configWatcherSource?.cancel()
     }
 
@@ -246,6 +256,9 @@ final class StatusBarController: NSObject {
 
     @objc private func inputSourceChanged() {
         updateVisibility()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            self?.updateVisibility()
+        }
     }
 
     @objc private func openSettings() {

@@ -37,5 +37,20 @@ cp "$SRC_DIR/Info.plist" "$APP_DIR/Contents/Info.plist"
 # Ký ad-hoc (cần thiết trên Apple Silicon).
 codesign --force --deep --sign - "$APP_DIR"
 
+# Đồng bộ vào Contents/SharedSupport của BambooMintKey.app nếu có
+IMK_BUILD_APP="$ROOT/build/imk-$ARCH/BambooMintKey.app"
+if [ -d "$IMK_BUILD_APP/Contents" ]; then
+    mkdir -p "$IMK_BUILD_APP/Contents/SharedSupport"
+    rm -rf "$IMK_BUILD_APP/Contents/SharedSupport/BambooMintKeyStatusBar.app"
+    cp -R "$APP_DIR" "$IMK_BUILD_APP/Contents/SharedSupport/"
+fi
+
+IMK_INSTALLED_APP="$HOME/Library/Input Methods/BambooMintKey.app"
+if [ -d "$IMK_INSTALLED_APP/Contents" ]; then
+    mkdir -p "$IMK_INSTALLED_APP/Contents/SharedSupport"
+    rm -rf "$IMK_INSTALLED_APP/Contents/SharedSupport/BambooMintKeyStatusBar.app"
+    cp -R "$APP_DIR" "$IMK_INSTALLED_APP/Contents/SharedSupport/"
+fi
+
 echo "==> Hoàn tất: $APP_DIR"
 echo "    File thực thi: $MACOS_DIR/BambooMintKeyStatusBar"
