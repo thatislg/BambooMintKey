@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Dương Gia Long and LMO contributors
 // SPDX-License-Identifier: MIT
 import Cocoa
+import Carbon
 
 /// Bộ điều khiển Menu Bar (Status Item) cho BambooMintKey.
 ///
@@ -31,11 +32,22 @@ final class StatusBarController: NSObject {
 
         rebuildMenu()
 
+        // Hiện/ẩn icon theo input source đang chọn (chỉ hiện khi dùng BambooMintKey).
+        updateVisibility()
+
         // Lắng nghe thay đổi từ IMK Service (phím ` bên app khác, hoặc menu IMK).
         DistributedNotificationCenter.default().addObserver(
             self,
             selector: #selector(modeDidChange(_:)),
             name: ConfigStore.modeChangedNotification,
+            object: nil
+        )
+
+        // Lắng nghe sự kiện đổi input source của hệ thống.
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(inputSourceChanged),
+            name: NSNotification.Name("com.apple.Carbon.TISNotifySelectedKeyboardInputSourceChanged"),
             object: nil
         )
     }
@@ -202,6 +214,30 @@ final class StatusBarController: NSObject {
 
     private func refreshIcon() {
         statusItem.button?.image = Self.makeIcon(letter: settings.isVietnamese ? "V" : "E")
+    }
+
+    // MARK: - Đồng bộ với input source đang chọn
+
+    /// Kiểm tra input source đang chọn có phải BambooMintKey không.
+    private func isBambooMintKeyActive() -> Bool {
+        guard let source = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue() else {
+            return false
+        }
+        guard let raw = TISGetInputSourceProperty(source, kTISPropertyInputSourceID) else {
+            return false
+        }
+        let id = Unmanaged<CFTypeRef>.fromOpaque(raw).takeUnretainedValue() as! CFString
+        return (id as String).hasPrefix("com.bamboomintkey.inputmethod")
+    }
+
+    /// Hiện icon E/V chỉ khi BambooMintKey đang là input source được chọn;
+    /// ẩn icon khi chuyển sang source khác (VI/ABC...).
+    private func updateVisibility() {
+        statusItem.isVisible = isBambooMintKeyActive()
+    }
+
+    @objc private func inputSourceChanged() {
+        updateVisibility()
     }
 
     @objc private func openSettings() {

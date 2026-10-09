@@ -25,6 +25,7 @@ swiftc \
     -O \
     -framework AppKit \
     -framework Cocoa \
+    -framework Carbon \
     "$SRC_DIR/main.swift" \
     "$SRC_DIR/AppDelegate.swift" \
     "$SRC_DIR/ConfigStore.swift" \
