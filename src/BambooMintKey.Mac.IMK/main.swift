@@ -20,5 +20,12 @@ let server = IMKServer(
     bundleIdentifier: bundleIdentifier
 )
 
+// Lắng nghe thay đổi V/E từ Menu Bar app để đồng bộ trạng thái ngay.
+InputSettings.registerModeObserver()
+
+// Theo dõi config.json để nạp lại cấu hình khi người dùng lưu từ UI.Mac.
+let configWatcher = ConfigWatcher()
+configWatcher.start()
+
 // Giữ tiến trình sống để lắng nghe các yêu cầu mở phiên gõ từ ứng dụng.
 NSApplication.shared.run()

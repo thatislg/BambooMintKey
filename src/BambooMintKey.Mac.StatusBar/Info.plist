@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  BambooMintKey - Vietnamese Telex Input Method Editor
+  Copyright (c) 2026 Dương Gia Long and LMO contributors
+  SPDX-License-Identifier: MIT
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>BambooMintKeyStatusBar</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.bamboomintkey.statusbar</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>BambooMintKey</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.1.4</string>
+    <key>CFBundleVersion</key>
+    <string>1.1.4</string>
+
+    <!-- Chạy nền, không hiển thị trên Dock (background agent) -->
+    <key>LSUIElement</key>
+    <true/>
+
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright © 2026 Dương Gia Long and LMO contributors. MIT License.</string>
+</dict>
+</plist>

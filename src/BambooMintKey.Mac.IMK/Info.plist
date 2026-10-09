@@ -58,8 +58,6 @@
                 <true/>
                 <key>tsInputModeIsVisibleKey</key>
                 <true/>
-                <key>tsInputModeMenuIconFileKey</key>
-                <string>BambooMintKey.tiff</string>
                 <key>tsInputModePaletteIconFileKey</key>
                 <string>BambooMintKey.tiff</string>
                 <key>tsInputModePrimaryInScriptKey</key>

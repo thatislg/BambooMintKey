@@ -48,6 +48,7 @@ swiftc \
     "$SRC_DIR/main.swift" \
     "$SRC_DIR/BambooMintKeyController.swift" \
     "$SRC_DIR/CABIBridge.swift" \
+    "$SRC_DIR/ConfigWatcher.swift" \
     "$DYLIB" \
     -o "$MACOS_DIR/BambooMintKey"
 
@@ -60,11 +61,11 @@ cp "$SRC_DIR/Info.plist" "$APP_DIR/Contents/Info.plist"
 # Tạo thư mục Resources và sao chép icon (16x16 @1x + 32x32 @2x Retina chuẩn macOS Menu Bar)
 RESOURCES_DIR="$APP_DIR/Contents/Resources"
 mkdir -p "$RESOURCES_DIR"
-if [ -f "$ROOT/src/media/rendered_v_64x64.png" ]; then
+if [ -f "$ROOT/src/media/rendered_b_64x64.png" ]; then
     TMP_ICON16="/tmp/bmk_icon_16.png"
     TMP_ICON32="/tmp/bmk_icon_32.png"
-    sips -s format png -z 16 16 -s dpiWidth 72.0 -s dpiHeight 72.0 "$ROOT/src/media/rendered_v_64x64.png" --out "$TMP_ICON16" >/dev/null 2>&1
-    sips -s format png -z 32 32 -s dpiWidth 144.0 -s dpiHeight 144.0 "$ROOT/src/media/rendered_v_64x64.png" --out "$TMP_ICON32" >/dev/null 2>&1
+    sips -s format png -z 16 16 -s dpiWidth 72.0 -s dpiHeight 72.0 "$ROOT/src/media/rendered_b_64x64.png" --out "$TMP_ICON16" >/dev/null 2>&1
+    sips -s format png -z 32 32 -s dpiWidth 144.0 -s dpiHeight 144.0 "$ROOT/src/media/rendered_b_64x64.png" --out "$TMP_ICON32" >/dev/null 2>&1
     tiffutil -cathidpicheck "$TMP_ICON16" "$TMP_ICON32" -out "$SRC_DIR/BambooMintKey.tiff" >/dev/null 2>&1
     rm -f "$TMP_ICON16" "$TMP_ICON32"
 fi

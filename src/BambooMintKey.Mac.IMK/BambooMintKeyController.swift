@@ -23,6 +23,12 @@ struct InputSettings {
     static var englishBacktrack: Bool = true
     static var repeatUndo: Bool = true
 
+    /// Đảm bảo chỉ đăng ký observer một lần cho toàn bộ tiến trình.
+    private static var observerRegistered = false
+
+    /// Tên thông báo đồng bộ V/E (khớp với Menu Bar app).
+    static let modeChangedNotification = Notification.Name("com.bamboomintkey.modeChanged")
+
     static func apply(to handle: UnsafeMutableRawPointer?) {
         guard let handle = handle else { return }
         CABIBridge.setOptions(
@@ -35,6 +41,46 @@ struct InputSettings {
             1, // enableVietnameseDictionary
             englishBacktrack ? 1 : 0
         )
+    }
+
+    /// Đăng ký lắng nghe thay đổi V/E từ Menu Bar app (chạy một lần).
+    static func registerModeObserver() {
+        guard !observerRegistered else { return }
+        observerRegistered = true
+        DistributedNotificationCenter.default().addObserver(
+            forName: modeChangedNotification,
+            object: nil,
+            queue: .main
+        ) { notification in
+            guard let info = notification.userInfo,
+                  let enabled = info["isVietnameseMode"] as? Bool else { return }
+            isVietnamese = enabled
+        }
+    }
+
+    /// Lưu trạng thái V/E hiện tại vào config.json (giữ nguyên các trường khác).
+    /// Ghi nguyên tử để IMK/StatusBar/UI.Mac đọc an toàn.
+    static func persistMode() {
+        do {
+            let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            let dir = base.appendingPathComponent("BambooMintKey", isDirectory: true)
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let url = dir.appendingPathComponent("config.json")
+
+            var json: [String: Any] = [:]
+            if let data = try? Data(contentsOf: url),
+               let existing = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                json = existing
+            }
+            json["isVietnameseMode"] = isVietnamese
+
+            let data = try JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted, .sortedKeys])
+            let tmp = dir.appendingPathComponent("config.json.tmp.\(UUID().uuidString)")
+            try data.write(to: tmp, options: .atomic)
+            _ = try FileManager.default.replaceItemAt(url, withItemAt: tmp)
+        } catch {
+            // Ghi cấu hình thất bại: giữ nguyên trạng thái trong bộ nhớ.
+        }
     }
 }
 
@@ -68,6 +114,9 @@ final class BambooMintKeyController: IMKInputController {
     override func activateServer(_ sender: Any!) {
         super.activateServer(sender)
         _ = ensureContext()
+        if let handle = contextHandle {
+            CABIBridge.contextReset(handle)
+        }
     }
 
     deinit {
@@ -84,6 +133,9 @@ final class BambooMintKeyController: IMKInputController {
     override func handle(_ event: NSEvent!, client sender: Any!) -> Bool {
         guard let handle = ensureContext() else { return false }
 
+        // Luôn nạp lại tùy chọn hiện tại vào context trước khi xử lý phím.
+        InputSettings.apply(to: handle)
+
         // 1. Chỉ thụ lý sự kiện nhấn phím (KeyDown).
         guard event.type == .keyDown else { return false }
 
@@ -94,13 +146,27 @@ final class BambooMintKeyController: IMKInputController {
             return false
         }
 
-        // 3. Backspace (keyCode 51 = delete/backspace trên bàn phím Mac).
+        // 2.1. Phím ` (grave, keyCode 50) — chuyển V/E tức thì (giống Windows/Linux).
+        if event.keyCode == 50 && !modifiers.contains(.shift) {
+            toggleVietnameseMode()
+            return true
+        }
+
+        // 3. Chế độ E (tiếng Anh): nhường toàn bộ phím cho ứng dụng, không gọi engine.
+        //    Tránh lỗi nhân đôi: engine nhánh isEnabled=false tích lũy RawKeys rồi
+        //    commit lại khi gặp space -> "testtest" (Issue 018).
+        if !InputSettings.isVietnamese {
+            flushPendingComposition(sender)
+            return false
+        }
+
+        // 4. Backspace (keyCode 51 = delete/backspace trên bàn phím Mac).
         if event.keyCode == 51 {
             let action = CABIBridge.processBackspace(handle)
             return handleAction(action, client: sender)
         }
 
-        // 4. Trích xuất mã Unicode của ký tự (dùng event.characters để giữ hoa/thường theo Shift).
+        // 5. Trích xuất mã Unicode của ký tự (dùng event.characters để giữ hoa/thường theo Shift).
         guard let characters = event.characters,
               let scalar = characters.unicodeScalars.first else {
             // Phím không sinh ký tự in được (mũi tên, Home/End, F1-F12...):
@@ -111,13 +177,13 @@ final class BambooMintKeyController: IMKInputController {
 
         let unicode: UInt32 = scalar.value
 
-        // 5. Phím ngắt từ (space, enter, tab, dấu câu...).
+        // 6. Phím ngắt từ (space, enter, tab, dấu câu...).
         if isWordBreak(unicode) {
             let action = CABIBridge.processWordbreak(handle, unicode)
             return handleAction(action, client: sender)
         }
 
-        // 6. Ký tự in được thông thường (ASCII).
+        // 7. Ký tự in được thông thường (ASCII).
         if unicode >= 0x20 && unicode <= 0x7E {
             let action = CABIBridge.processKey(handle, unicode)
             return handleAction(action, client: sender)
@@ -279,7 +345,11 @@ final class BambooMintKeyController: IMKInputController {
 
         menu.addItem(NSMenuItem.separator())
 
-        // 3. Thông tin
+        // 3. Cài đặt & thông tin
+        let settingsItem = NSMenuItem(title: "Cài đặt…", action: #selector(openSettings), keyEquivalent: "")
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+
         let aboutItem = NSMenuItem(title: "Thông tin về BambooMintKey…", action: #selector(showAboutDialog), keyEquivalent: "")
         aboutItem.target = self
         menu.addItem(aboutItem)
@@ -292,6 +362,8 @@ final class BambooMintKeyController: IMKInputController {
         if let handle = ensureContext() {
             InputSettings.apply(to: handle)
         }
+        InputSettings.persistMode()
+        broadcastMode()
     }
 
     @objc private func setEnglishMode() {
@@ -299,6 +371,28 @@ final class BambooMintKeyController: IMKInputController {
         if let handle = ensureContext() {
             InputSettings.apply(to: handle)
         }
+        InputSettings.persistMode()
+        broadcastMode()
+    }
+
+    /// Chuyển đổi V/E bằng phím ` (grave), đồng bộ + lưu cấu hình.
+    private func toggleVietnameseMode() {
+        InputSettings.isVietnamese.toggle()
+        if let handle = ensureContext() {
+            InputSettings.apply(to: handle)
+        }
+        InputSettings.persistMode()
+        broadcastMode()
+    }
+
+    /// Báo trạng thái V/E mới cho Menu Bar app (đồng bộ hai chiều).
+    private func broadcastMode() {
+        DistributedNotificationCenter.default().postNotificationName(
+            InputSettings.modeChangedNotification,
+            object: nil,
+            userInfo: ["isVietnameseMode": InputSettings.isVietnamese],
+            deliverImmediately: true
+        )
     }
 
     @objc private func toggleToneStyle() {
@@ -329,5 +423,19 @@ final class BambooMintKeyController: IMKInputController {
         alert.alertStyle = .informational
         alert.addButton(withTitle: "Đóng")
         alert.runModal()
+    }
+
+    /// Mở ứng dụng Cài đặt (BambooMintKey.UI.Mac) từ menu IMK.
+    @objc private func openSettings() {
+        let candidates = [
+            "/Applications/BambooMintKey.app",
+            NSHomeDirectory() + "/Applications/BambooMintKey.app",
+        ]
+        for path in candidates {
+            if FileManager.default.fileExists(atPath: path) {
+                NSWorkspace.shared.open(URL(fileURLWithPath: path))
+                return
+            }
+        }
     }
 }

@@ -8,7 +8,7 @@
 
 **Ngày khởi tạo:** 2026-10-09  
 **Giai đoạn:** Phase 10 — Khảo sát & Triển khai nền tảng macOS (InputMethodKit)  
-**Trạng thái chung:** 🛠️ Đã hoàn thành 100% Milestone 1 (Thiết kế kiến trúc bằng lời), 100% Milestone 2 (Biên dịch C-ABI NativeAOT macOS), 100% Milestone 3 (Bộ gõ IMK Engine Service) và 100% Milestone 4 (Giao diện cài đặt UI.Mac), chuẩn bị khởi động Milestone 5 (M5: Đồng bộ trạng thái V/E & Menu Bar).  
+**Trạng thái chung:** 🛠️ Đã hoàn thành 100% Milestone 1 (Thiết kế kiến trúc bằng lời), 100% Milestone 2 (Biên dịch C-ABI NativeAOT macOS), 100% Milestone 3 (Bộ gõ IMK Engine Service), 100% Milestone 4 (Giao diện cài đặt UI.Mac) và 100% Milestone 5 (Đồng bộ V/E & Menu Bar), chuẩn bị khởi động Milestone 6 (M6: Kiểm thử E2E tính đúng đắn & tương thích).  
 **Tài liệu tham chiếu:**
 - Khảo sát khả thi & Kế hoạch: [010_01_Investigation.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_01_Investigation.md)
 - Thiết kế Kiến trúc & C-ABI: [010_02_Architecture_and_CABI_Design.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_02_Architecture_and_CABI_Design.md)
@@ -16,6 +16,7 @@
 - Thiết kế Giao diện UI.Mac: [010_04_UIMac_Design.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_04_UIMac_Design.md)
 - Kế hoạch E2E Test & Delivery: [010_05_E2E_TestPlan_and_Delivery.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_05_E2E_TestPlan_and_Delivery.md) (bản văn bản thuần: [010_05_E2E_TestPlan_and_Delivery.txt](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_05_E2E_TestPlan_and_Delivery.txt))
 - Báo cáo Xử lý Lỗi M3: [008_MacOS_M3_Verification_And_Fixes_Report.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/4.Progress/008_MacOS_M3_Verification_And_Fixes_Report.md)
+- Báo cáo Đồng bộ V/E & Menu Bar M5: [009_MacOS_M5_StatusBar_And_VESync_Report.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/4.Progress/009_MacOS_M5_StatusBar_And_VESync_Report.md)
 - Issue 016 (Đã giải quyết): [016_MacOS_IMK_NotAppearing_In_InputSources.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/3.Issue/016_MacOS_IMK_NotAppearing_In_InputSources.md)
 
 ---
@@ -37,10 +38,10 @@
 | **M2** | **Thư Viện Lõi C-ABI NativeAOT macOS (`.dylib`)** | 20% | ✅ Hoàn thành | 100% | Xuất Mach-O dylib cho arm64 (4.4MB) & x86_64 (4.6MB), 14 hàm C-ABI, 9/9 PASS |
 | **M3** | **Bộ Gõ Bản Địa macOS (IMK Engine Service)** | 25% | ✅ Hoàn thành | 100% | Swift `IMKInputController` + C-ABI, Marked Text & commit string, bundle hợp lệ |
 | **M4** | **Giao Diện Cài Đặt Bản Địa (`BambooMintKey.UI.Mac`)** | 15% | ✅ Hoàn thành | 100% | Clone UI Avalonia, bỏ D-Bus, cấu hình JSON Application Support, single instance |
-| **M5** | **Đồng Bộ Trạng Thái V/E & Menu Bar** | 10% | ⏳ Chưa bắt đầu | 0% | Biểu tượng V/E Menu Bar, IPC thông báo hai chiều nội bộ |
+| **M5** | **Đồng Bộ Trạng Thái V/E & Menu Bar** | 10% | ✅ Hoàn thành | 100% | StatusBar app icon B (cờ VN), file watcher config, IPC hai chiều |
 | **M6** | **Kiểm Thử E2E Tính Đúng Đắn & Tương Thích** | 10% | ⏳ Chưa bắt đầu | 0% | Ma trận kiểm thử ngữ pháp tiếng Việt và tương thích đa ứng dụng |
 | **M7** | **Đóng Gói Bundle & Script Cài Đặt Tự Động** | 5% | ⏳ Chưa bắt đầu | 0% | Cấu trúc `BambooMintKey.app` và script cài/gỡ tự động một chạm |
-| **Tổng** | **Toàn bộ Phase 10 (macOS / IMK)** | **100%** | 🛠️ **Đang triển khai** | **75%** | Sẵn sàng bước vào Milestone 5 |
+| **Tổng** | **Toàn bộ Phase 10 (macOS / IMK)** | **100%** | 🛠️ **Đang triển khai** | **85%** | Sẵn sàng bước vào Milestone 6 |
 
 ---
 
@@ -185,19 +186,20 @@
 > **Mục tiêu:** Cung cấp biểu tượng trạng thái gõ trên thanh tác vụ Menu Bar macOS và cơ chế đồng bộ tức thì hai chiều giữa UI và IMK Service.  
 > **Tài liệu tham chiếu:** [010_03_IMK_Engine_Design.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_03_IMK_Engine_Design.md), [010_04_UIMac_Design.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_04_UIMac_Design.md)
 
-- [ ] **M5.1 — Xây dựng biểu tượng trạng thái Menu Bar (Status Item)**
-  - [ ] Tạo biểu tượng hiển thị ký tự `V` (tiếng Việt) hoặc `E` (tiếng Anh) trên thanh Menu Bar của macOS.
-  - [ ] Xây dựng menu thả xuống khi nhấn vào biểu tượng: chuyển đổi chế độ gõ, mở cửa sổ Cài đặt, thoát bộ gõ.
-  - [ ] *Tiêu chuẩn hoàn thành (DoD):* Biểu tượng hiển thị sắc nét trên Menu Bar, phản hồi nhanh khi nhấp chuột.
+- [x] **M5.1 — Xây dựng biểu tượng trạng thái Menu Bar (Status Item)**
+  - [x] Đổi icon Input Source (vị trí M3) thành chữ `B` vàng trên nền đỏ (cờ Việt Nam), kèm menu cài đặt đầy đủ (chuyển V/E, kiểu đặt dấu, khôi phục tiếng Anh, Cài đặt…, Thông tin).
+  - [x] Tạo app nền `BambooMintKey.Mac.StatusBar` (Swift, `NSStatusItem`, `LSUIElement`) hiển thị icon động `V`/`E` (vàng trên nền đỏ) thể hiện trạng thái gõ hiện tại.
+  - [x] Menu thả xuống của StatusBar: chuyển chế độ gõ (V/E có dấu tick), mở cửa sổ Cài đặt, thoát bộ gõ.
+  - [x] *Tiêu chuẩn hoàn thành (DoD):* Biểu tượng hiển thị sắc nét trên Menu Bar, phản hồi nhanh khi nhấp chuột.
 
-- [ ] **M5.2 — Cài đặt cơ chế theo dõi tệp cấu hình thời gian thực (File Watcher)**
-  - [ ] Thiết lập trình theo dõi sự kiện tệp tin trong tiến trình bộ gõ đối với tệp `config.json`.
-  - [ ] Khi người dùng bấm Lưu trên giao diện Cài đặt, bộ gõ tự động nạp lại cấu hình mới ngay lập tức.
-  - [ ] *Tiêu chuẩn hoàn thành (DoD):* Thay đổi cấu hình có hiệu lực tức thì mà không cần khởi động lại máy hay logout.
+- [x] **M5.2 — Cài đặt cơ chế theo dõi tệp cấu hình thời gian thực (File Watcher)**
+  - [x] Thiết lập trình theo dõi sự kiện tệp tin (`DispatchSourceFileSystemObject`) trong tiến trình bộ gõ đối với tệp `config.json`.
+  - [x] Khi người dùng bấm Lưu trên giao diện Cài đặt, bộ gõ tự động nạp lại cấu hình mới ngay lập tức.
+  - [x] *Tiêu chuẩn hoàn thành (DoD):* Thay đổi cấu hình có hiệu lực tức thì mà không cần khởi động lại máy hay logout.
 
-- [ ] **M5.3 — Cài đặt kênh truyền thông báo chuyển đổi chế độ gõ hai chiều**
-  - [ ] Thiết lập kênh thông báo nội bộ hệ thống để đồng bộ trạng thái khi chuyển chế độ bằng phím tắt hoặc Menu Bar.
-  - [ ] Biểu tượng Menu Bar và giao diện Cài đặt tự động cập nhật đồng bộ khi trạng thái V/E thay đổi.
+- [x] **M5.3 — Cài đặt kênh truyền thông báo chuyển đổi chế độ gõ hai chiều**
+  - [x] Thiết lập kênh thông báo nội bộ hệ thống (`NSDistributedNotificationCenter`) để đồng bộ trạng thái khi chuyển chế độ bằng phím tắt hoặc Menu Bar.
+  - [x] Biểu tượng Menu Bar và giao diện Cài đặt tự động cập nhật đồng bộ khi trạng thái V/E thay đổi.
   - [ ] *Tiêu chuẩn hoàn thành (DoD):* Chuyển đổi V/E diễn ra trơn tru, không có độ trễ, giao diện đồng bộ chính xác.
 
 ---
@@ -263,4 +265,5 @@
 | **2026-10-09** | **Milestone 2** | Biên dịch thành công thư viện lõi C-ABI NativeAOT macOS `BambooMintKeyCore.dylib` (Mach-O) cho cả `osx-arm64` (4.4MB) và `osx-x64` (4.6MB). Xuất đủ 14 hàm C-ABI (`bmk_*`). Bộ kiểm thử C-ABI `scripts/tests/test-cabi.py` được điều chỉnh chạy đa nền tảng (bỏ phụ thuộc `/proc/self/statm`, thêm đường dẫn mặc định macOS) và đạt 9/9 PASS (lifecycle, telex cơ bản, tổ hợp dấu, backspace, wordbreak, khôi phục tiếng Anh, đa context song song, chống rò rỉ bộ nhớ, config JSON). Đạt 100% Milestone 2 (tổng tiến độ Phase 10 đạt 35%). | ✅ Hoàn thành |
 | **2026-10-09** | **Milestone 3** | Xây dựng Bộ Gõ Bản Địa macOS (IMK Engine Service) bằng Swift tại `src/BambooMintKey.Mac.IMK/`: `main.swift` (điểm vào `IMKServer`), `BambooMintKeyController.swift` (kế thừa `IMKInputController`, quản lý context C-ABI riêng từng phiên, `handleEvent` phân loại phím Command/Control/Backspace/ngắt từ, Marked Text ẩn gạch chân, commit string). Giải quyết triệt để Issue 016 (đăng ký Input Sources), sửa lỗi nhân đôi ký tự (`thuwrthử`), sửa lỗi mất gõ chữ khi đổi focus, chuẩn hóa tên hiển thị `BambooMintKey` và icon Retina 16x16/32x32 Aqua kèm Menu Bar thả xuống ([008_MacOS_M3_Verification_And_Fixes_Report.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/4.Progress/008_MacOS_M3_Verification_And_Fixes_Report.md)). Người dùng nghiệm thu thực tế đạt 100% Milestone 3 (tổng tiến độ Phase 10 đạt 60%). | ✅ Hoàn thành |
 | **2026-10-09** | **Milestone 4** | Xây dựng Giao Diện Cài Đặt Bản Địa `src/BambooMintKey.UI.Mac/` (F# .NET 10 + Avalonia): `MainWindow.axaml` (6 tab clone từ Linux, đổi text macOS), `MainWindow.axaml.fs` (tab gõ thử nghiệm trực tiếp qua F# Core), `SharedConfig.fs` (đọc/ghi `~/Library/Application Support/BambooMintKey/config.json` theo chuẩn macOS, atomic write), `SingleInstance.fs` (Unix socket đưa cửa sổ lên trước), `Program.fs`, `App.axaml`. Loại bỏ hoàn toàn tầng D-Bus. Đã thêm vào `BambooMintKey.slnx`. Khắc phục lỗi Avalonia macOS (thoát app bằng `Environment.Exit(0)` thay `Close()`/`Shutdown()` vì treo Not Responding). Người dùng nghiệm thu giao diện hiển thị + lưu cấu hình đúng, đạt 100% Milestone 4 (tổng tiến độ Phase 10 đạt 75%). | ✅ Hoàn thành |
-| *Tiếp theo* | **M5** | Bắt đầu Milestone 5: Đồng Bộ Trạng Thái V/E & Tích Hợp Menu Bar — Biểu tượng V/E, file watcher config, IPC thông báo hai chiều. | ⏳ Sẵn sàng |
+| **2026-10-09** | **Milestone 5** | Đồng bộ trạng thái V/E & Menu Bar: đổi icon Input Source (M3) thành chữ `B` vàng/nền đỏ (cờ VN) qua `rendered_b_64x64.png`; tạo app nền `BambooMintKey.Mac.StatusBar` (Swift, `NSStatusItem`, `LSUIElement`) hiển thị icon động `V`/`E` thể hiện trạng thái gõ, menu thả xuống (chuyển V/E, Cài đặt…, Thoát). Thêm `ConfigWatcher.swift` (`DispatchSourceFileSystemObject`) để IMK nạp lại cấu hình tức thì khi UI.Mac lưu. Đồng bộ V/E hai chiều qua `NSDistributedNotificationCenter` giữa Menu Bar ↔ IMK. Thêm mục `Cài đặt…` vào `menu()` của IMK. Giải quyết triệt để Issue 017 (thêm phím ` chuyển V/E + lưu config) và Issue 018 (fix Bug A: apply V/E ngay; fix Bug B: chế độ E nhường phím không gọi engine, hết lỗi nhân đôi `testtest`). Người dùng nghiệm thu gõ tiếng Việt có dấu (V) và tiếng Anh không dấu (E) đều đúng, đạt 100% Milestone 5 (tổng tiến độ Phase 10 đạt 85%). | ✅ Hoàn thành |
+| *Tiếp theo* | **M6** | Bắt đầu Milestone 6: Kiểm Thử E2E Tính Đúng Đắn & Tương Thích — Ma trận ngữ pháp tiếng Việt và tương thích đa ứng dụng. | ⏳ Sẵn sàng |
