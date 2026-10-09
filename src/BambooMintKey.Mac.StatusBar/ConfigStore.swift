@@ -7,11 +7,22 @@ import Foundation
 ///
 /// Nguồn chân lý là tệp `~/Library/Application Support/BambooMintKey/config.json`
 /// (schema camelCase, khớp với UI.Mac và C-ABI `bmk_load_config_json`). Trạng thái
-/// V/E được đồng bộ hai chiều giữa Menu Bar và IMK qua `NSDistributedNotificationCenter`.
+/// V/E và các tùy chọn gõ được đồng bộ hai chiều giữa Menu Bar và IMK qua
+/// `NSDistributedNotificationCenter`.
 enum ConfigStore {
 
-    /// Tên thông báo phân tán dùng để đồng bộ trạng thái V/E giữa các tiến trình.
+    /// Tên thông báo phân tán dùng để đồng bộ trạng thái giữa các tiến trình.
     static let modeChangedNotification = Notification.Name("com.bamboomintkey.modeChanged")
+
+    /// Toàn bộ tùy chọn gõ (khớp schema config.json của UI.Mac).
+    struct Settings {
+        var isVietnamese: Bool = true
+        var toneStyle: Int = 0            // 0: kiểu mới (hòa), 1: kiểu cũ (hoà)
+        var allowFreeTonePlacement: Bool = true
+        var enableEnglishBacktracking: Bool = true
+        var allowRepeatKeyUndo: Bool = true
+        var allowLeadingWAsU: Bool = false
+    }
 
     /// Đường dẫn thư mục cấu hình: ~/Library/Application Support/BambooMintKey/
     static var configDir: URL {
@@ -24,29 +35,44 @@ enum ConfigStore {
         configDir.appendingPathComponent("config.json")
     }
 
-    /// Đọc trạng thái V/E hiện tại (mặc định true = tiếng Việt).
-    static func readVietnameseMode() -> Bool {
+    /// Đọc toàn bộ tùy chọn từ config.json (mặc định nếu chưa có tệp).
+    static func readSettings() -> Settings {
+        var s = Settings()
         guard let data = try? Data(contentsOf: configURL),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return true
+            return s
         }
-        return json["isVietnameseMode"] as? Bool ?? true
+        s.isVietnamese = json["isVietnameseMode"] as? Bool ?? s.isVietnamese
+        if let n = json["toneStyle"] as? NSNumber { s.toneStyle = n.intValue }
+        s.allowFreeTonePlacement = json["allowFreeTonePlacement"] as? Bool ?? s.allowFreeTonePlacement
+        s.enableEnglishBacktracking = json["enableEnglishBacktracking"] as? Bool ?? s.enableEnglishBacktracking
+        s.allowRepeatKeyUndo = json["allowRepeatKeyUndo"] as? Bool ?? s.allowRepeatKeyUndo
+        s.allowLeadingWAsU = json["allowLeadingWAsU"] as? Bool ?? s.allowLeadingWAsU
+        return s
     }
 
-    /// Ghi trạng thái V/E nguyên tử (ghi tạm rồi rename) để IMK đọc an toàn.
-    /// Trả về true nếu ghi thành công.
+    /// Đọc trạng thái V/E hiện tại (tiện ích ngắn).
+    static func readVietnameseMode() -> Bool {
+        readSettings().isVietnamese
+    }
+
+    /// Ghi toàn bộ tùy chọn nguyên tử (ghi tạm rồi rename) để IMK/UI.Mac đọc an toàn.
     @discardableResult
-    static func writeVietnameseMode(_ enabled: Bool) -> Bool {
+    static func writeSettings(_ s: Settings) -> Bool {
         do {
             try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
 
-            // Đọc giữ nguyên các trường khác, chỉ cập nhật isVietnameseMode.
             var json: [String: Any] = [:]
             if let data = try? Data(contentsOf: configURL),
                let existing = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 json = existing
             }
-            json["isVietnameseMode"] = enabled
+            json["isVietnameseMode"] = s.isVietnamese
+            json["toneStyle"] = s.toneStyle
+            json["allowFreeTonePlacement"] = s.allowFreeTonePlacement
+            json["enableEnglishBacktracking"] = s.enableEnglishBacktracking
+            json["allowRepeatKeyUndo"] = s.allowRepeatKeyUndo
+            json["allowLeadingWAsU"] = s.allowLeadingWAsU
 
             let data = try JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted, .sortedKeys])
             let tmp = configDir.appendingPathComponent("config.json.tmp.\(UUID().uuidString)")

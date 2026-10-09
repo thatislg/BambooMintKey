@@ -18,6 +18,14 @@ module Program =
 
     [<EntryPoint>]
     let main argv =
+        // Parse argument tùy chọn: --tab <name> (vd --tab about) để mở thẳng một tab.
+        let args = List.ofArray argv
+        let rec findTab = function
+            | "--tab" :: name :: _ -> Some name
+            | _ :: rest -> findTab rest
+            | [] -> None
+        App.RequestedTab <- findTab args
+
         // Single instance: nếu đã có instance đang chạy, thoát ngay (đã gửi SHOW_WINDOW).
         if SingleInstance.tryNotifyExisting() then
             0

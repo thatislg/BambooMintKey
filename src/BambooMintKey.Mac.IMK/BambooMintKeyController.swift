@@ -311,69 +311,24 @@ final class BambooMintKeyController: IMKInputController {
 
     // MARK: - Menu Bar Dropdown
 
+    /// Menu của Input Source. Theo yêu cầu thiết kế, thanh IMK gốc chỉ giữ tên
+    /// định danh "BambooMintKey", KHÔNG chứa tùy chọn cài đặt nào (đã chuyển sang
+    /// Menu Bar app V/E và UI.Mac).
+    ///
+    /// QUAN TRỌNG: vẫn phải có ít nhất một NSMenuItem với `target = self` để giữ
+    /// reference tới controller. Nếu trả về NSMenu trống, IMKServer sẽ giải phóng
+    /// controller sau mỗi phím -> mất trạng thái gõ (Issue 018/regression).
     override func menu() -> NSMenu! {
         let menu = NSMenu(title: "BambooMintKey")
-
-        // 1. Chế độ gõ
-        let viItem = NSMenuItem(title: "Tiếng Việt (Telex)", action: #selector(setVietnameseMode), keyEquivalent: "")
-        viItem.target = self
-        viItem.state = InputSettings.isVietnamese ? .on : .off
-        menu.addItem(viItem)
-
-        let enItem = NSMenuItem(title: "Tiếng Anh (English)", action: #selector(setEnglishMode), keyEquivalent: "")
-        enItem.target = self
-        enItem.state = InputSettings.isVietnamese ? .off : .on
-        menu.addItem(enItem)
-
-        menu.addItem(NSMenuItem.separator())
-
-        // 2. Tùy chọn đặt dấu
-        let toneItem = NSMenuItem(title: "Kiểu đặt dấu mới (oà, uý)", action: #selector(toggleToneStyle), keyEquivalent: "")
-        toneItem.target = self
-        toneItem.state = (InputSettings.toneStyle == 0) ? .on : .off
-        menu.addItem(toneItem)
-
-        let freeToneItem = NSMenuItem(title: "Bỏ dấu tự do", action: #selector(toggleFreeTone), keyEquivalent: "")
-        freeToneItem.target = self
-        freeToneItem.state = InputSettings.freeTone ? .on : .off
-        menu.addItem(freeToneItem)
-
-        let backtrackItem = NSMenuItem(title: "Khôi phục từ tiếng Anh", action: #selector(toggleEnglishBacktrack), keyEquivalent: "")
-        backtrackItem.target = self
-        backtrackItem.state = InputSettings.englishBacktrack ? .on : .off
-        menu.addItem(backtrackItem)
-
-        menu.addItem(NSMenuItem.separator())
-
-        // 3. Cài đặt & thông tin
-        let settingsItem = NSMenuItem(title: "Cài đặt…", action: #selector(openSettings), keyEquivalent: "")
-        settingsItem.target = self
-        menu.addItem(settingsItem)
-
-        let aboutItem = NSMenuItem(title: "Thông tin về BambooMintKey…", action: #selector(showAboutDialog), keyEquivalent: "")
-        aboutItem.target = self
-        menu.addItem(aboutItem)
-
+        let item = NSMenuItem(title: "BambooMintKey", action: #selector(noop), keyEquivalent: "")
+        item.target = self
+        item.isEnabled = false
+        menu.addItem(item)
         return menu
     }
 
-    @objc private func setVietnameseMode() {
-        InputSettings.isVietnamese = true
-        if let handle = ensureContext() {
-            InputSettings.apply(to: handle)
-        }
-        InputSettings.persistMode()
-        broadcastMode()
-    }
-
-    @objc private func setEnglishMode() {
-        InputSettings.isVietnamese = false
-        if let handle = ensureContext() {
-            InputSettings.apply(to: handle)
-        }
-        InputSettings.persistMode()
-        broadcastMode()
-    }
+    /// Selector rỗng dùng để giữ reference controller qua NSMenuItem.
+    @objc private func noop() {}
 
     /// Chuyển đổi V/E bằng phím ` (grave), đồng bộ + lưu cấu hình.
     private func toggleVietnameseMode() {
@@ -393,49 +348,5 @@ final class BambooMintKeyController: IMKInputController {
             userInfo: ["isVietnameseMode": InputSettings.isVietnamese],
             deliverImmediately: true
         )
-    }
-
-    @objc private func toggleToneStyle() {
-        InputSettings.toneStyle = (InputSettings.toneStyle == 0) ? 1 : 0
-        if let handle = ensureContext() {
-            InputSettings.apply(to: handle)
-        }
-    }
-
-    @objc private func toggleFreeTone() {
-        InputSettings.freeTone.toggle()
-        if let handle = ensureContext() {
-            InputSettings.apply(to: handle)
-        }
-    }
-
-    @objc private func toggleEnglishBacktrack() {
-        InputSettings.englishBacktrack.toggle()
-        if let handle = ensureContext() {
-            InputSettings.apply(to: handle)
-        }
-    }
-
-    @objc private func showAboutDialog() {
-        let alert = NSAlert()
-        alert.messageText = "BambooMintKey v1.1.4"
-        alert.informativeText = "Bộ gõ tiếng Việt Telex bản địa cho macOS\nBản quyền © 2026 Dương Gia Long và LMO contributors\nGiấy phép nguồn mở MIT"
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "Đóng")
-        alert.runModal()
-    }
-
-    /// Mở ứng dụng Cài đặt (BambooMintKey.UI.Mac) từ menu IMK.
-    @objc private func openSettings() {
-        let candidates = [
-            "/Applications/BambooMintKey.app",
-            NSHomeDirectory() + "/Applications/BambooMintKey.app",
-        ]
-        for path in candidates {
-            if FileManager.default.fileExists(atPath: path) {
-                NSWorkspace.shared.open(URL(fileURLWithPath: path))
-                return
-            }
-        }
     }
 }

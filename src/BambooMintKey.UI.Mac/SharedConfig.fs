@@ -65,3 +65,30 @@ module ConfigStore =
         let json = JsonSerializer.Serialize(cfg, options)
         File.WriteAllText(tmp, json)
         File.Move(tmp, path, true) // atomic rename (cùng filesystem)
+
+    /// Theo dõi thay đổi của config.json (khi bị thay đổi từ menu IMK hoặc Menu Bar)
+    /// và gọi onChanged mỗi khi tệp được ghi mới. Trả về IDisposable để dừng theo dõi.
+    ///
+    /// Lưu ý: watch cả THƯ MỤC (không filter theo tên) vì StatusBar/IMK ghi nguyên tử
+    /// bằng cách đổi tên tệp tạm -> config.json; nếu filter theo tên sẽ bỏ sót sự kiện rename.
+    let watchConfig (onChanged: AppConfig -> unit) : IDisposable =
+        let dir = configDir ()
+        Directory.CreateDirectory(dir) |> ignore
+        let watcher = new FileSystemWatcher(dir)
+        watcher.NotifyFilter <- NotifyFilters.LastWrite ||| NotifyFilters.FileName ||| NotifyFilters.Size
+        watcher.EnableRaisingEvents <- true
+
+        let handler (_: FileSystemEventArgs) =
+            try
+                onChanged (loadConfig ())
+            with _ ->
+                ()
+        watcher.Changed.Add(handler)
+        watcher.Created.Add(handler)
+        watcher.Renamed.Add(fun _ ->
+            try onChanged (loadConfig ()) with _ -> ())
+
+        { new IDisposable with
+            member _.Dispose() =
+                watcher.EnableRaisingEvents <- false
+                watcher.Dispose() }

@@ -7,28 +7,31 @@ import Cocoa
 ///
 /// - Icon động: chữ "V" (tiếng Việt) hoặc "E" (tiếng Anh) màu vàng trên nền đỏ
 ///   (cờ Việt Nam) thể hiện trạng thái gõ hiện tại.
-/// - Menu gồm: chuyển chế độ V/E, mở Cài đặt (UI.Mac), thoát.
-/// - Đồng bộ V/E hai chiều với IMK Service qua `NSDistributedNotificationCenter`.
+/// - Menu chứa toàn bộ tùy chọn gõ (tương đương tab "Nâng cao" của UI.Mac):
+///   chuyển V/E, kiểu đặt dấu, bỏ dấu tự do, lặp phím undo, phím w đầu từ,
+///   khôi phục từ tiếng Anh; kèm "Cài đặt…" (mở UI.Mac) và "Thông tin…".
+/// - Đồng bộ hai chiều với IMK Service qua `NSDistributedNotificationCenter`
+///   và tệp `config.json` (nguồn chân lý).
 final class StatusBarController: NSObject {
 
     private let statusItem: NSStatusItem
-    private var isVietnamese: Bool
+    private var settings: ConfigStore.Settings
 
     override init() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        isVietnamese = ConfigStore.readVietnameseMode()
+        settings = ConfigStore.readSettings()
 
         super.init()
 
         if let button = statusItem.button {
-            button.image = Self.makeIcon(letter: isVietnamese ? "V" : "E")
+            button.image = Self.makeIcon(letter: settings.isVietnamese ? "V" : "E")
             button.image?.isTemplate = false
             button.toolTip = "BambooMintKey — Bộ gõ tiếng Việt"
         }
 
         rebuildMenu()
 
-        // Lắng nghe thay đổi V/E từ IMK Service (khi người dùng bấm phím ` bên app khác).
+        // Lắng nghe thay đổi từ IMK Service (phím ` bên app khác, hoặc menu IMK).
         DistributedNotificationCenter.default().addObserver(
             self,
             selector: #selector(modeDidChange(_:)),
@@ -48,12 +51,10 @@ final class StatusBarController: NSObject {
         let image = NSImage(size: size)
         image.lockFocus()
 
-        // Nền đỏ.
         NSColor(calibratedRed: 0.85, green: 0.13, blue: 0.13, alpha: 1.0).setFill()
         NSBezierPath(roundedRect: NSRect(x: 0, y: 0, width: size.width, height: size.height),
                      xRadius: 3, yRadius: 3).fill()
 
-        // Chữ V/E màu vàng.
         let attrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.boldSystemFont(ofSize: 12),
             .foregroundColor: NSColor(calibratedRed: 1.0, green: 0.84, blue: 0.0, alpha: 1.0),
@@ -72,21 +73,55 @@ final class StatusBarController: NSObject {
     private func rebuildMenu() {
         let menu = NSMenu()
 
+        // 1. Chế độ gõ V/E
         let viItem = NSMenuItem(title: "Tiếng Việt (V)", action: #selector(setVietnamese), keyEquivalent: "")
         viItem.target = self
-        viItem.state = isVietnamese ? .on : .off
+        viItem.state = settings.isVietnamese ? .on : .off
         menu.addItem(viItem)
 
         let enItem = NSMenuItem(title: "Tiếng Anh (E)", action: #selector(setEnglish), keyEquivalent: "")
         enItem.target = self
-        enItem.state = isVietnamese ? .off : .on
+        enItem.state = settings.isVietnamese ? .off : .on
         menu.addItem(enItem)
 
         menu.addItem(NSMenuItem.separator())
 
+        // 2. Tùy chọn gõ (tương đương tab "Nâng cao")
+        let toneItem = NSMenuItem(title: "Kiểu đặt dấu mới (hòa, úy)", action: #selector(toggleToneStyle), keyEquivalent: "")
+        toneItem.target = self
+        toneItem.state = (settings.toneStyle == 0) ? .on : .off
+        menu.addItem(toneItem)
+
+        let freeToneItem = NSMenuItem(title: "Bỏ dấu tự do", action: #selector(toggleFreeTone), keyEquivalent: "")
+        freeToneItem.target = self
+        freeToneItem.state = settings.allowFreeTonePlacement ? .on : .off
+        menu.addItem(freeToneItem)
+
+        let repeatUndoItem = NSMenuItem(title: "Lặp phím xóa dấu", action: #selector(toggleRepeatUndo), keyEquivalent: "")
+        repeatUndoItem.target = self
+        repeatUndoItem.state = settings.allowRepeatKeyUndo ? .on : .off
+        menu.addItem(repeatUndoItem)
+
+        let leadingWItem = NSMenuItem(title: "Phím w đầu từ thành ư", action: #selector(toggleLeadingW), keyEquivalent: "")
+        leadingWItem.target = self
+        leadingWItem.state = settings.allowLeadingWAsU ? .on : .off
+        menu.addItem(leadingWItem)
+
+        let backtrackItem = NSMenuItem(title: "Khôi phục từ tiếng Anh", action: #selector(toggleEnglishBacktrack), keyEquivalent: "")
+        backtrackItem.target = self
+        backtrackItem.state = settings.enableEnglishBacktracking ? .on : .off
+        menu.addItem(backtrackItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        // 3. Cài đặt & thông tin
         let settingsItem = NSMenuItem(title: "Cài đặt…", action: #selector(openSettings), keyEquivalent: "")
         settingsItem.target = self
         menu.addItem(settingsItem)
+
+        let aboutItem = NSMenuItem(title: "Thông tin về BambooMintKey…", action: #selector(openAbout), keyEquivalent: "")
+        aboutItem.target = self
+        menu.addItem(aboutItem)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -100,61 +135,99 @@ final class StatusBarController: NSObject {
     // MARK: - Hành động
 
     @objc private func setVietnamese() {
-        applyMode(true)
+        settings.isVietnamese = true
+        persistAndSync()
     }
 
     @objc private func setEnglish() {
-        applyMode(false)
+        settings.isVietnamese = false
+        persistAndSync()
     }
 
-    private func applyMode(_ enabled: Bool) {
-        isVietnamese = enabled
-        ConfigStore.writeVietnameseMode(enabled)
+    @objc private func toggleToneStyle() {
+        settings.toneStyle = (settings.toneStyle == 0) ? 1 : 0
+        persistAndSync()
+    }
+
+    @objc private func toggleFreeTone() {
+        settings.allowFreeTonePlacement.toggle()
+        persistAndSync()
+    }
+
+    @objc private func toggleRepeatUndo() {
+        settings.allowRepeatKeyUndo.toggle()
+        persistAndSync()
+    }
+
+    @objc private func toggleLeadingW() {
+        settings.allowLeadingWAsU.toggle()
+        persistAndSync()
+    }
+
+    @objc private func toggleEnglishBacktrack() {
+        settings.enableEnglishBacktracking.toggle()
+        persistAndSync()
+    }
+
+    /// Lưu toàn bộ tùy chọn + đồng bộ icon/menu + báo cho IMK.
+    private func persistAndSync() {
+        ConfigStore.writeSettings(settings)
         refreshIcon()
         rebuildMenu()
+        broadcast()
+    }
 
-        // Báo cho IMK Service cập nhật tức thì.
+    /// Báo thay đổi cho IMK Service (để áp dụng ngay vào phiên gõ hiện tại).
+    private func broadcast() {
         DistributedNotificationCenter.default().postNotificationName(
             ConfigStore.modeChangedNotification,
             object: nil,
-            userInfo: ["isVietnameseMode": enabled],
+            userInfo: ["isVietnameseMode": settings.isVietnamese, "configChanged": true],
             deliverImmediately: true
         )
     }
 
     @objc private func modeDidChange(_ notification: Notification) {
-        guard let info = notification.userInfo,
-              let enabled = info["isVietnameseMode"] as? Bool else { return }
-        isVietnamese = enabled
+        guard let info = notification.userInfo else { return }
+        if let enabled = info["isVietnameseMode"] as? Bool {
+            settings.isVietnamese = enabled
+        }
+        // Nếu là thay đổi cấu hình chung, nạp lại toàn bộ từ config.json.
+        if (info["configChanged"] as? Bool) == true {
+            settings = ConfigStore.readSettings()
+        }
         refreshIcon()
         rebuildMenu()
     }
 
-    /// Cập nhật icon chữ V/E theo trạng thái hiện tại.
     private func refreshIcon() {
-        statusItem.button?.image = Self.makeIcon(letter: isVietnamese ? "V" : "E")
+        statusItem.button?.image = Self.makeIcon(letter: settings.isVietnamese ? "V" : "E")
     }
 
     @objc private func openSettings() {
-        // Mở UI.Mac (BambooMintKey.UI.Mac). Nếu chưa có bản cài, thử tìm qua đường dẫn chuẩn.
+        openUIMac(arguments: [])
+    }
+
+    @objc private func openAbout() {
+        openUIMac(arguments: ["--tab", "about"])
+    }
+
+    private func openUIMac(arguments: [String]) {
         let candidates = [
             "/Applications/BambooMintKey.app",
             NSHomeDirectory() + "/Applications/BambooMintKey.app",
-            NSHomeDirectory() + "/Library/Application Support/BambooMintKey/BambooMintKey.UI.Mac",
         ]
         for path in candidates {
             if FileManager.default.fileExists(atPath: path) {
-                NSWorkspace.shared.open(URL(fileURLWithPath: path))
+                let config = NSWorkspace.OpenConfiguration()
+                if !arguments.isEmpty {
+                    config.arguments = arguments
+                }
+                NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: path),
+                                                   configuration: config) { _, _ in }
                 return
             }
         }
-        // Fallback: thông báo nhẹ nếu chưa cài UI.
-        let alert = NSAlert()
-        alert.messageText = "Chưa tìm thấy ứng dụng Cài đặt"
-        alert.informativeText = "Hãy cài đặt BambooMintKey.UI.Mac trước."
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "Đóng")
-        alert.runModal()
     }
 
     @objc private func quit() {

@@ -36,17 +36,27 @@ type MainWindow() as this =
     let mutable txtStatus : TextBlock = null
     let mutable txtMode : TextBlock = null
     let mutable btnSave : Button = null
+    let mutable mainTabs : TabControl = null
 
     // ---- State ----
     let mutable cfg = ConfigStore.loadConfig()
     let mutable isSyncing = false
     let mutable localState = WordState.Empty
     let mutable committedText = ""
+    let mutable configWatcher : IDisposable = null
 
     do
         this.InitializeComponent()
         this.BindControls()
         this.LoadSettings()
+        // Lắng nghe thay đổi config từ bên ngoài (menu IMK / Menu Bar) để tự cập nhật UI.
+        configWatcher <-
+            ConfigStore.watchConfig(fun newCfg ->
+                Dispatcher.UIThread.Post(fun () ->
+                    cfg <- newCfg
+                    this.LoadSettings()))
+        this.Closed.Add(fun _ ->
+            if configWatcher <> null then configWatcher.Dispose())
 
     member private this.InitializeComponent() = AvaloniaXamlLoader.Load(this)
 
@@ -84,6 +94,7 @@ type MainWindow() as this =
         txtStatus <- this.FindControl<TextBlock>("TxtStatus")
         txtMode <- this.FindControl<TextBlock>("TxtMode")
         btnSave <- this.FindControl<Button>("BtnSave")
+        mainTabs <- this.FindControl<TabControl>("MainTabs")
 
         let btnDefault = this.FindControl<Button>("BtnDefault")
         let btnClearSandbox = this.FindControl<Button>("BtnClearSandbox")
@@ -247,3 +258,18 @@ type MainWindow() as this =
         Dispatcher.UIThread.Post(fun () ->
             if this.WindowState = WindowState.Minimized then this.WindowState <- WindowState.Normal
             this.Activate())
+
+    /// Chọn tab theo tên (vd "about" -> tab Thông tin). Dùng khi mở từ menu IMK.
+    member this.SelectTab(tabName: string) =
+        if mainTabs <> null then
+            let normalized = tabName.Trim().ToLowerInvariant()
+            let idx =
+                match normalized with
+                | "about" | "info" | "thongtin" | "thông tin" -> 5
+                | "macro" -> 3
+                | "advanced" | "nangcao" | "nâng cao" -> 1
+                | "shortcut" | "phimtat" | "phím tắt" -> 2
+                | "sandbox" | "test" -> 4
+                | _ -> 0
+            if idx >= 0 && idx < mainTabs.Items.Count then
+                mainTabs.SelectedIndex <- idx

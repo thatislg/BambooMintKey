@@ -118,6 +118,41 @@ graph LR
    - Cửa sổ Cài đặt phát thông báo ra trung tâm thông báo phân tán.
    - Dịch vụ bộ gõ tiếp nhận thông báo, cập nhật cờ chế độ gõ trong lõi và đổi ngay biểu tượng `V` hoặc `E` trên thanh Menu Bar.
 
+### 4.3. Đồng bộ đầy đủ mọi tùy chọn gõ (không chỉ V/E)
+
+V/E chỉ là một trong nhiều tùy chọn. Toàn bộ tùy chọn gõ phải được đồng bộ nhất quán theo **một nguồn chân lý duy nhất là `config.json`**, và mọi thay đổi ở bất kỳ đầu vào nào cũng phản ánh tức thì tới các thành phần còn lại.
+
+Các tùy chọn cần đồng bộ toàn diện:
+- **`isVietnameseMode`** — chế độ V/E.
+- **`toneStyle`** — kiểu đặt dấu mới/cũ (`hòa` / `hoà`).
+- **`allowFreeTonePlacement`** — bỏ dấu tự do.
+- **`enableEnglishBacktracking`** — khôi phục từ tiếng Anh.
+- **`allowRepeatKeyUndo`** — lặp phím xóa dấu.
+- **`allowLeadingWAsU`** — phím `w` đầu từ thành `ư`.
+
+Quy tắc:
+1. **Menu IMK là một đầu vào cấu hình hợp lệ**: khi người dùng toggle `toneStyle`/`freeTone`/`englishBacktracking` từ menu thả xuống của IMK, thay đổi phải được **ghi xuống `config.json`** (atomic) và **phát thông báo** để UI.Mac đang mở cập nhật, không chỉ đổi biến trong bộ nhớ.
+2. **UI.Mac lắng nghe thay đổi bên ngoài**: cửa sổ Cài đặt phải lắng nghe `NSDistributedNotificationCenter` (hoặc theo dõi `config.json`) để tự cập nhật các control khi tùy chọn bị thay đổi từ menu IMK hoặc Menu Bar, thay vì chỉ nạp một lần lúc khởi động.
+3. **IMK broadcast mọi thay đổi option**, không chỉ V/E: sau bất kỳ toggle nào từ menu IMK, phát thông báo chứa tên + giá trị tùy chọn để UI.Mac đồng bộ.
+
+### 4.4. Khôi phục toàn bộ trạng thái khi khởi động (Persistent State)
+
+Toàn bộ trạng thái của lần dùng trước phải được giữ nguyên sau khi khởi động lại (logout/login hoặc mở lại ứng dụng):
+
+1. **IMK Service** khi khởi động: nạp toàn bộ `config.json` vào `InputSettings` (không chỉ `isVietnameseMode`) trước khi phục vụ phiên gõ đầu tiên.
+2. **Menu Bar (StatusBar)** khi khởi động: đọc `config.json` để khôi phục đúng chữ `V`/`E` hiển thị.
+3. **UI.Mac** khi khởi động: nạp toàn bộ `config.json` để hiển thị đúng các control.
+4. **Mọi thay đổi đều được persist ngay**: không có tùy chọn nào chỉ tồn tại trong bộ nhớ; nếu không ghi `config.json`, trạng thái sẽ bị mất khi restart.
+
+### 4.5. Chia sẻ kiểu gõ giữa các ứng dụng (Global Typing Style)
+
+Kiểu gõ (chế độ V/E và toàn bộ tùy chọn) được **chia sẻ toàn cục giữa mọi ứng dụng**, nhất quán với hành vi mặc định trên Windows và Linux:
+
+- **Ai quản lý?** Trạng thái gõ toàn cục do **IMK Service quản lý** (không phải từng ứng dụng). Vì trên macOS chỉ có một tiến trình `IMKServer` duy nhất phục vụ toàn hệ thống, biến `InputSettings` là trạng thái tĩnh dùng chung cho mọi `IMKInputController` của mọi ô nhập liệu trong mọi ứng dụng.
+- **Hệ quả:** khi người dùng chuyển V→E (bằng phím `, menu IMK, Menu Bar hay UI.Mac), trạng thái mới áp dụng ngay cho tất cả ứng dụng — không tồn tại kiểu gõ riêng cho từng app.
+- **Đối chiếu:** trên Linux (Fcitx5) và Windows (TSF), kiểu gõ cũng mặc định chia sẻ toàn cục giữa các app; macOS giữ nguyên hành vi này.
+- **Lưu ý kỹ thuật:** `IMKServer` có thể tái sử dụng (reuse) thể hiện `IMKInputController` giữa các ô nhập liệu. Trạng thái gõ toàn cục (`InputSettings`) là static nên không bị ảnh hưởng; riêng trạng thái từ vựng dở dang (`WordState`) phải được reset khi controller được tái kích hoạt (`activateServer`) để không lẫn chữ giữa các app.
+
 ---
 
 ## 5. Cơ Chế Chạy Đơn Phiên Bản (Single Instance Guard)
