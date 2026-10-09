@@ -154,7 +154,14 @@ module UppercaseModifierTests =
     [<InlineData("Wowng", "Ương")>]   // W + o + w + ng -> Ương (ưo -> ươ)
     [<InlineData("wowng", "ương")>]   // w + o + w + ng -> ương
     [<InlineData("wongw", "ương")>]   // w + o + ng + w -> ương (w tự do sau phụ âm cuối)
-    [<InlineData("Ww", "Uw")>]        // W -> ư, lặp w hủy -> Uw (trả về u)
+    [<InlineData("ww", "w")>]         // w -> ư, lặp w hủy -> w (khôi phục ký tự thường)
+    [<InlineData("WW", "W")>]         // WW -> W
+    [<InlineData("Ww", "W")>]         // W -> ư, lặp w hủy -> W (khôi phục ký tự hoa)
+    [<InlineData("wW", "uW")>]         // wW -> uW (mixed-case tương đương gõ uW trong Telex chuẩn, không tự viết hoa)
+    [<InlineData("wweb", "web")>]     // Thoát w và gõ tiếp tiếng Anh
+    [<InlineData("wwar", "war")>]     // Thoát w, không dính dấu tiếng Việt (war không thành wả)
+    [<InlineData("wwas", "was")>]     // Thoát w, không dính dấu tiếng Việt (was không thành wá)
+    [<InlineData("WWORD", "WORD")>]   // Gõ hoa tiếng Anh (đầu từ WW -> W)
     [<InlineData("wiw", "uiw")>]      // w + i + w -> ui + w (hủy horn trả về u)
     let ``8. Leading w maps to horn vowel ư when AllowLeadingWAsU is on`` (input: string, expected: string) =
         let config = { EngineConfig.Default with AllowLeadingWAsU = true }

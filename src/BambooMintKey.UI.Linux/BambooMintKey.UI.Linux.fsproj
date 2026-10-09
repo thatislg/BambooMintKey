@@ -8,6 +8,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>BambooMintKey.UI.Linux</RootNamespace>
+    <Version>1.1.5</Version>
   </PropertyGroup>
 
   <ItemGroup>

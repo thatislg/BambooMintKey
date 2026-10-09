@@ -107,7 +107,7 @@ Trong commit `50357f2be3a687516cfec4804cca04202adb8b56` ("Sửa lỗi w đứng 
     * `ww` $\rightarrow$ `"w"`
     * `WW` $\rightarrow$ `"W"`
     * `Ww` $\rightarrow$ `"W"` (giữ chữ hoa theo phím đầu)
-    * `wW` $\rightarrow$ `"W"` (nếu phím 2 là hoa) hoặc `"w"`
+    * `wW` $\rightarrow$ `"uW"` (mixed-case: tương đương gõ `uW` trong Telex chuẩn — không tự ý viết hoa)
 
 ### Case 2: Bảo vệ từ tiếng Anh tiếp nối sau khi khôi phục W (`IsEnglishCommitted`)
 * **Bối cảnh:** Sau khi người dùng đã gõ `ww` (hiển thị `"w"`), họ sẽ tiếp tục gõ các ký tự tiếp theo của từ tiếng Anh (`web`, `word`, `war`, `was`...).
@@ -168,10 +168,15 @@ Tại nhánh `isUndoModifier` (dòng 168–174):
 -                    let newW = if Char.IsUpper c then 'W' else 'w'
 -                    baseU :: (state.RawKeys.Tail @ [ newW ])
 +                    if state.RawKeys.Length = 1 then
-+                        // Phím 'w'/'W' đứng đầu từ được gõ lặp (ww -> w, WW -> W, Ww -> W):
-+                        // Người dùng muốn khôi phục ký tự thô 'w'/'W' để gõ tiếng Anh / song ngữ.
-+                        let finalChar = if Char.IsUpper state.RawKeys.Head || Char.IsUpper c then Char.ToUpperInvariant state.RawKeys.Head else Char.ToLowerInvariant state.RawKeys.Head
-+                        [ finalChar ]
++                        if Char.IsLower state.RawKeys.Head && Char.IsUpper c then
++                            // Mixed-case 'wW' (chữ thường rồi chữ hoa): tương đương gõ 'uW' trong Telex chuẩn,
++                            // mixed case không tự ý viết hoa -> undo horn trả về base 'u' + phím 'W' mới = "uW".
++                            [ 'u'; 'W' ]
++                        else
++                            // Phím 'w'/'W' đứng đầu từ được gõ lặp (ww -> w, WW -> W, Ww -> W):
++                            // Người dùng muốn khôi phục ký tự thô 'w'/'W' để gõ tiếng Anh / song ngữ.
++                            let finalChar = if Char.IsUpper state.RawKeys.Head || Char.IsUpper c then Char.ToUpperInvariant state.RawKeys.Head else Char.ToLowerInvariant state.RawKeys.Head
++                            [ finalChar ]
 +                    else
 +                        // Trường hợp w xuất hiện sau các ký tự khác (vd wiw -> uiw)
 +                        let baseU = if Char.IsUpper state.RawKeys.Head then 'U' else 'u'
@@ -205,10 +210,11 @@ Sửa đổi test case cũ và bổ sung các test case gõ song ngữ:
 +    [<InlineData("Ww", "W")>]         // W -> ư, lặp w hủy -> W (khôi phục ký tự hoa)
 +    [<InlineData("ww", "w")>]         // w -> ư, lặp w hủy -> w (khôi phục ký tự thường)
 +    [<InlineData("WW", "W")>]         // WW -> W
++    [<InlineData("wW", "uW")>]        // wW -> uW (mixed-case tương đương gõ uW trong Telex chuẩn, không tự viết hoa)
 +    [<InlineData("wweb", "web")>]     // Thoát w và gõ tiếp tiếng Anh
 +    [<InlineData("wwar", "war")>]     // Thoát w và không bị dính dấu tiếng Việt (war không thành wả)
 +    [<InlineData("wwas", "was")>]     // Thoát w và không bị dính dấu tiếng Việt (was không thành wá)
-+    [<InlineData("WWorD", "WORD")>]   // Gõ hoa tiếng Anh
++    [<InlineData("WWORD", "WORD")>]   // Gõ hoa tiếng Anh (bắt buộc gõ hoa toàn bộ, không tự viết hoa)
      [<InlineData("wiw", "uiw")>]      // w + i + w -> ui + w (hủy horn trả về u)
 ```
 

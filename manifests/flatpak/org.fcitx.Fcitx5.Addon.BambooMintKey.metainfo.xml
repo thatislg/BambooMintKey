@@ -53,6 +53,12 @@
     <addon>bamboomintkey</addon>
   </provides>
   <releases>
+    <release version="1.1.5" date="2026-10-10">
+      <description>
+        <p>Release 1.1.5: Fixed leading-'w' repeat-key undo when "w as ư" (AllowLeadingWAsU) is enabled — ww → w, WW → W, Ww → W, and wW → uW (mixed case, no forced capitalization); typing English after restoring 'w' (web, war, was) is no longer mangled with Vietnamese diacritics.</p>
+        <p xml:lang="vi">Bản phát hành 1.1.5: Sửa lỗi undo lặp phím 'w' đứng đầu từ khi bật tùy chọn "w thành ư" (AllowLeadingWAsU) — ww → w, WW → W, Ww → W, và wW → uW (mixed case, không tự viết hoa); gõ tiếng Anh sau khi khôi phục 'w' (web, war, was) không còn bị dính dấu tiếng Việt.</p>
+      </description>
+    </release>
     <release version="1.1.4" date="2026-10-07">
       <description>
         <p>Release 1.1.4: Fixed preedit handling on Linux — commit pending preedit before forwarding arrow/system-modifier keys (fixes auto text insertion in the Chromium URL bar during preedit), and reordered commit so the string is committed before clearing the preedit (fixes the first character being deleted on Space in the Antigravity AI chat).</p>

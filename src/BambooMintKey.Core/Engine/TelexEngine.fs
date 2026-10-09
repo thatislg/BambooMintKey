@@ -163,13 +163,23 @@ module TelexEngine =
 
         elif isUndoModifier then
             // Lặp phím modifier -> hủy biến đổi. Ưu tiên hoàn dấu trước: lặp liền kề luôn rút về 1 ký tự thô (ddd -> dd).
-            // Ngoại lệ phím 'w' đứng đầu: 'ư' được sinh từ 'w' (u + horn) nên hủy phải trả về 'u' + 'w'
-            // (Ww -> Uw, wiw -> uiw) thay vì chỉ rút về 'w' như lặp liền kề thông thường.
             let resultKeys =
                 if lowerChar = 'w' && isLeadingW then
-                    let baseU = if Char.IsUpper state.RawKeys.Head then 'U' else 'u'
-                    let newW = if Char.IsUpper c then 'W' else 'w'
-                    baseU :: (state.RawKeys.Tail @ [ newW ])
+                    if state.RawKeys.Length = 1 then
+                        // Phím 'w'/'W' đứng đầu từ được gõ lặp (ww -> w, WW -> W, Ww -> W):
+                        // Người dùng muốn khôi phục ký tự thô 'w'/'W' để gõ tiếng Anh / song ngữ.
+                        if Char.IsLower state.RawKeys.Head && Char.IsUpper c then
+                            // Mixed-case 'wW' (chữ thường rồi chữ hoa): tương đương gõ 'uW' trong Telex chuẩn,
+                            // mixed case không tự ý viết hoa -> undo horn trả về base 'u' + phím 'W' mới = "uW".
+                            [ 'u'; 'W' ]
+                        else
+                            let finalChar = if Char.IsUpper state.RawKeys.Head || Char.IsUpper c then Char.ToUpperInvariant state.RawKeys.Head else Char.ToLowerInvariant state.RawKeys.Head
+                            [ finalChar ]
+                    else
+                        // Trường hợp w xuất hiện sau các ký tự khác (vd wiw -> uiw)
+                        let baseU = if Char.IsUpper state.RawKeys.Head then 'U' else 'u'
+                        let newW = if Char.IsUpper c then 'W' else 'w'
+                        baseU :: (state.RawKeys.Tail @ [ newW ])
                 elif isConsecutiveRepeat then state.RawKeys
                 else newRaw
             let resultString = String(Array.ofList resultKeys)
