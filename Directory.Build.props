@@ -17,11 +17,11 @@
     <Copyright>Copyright © 2026</Copyright>
 
     <!-- Quản lý phiên bản tập trung (Single Source of Truth) -->
-    <VersionPrefix>1.1.4</VersionPrefix>
-    <Version>1.1.4</Version>
-    <AssemblyVersion>1.1.4.0</AssemblyVersion>
-    <FileVersion>1.1.4.0</FileVersion>
-    <InformationalVersion>1.1.4</InformationalVersion>
+    <VersionPrefix>1.1.5</VersionPrefix>
+    <Version>1.1.5</Version>
+    <AssemblyVersion>1.1.5.0</AssemblyVersion>
+    <FileVersion>1.1.5.0</FileVersion>
+    <InformationalVersion>1.1.5</InformationalVersion>
   </PropertyGroup>
 
   <!--

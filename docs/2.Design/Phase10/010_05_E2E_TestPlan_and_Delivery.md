@@ -126,3 +126,17 @@ Kịch bản shell cung cấp trải nghiệm cài đặt một chạm (One-Comm
 2. Xóa bỏ hoàn toàn gói bundle BambooMintKey.app khỏi thư mục ~/Library/Input Methods/.
 3. Hỏi người dùng có muốn xóa bỏ toàn bộ tệp cấu hình tại ~/Library/Application Support/BambooMintKey/ hay không.
 4. Yêu cầu hệ thống làm mới danh sách phương thức nhập liệu, đưa hệ thống trở về trạng thái sạch sẽ ban đầu.
+
+### 5.3. Pipeline CI/CD Tự Động Trên GitHub Actions (.github/workflows/release-macos.yml)
+Xây dựng workflow CI/CD hoàn chỉnh trên GitHub Actions theo kiến trúc thống nhất của dự án (tương tự `release.yml` cho Windows và `release-linux.yml` cho Linux):
+1. **Trigger:** Khi có tag `macos-v*`.
+2. **Runner:** `macos-latest` (Apple Silicon arm64).
+3. **Các bước thực thi:**
+   - Checkout code và thiết lập .NET 10 SDK (`actions/setup-dotnet@v4`).
+   - Biên dịch thư viện lõi C-ABI NativeAOT `BambooMintKeyCore.dylib`.
+   - Biên dịch `BambooMintKeyStatusBar.app` và nhúng vào `BambooMintKey.app/Contents/SharedSupport/`.
+   - Biên dịch `BambooMintKey.app` (IMK Engine) và ký ad-hoc codesign.
+   - Biên dịch `BambooMintKey.UI.Mac.app` (Avalonia F#) và ký ad-hoc codesign.
+   - Đóng gói file nén `delivery/macos/BambooMintKey-macos-<arch>-<version>.zip` kèm `install_macos.sh` và `uninstall_macos.sh`.
+   - Upload artifacts lên GitHub Release (`softprops/action-gh-release@v2`).
+

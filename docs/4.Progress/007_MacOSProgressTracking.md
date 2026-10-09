@@ -243,29 +243,44 @@
 
 ---
 
-### 🎯 Milestone 7: Đóng Gói Bundle & Script Cài Đặt Tự Động
+### 🎯 Milestone 7: Đóng Gói Bundle, Script Cài Đặt Tự Động & Pipeline CI/CD
 
-> **Mục tiêu:** Xây dựng gói ứng dụng bundle chuẩn và kịch bản cài đặt tự động một chạm cho người dùng macOS.
+> **Mục tiêu:** Xây dựng gói ứng dụng bundle chuẩn, kịch bản cài đặt/gỡ cài đặt tự động một chạm, và đường ống CI/CD tự động build phát hành trên GitHub Actions cho macOS.
 > **Tài liệu tham chiếu:** [010_05_E2E_TestPlan_and_Delivery.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_05_E2E_TestPlan_and_Delivery.md) ([010_05_E2E_TestPlan_and_Delivery.txt](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_05_E2E_TestPlan_and_Delivery.txt))
 
 - [ ] **M7.1 — Xây dựng cấu trúc Application Bundle (`BambooMintKey.app`)**
 
-  - [ ] Tổ chức cấu trúc thư mục bundle chuẩn: file thực thi chính, thư viện `libBambooMintKeyCore.dylib`, tài nguyên icon và file thông tin `Info.plist`.
+  - [ ] Tổ chức cấu trúc thư mục bundle chuẩn: file thực thi chính, thư viện `BambooMintKeyCore.dylib`, tài nguyên icon và file thông tin `Info.plist`.
+  - [ ] Nhúng ứng dụng nền `BambooMintKeyStatusBar.app` vào `Contents/SharedSupport` để tự động kích hoạt icon EV cùng bộ gõ.
   - [ ] Kiểm tra phân quyền thực thi và tính toàn vẹn của gói bundle.
   - [ ] *Tiêu chuẩn hoàn thành (DoD):* Gói bundle đạt chuẩn định dạng ứng dụng Input Method của macOS.
-- [ ] **M7.2 — Viết kịch bản cài đặt tự động (`scripts/install_macos.sh`)**
+- [ ] **M7.2 — Viết kịch bản cài đặt tự động (`scripts/macos/install_macos.sh`)**
 
-  - [ ] Tự động kiểm tra môi trường: công cụ biên dịch .NET 10 và Swift/Xcode command line tools.
-  - [ ] Tự động biên dịch thư viện lõi C-ABI, ứng dụng IMK và giao diện Cài đặt.
-  - [ ] Đóng gói và cài đặt bundle vào thư mục `~/Library/Input Methods/BambooMintKey.app`.
+  - [ ] Tự động kiểm tra môi trường: công cụ biên dịch .NET 10 và Swift/Xcode command line tools (hoặc cài đặt từ bản phân phối đóng gói sẵn).
+  - [ ] Tự động biên dịch/sao chép thư viện lõi C-ABI, ứng dụng IMK, StatusBar và giao diện Cài đặt.
+  - [ ] Đóng gói và cài đặt bundle vào thư mục `~/Library/Input Methods/BambooMintKey.app` và `~/Applications/BambooMintKey.app`.
   - [ ] Đăng ký dịch vụ với hệ thống để người dùng có thể kích hoạt ngay trong System Settings.
   - [ ] *Tiêu chuẩn hoàn thành (DoD):* Người dùng chỉ cần chạy một lệnh trong Terminal là hoàn tất cài đặt toàn bộ hệ thống.
-- [ ] **M7.3 — Viết kịch bản gỡ cài đặt sạch sẽ (`scripts/uninstall_macos.sh`)**
+- [ ] **M7.3 — Viết kịch bản gỡ cài đặt sạch sẽ (`scripts/macos/uninstall_macos.sh`)**
 
-  - [ ] Dừng các tiến trình bộ gõ đang chạy trong hệ thống.
-  - [ ] Xóa sạch bundle trong thư mục Input Methods và tệp cấu hình nếu được yêu cầu.
+  - [ ] Dừng an toàn các tiến trình bộ gõ (`BambooMintKey`, `BambooMintKeyStatusBar`, `BambooMintKey.UI.Mac`).
+  - [ ] Xóa sạch bundle trong thư mục Input Methods (`~/Library/Input Methods/BambooMintKey.app`) và `~/Applications/BambooMintKey.app`.
+  - [ ] Dọn dẹp tệp cấu hình nếu được yêu cầu.
   - [ ] Trả lại trạng thái sạch sẽ cho hệ thống macOS.
   - [ ] *Tiêu chuẩn hoàn thành (DoD):* Kịch bản gỡ cài đặt thực thi an toàn, không để lại rác trong hệ thống.
+- [ ] **M7.4 — Viết kịch bản đóng gói phân phối (`scripts/macos/package_macos.sh`)**
+
+  - [ ] Tự động build trọn gói các thành phần cho kiến trúc chỉ định (arm64 hoặc x86_64).
+  - [ ] Đóng gói thành `.zip` / `.dmg` lưu vào `delivery/macos/` sẵn sàng phát hành.
+  - [ ] *Tiêu chuẩn hoàn thành (DoD):* Sinh file nén phân phối chuẩn chứa cả bộ gõ, UI cài đặt và script cài đặt một chạm.
+- [ ] **M7.5 — Xây dựng Pipeline CI/CD Tự Động Build & Release Trên GitHub Actions (`.github/workflows/release-macos.yml`)**
+
+  - [ ] Kích hoạt khi có tag phiên bản (ví dụ `macos-v*`).
+  - [ ] Thiết lập môi trường runner `macos-latest` với .NET 10 SDK và công cụ Apple Xcode/Swift CLI.
+  - [ ] Tự động biên dịch C-ABI NativeAOT, IMK Engine Service, StatusBar app và Avalonia UI.Mac.
+  - [ ] Đóng gói artifacts (`delivery/macos/*.zip` / `*.dmg`).
+  - [ ] Tự động upload và tạo GitHub Release draft tương tự như Windows (`release.yml`) và Linux (`release-linux.yml`).
+  - [ ] *Tiêu chuẩn hoàn thành (DoD):* Đẩy tag lên GitHub là toàn bộ bản build macOS được tự động tạo và đính kèm vào Release.
 
 ---
 
