@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  BambooMintKey - Vietnamese Telex Input Method Editor
+  Copyright (c) 2026 Dương Gia Long and LMO contributors
+  SPDX-License-Identifier: MIT
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleDisplayName</key>
+    <string>BambooMintKey</string>
+    <key>CFBundleExecutable</key>
+    <string>BambooMintKey</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.bamboomintkey.inputmethod.BambooMintKey</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>BambooMintKey</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.1.4</string>
+    <key>CFBundleVersion</key>
+    <string>1.1.4</string>
+
+    <!-- Định danh dịch vụ Input Method của Apple.
+         Connection name theo convention <bundleIdentifier>_1_Connection, phải khớp
+         đúng với name truyền vào IMKServer trong main.swift. -->
+    <key>InputMethodConnectionName</key>
+    <string>BambooMintKey_1_Connection</string>
+    <key>InputMethodServerControllerClass</key>
+    <string>BambooMintKeyController</string>
+
+    <!-- Khai báo các chế độ nhập liệu (Input Modes) cho Text Input Services (TIS)
+         Bắt buộc phải có ComponentInputModeDict để macOS hiển thị bộ gõ trong
+         System Settings -> Keyboard -> Input Sources. -->
+    <key>ComponentInputModeDict</key>
+    <dict>
+        <key>tsInputModeListKey</key>
+        <dict>
+            <key>com.bamboomintkey.inputmethod.BambooMintKey.Vietnamese</key>
+            <dict>
+                <key>TISDoubleSpaceSubstitution</key>
+                <string>. </string>
+                <key>TISIconLabels</key>
+                <dict>
+                    <key>Primary</key>
+                    <string>BM</string>
+                </dict>
+                <key>TISInputSourceID</key>
+                <string>com.bamboomintkey.inputmethod.BambooMintKey.Vietnamese</string>
+                <key>TISIntendedLanguage</key>
+                <string>vi</string>
+                <key>tsInputModeDefaultStateKey</key>
+                <true/>
+                <key>tsInputModeIsVisibleKey</key>
+                <true/>
+                <key>tsInputModeMenuIconFileKey</key>
+                <string>BambooMintKey.tiff</string>
+                <key>tsInputModePaletteIconFileKey</key>
+                <string>BambooMintKey.tiff</string>
+                <key>tsInputModePrimaryInScriptKey</key>
+                <true/>
+                <key>tsInputModeScriptKey</key>
+                <string>smUnicode</string>
+            </dict>
+        </dict>
+        <key>tsVisibleInputModeOrderedArrayKey</key>
+        <array>
+            <string>com.bamboomintkey.inputmethod.BambooMintKey.Vietnamese</string>
+        </array>
+    </dict>
+
+    <!-- Chạy nền, không hiển thị trên Dock (Background Agent) -->
+    <key>LSBackgroundOnly</key>
+    <true/>
+    <key>LSUIElement</key>
+    <true/>
+
+    <!-- Ngôn ngữ hỗ trợ mặc định, icon và bảng mã Unicode dựng sẵn -->
+    <key>TICapsLockLanguageSwitchCapable</key>
+    <true/>
+    <key>TISIconIsTemplate</key>
+    <false/>
+    <key>TISInputSourceID</key>
+    <string>com.bamboomintkey.inputmethod.BambooMintKey</string>
+    <key>TISIntendedLanguage</key>
+    <string>vi</string>
+    <key>tsInputMethodCharacterRepertoireKey</key>
+    <array>
+        <string>Latn</string>
+    </array>
+    <key>tsInputMethodIconFileKey</key>
+    <string>BambooMintKey.tiff</string>
+    <key>CFBundleIconFile</key>
+    <string>BambooMintKey.tiff</string>
+
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright © 2026 Dương Gia Long and LMO contributors. MIT License.</string>
+</dict>
+</plist>

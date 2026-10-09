@@ -8,13 +8,15 @@
 
 **Ngày khởi tạo:** 2026-10-09  
 **Giai đoạn:** Phase 10 — Khảo sát & Triển khai nền tảng macOS (InputMethodKit)  
-**Trạng thái chung:** 🛠️ Đã hoàn thành 100% Milestone 1 (Thiết kế kiến trúc bằng lời) và 100% Milestone 2 (Biên dịch C-ABI NativeAOT macOS), chuẩn bị khởi động Milestone 3 (M3: Xây dựng bộ gõ IMK Engine Service).  
+**Trạng thái chung:** 🛠️ Đã hoàn thành 100% Milestone 1 (Thiết kế kiến trúc bằng lời), 100% Milestone 2 (Biên dịch C-ABI NativeAOT macOS) và 100% Milestone 3 (Bộ gõ IMK Engine Service), chuẩn bị khởi động Milestone 4 (M4: Xây dựng giao diện cài đặt UI.Mac).  
 **Tài liệu tham chiếu:**
 - Khảo sát khả thi & Kế hoạch: [010_01_Investigation.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_01_Investigation.md)
 - Thiết kế Kiến trúc & C-ABI: [010_02_Architecture_and_CABI_Design.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_02_Architecture_and_CABI_Design.md)
 - Thiết kế IMK Engine Service: [010_03_IMK_Engine_Design.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_03_IMK_Engine_Design.md)
 - Thiết kế Giao diện UI.Mac: [010_04_UIMac_Design.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_04_UIMac_Design.md)
 - Kế hoạch E2E Test & Delivery: [010_05_E2E_TestPlan_and_Delivery.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_05_E2E_TestPlan_and_Delivery.md) (bản văn bản thuần: [010_05_E2E_TestPlan_and_Delivery.txt](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_05_E2E_TestPlan_and_Delivery.txt))
+- Báo cáo Xử lý Lỗi M3: [008_MacOS_M3_Verification_And_Fixes_Report.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/4.Progress/008_MacOS_M3_Verification_And_Fixes_Report.md)
+- Issue 016 (Đã giải quyết): [016_MacOS_IMK_NotAppearing_In_InputSources.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/3.Issue/016_MacOS_IMK_NotAppearing_In_InputSources.md)
 
 ---
 
@@ -33,12 +35,12 @@
 |:---:|---|:---:|:---:|:---:|---|
 | **M1** | **Thiết Kế Kiến Trúc Bằng Lời (No Sample Code)** | 15% | ✅ Hoàn thành | 100% | Hoàn thành 4 tài liệu đặc tả: C-ABI, IMK Engine, UI.Mac, E2E Test & Delivery |
 | **M2** | **Thư Viện Lõi C-ABI NativeAOT macOS (`.dylib`)** | 20% | ✅ Hoàn thành | 100% | Xuất Mach-O dylib cho arm64 (4.4MB) & x86_64 (4.6MB), 14 hàm C-ABI, 9/9 PASS |
-| **M3** | **Bộ Gõ Bản Địa macOS (IMK Engine Service)** | 25% | ⏳ Chưa bắt đầu | 0% | Server & Controller IMK, quản lý Marked Text và commit string |
+| **M3** | **Bộ Gõ Bản Địa macOS (IMK Engine Service)** | 25% | ✅ Hoàn thành | 100% | Swift `IMKInputController` + C-ABI, Marked Text & commit string, bundle hợp lệ |
 | **M4** | **Giao Diện Cài Đặt Bản Địa (`BambooMintKey.UI.Mac`)** | 15% | ⏳ Chưa bắt đầu | 0% | Clone UI Avalonia, bỏ D-Bus, cấu hình JSON Application Support |
 | **M5** | **Đồng Bộ Trạng Thái V/E & Menu Bar** | 10% | ⏳ Chưa bắt đầu | 0% | Biểu tượng V/E Menu Bar, IPC thông báo hai chiều nội bộ |
 | **M6** | **Kiểm Thử E2E Tính Đúng Đắn & Tương Thích** | 10% | ⏳ Chưa bắt đầu | 0% | Ma trận kiểm thử ngữ pháp tiếng Việt và tương thích đa ứng dụng |
 | **M7** | **Đóng Gói Bundle & Script Cài Đặt Tự Động** | 5% | ⏳ Chưa bắt đầu | 0% | Cấu trúc `BambooMintKey.app` và script cài/gỡ tự động một chạm |
-| **Tổng** | **Toàn bộ Phase 10 (macOS / IMK)** | **100%** | 🛠️ **Đang triển khai** | **35%** | Sẵn sàng bước vào Milestone 3 |
+| **Tổng** | **Toàn bộ Phase 10 (macOS / IMK)** | **100%** | 🛠️ **Đang triển khai** | **60%** | Sẵn sàng bước vào Milestone 4 |
 
 ---
 
@@ -112,36 +114,42 @@
 > **Mục tiêu:** Hiện thực hóa Input Method Service chuẩn của Apple bằng Swift, tích hợp gọi C-ABI vào thư viện lõi, điều phối Marked Text và commit string.  
 > **Tài liệu tham chiếu:** [010_03_IMK_Engine_Design.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_03_IMK_Engine_Design.md)
 
-- [ ] **M3.1 — Khởi tạo cấu trúc dự án ứng dụng nền `BambooMintKey.Mac.IMK`**
-  - [ ] Tạo thư mục dự án độc lập tại `src/BambooMintKey.Mac.IMK/`.
-  - [ ] Thiết lập tệp cấu hình thuộc tính `Info.plist` chuẩn Input Method của Apple.
-  - [ ] Cấu hình liên kết động tới `libBambooMintKeyCore.dylib`.
-  - [ ] *Tiêu chuẩn hoàn thành (DoD):* Khởi tạo dự án thành công, biên dịch ra gói ứng dụng nền ban đầu.
+- [x] **M3.1 — Khởi tạo cấu trúc dự án ứng dụng nền `BambooMintKey.Mac.IMK`**
+  - [x] Tạo thư mục dự án độc lập tại `src/BambooMintKey.Mac.IMK/`.
+  - [x] Thiết lập tệp cấu hình thuộc tính `Info.plist` chuẩn Input Method của Apple.
+  - [x] Cấu hình liên kết động tới `BambooMintKeyCore.dylib`.
+  - [x] *Tiêu chuẩn hoàn thành (DoD):* Khởi tạo dự án thành công, biên dịch ra gói ứng dụng nền ban đầu.
 
-- [ ] **M3.2 — Triển khai thành phần Server và Controller (`IMKInputController`)**
-  - [ ] Khởi tạo lớp điều khiển nhập liệu kế thừa từ `IMKInputController`.
-  - [ ] Quản lý con trỏ context C-ABI riêng cho từng thể hiện của Controller.
-  - [ ] Cài đặt hàm khởi tạo và hàm hủy phiên để giải phóng context handle tương ứng.
-  - [ ] *Tiêu chuẩn hoàn thành (DoD):* Mỗi ô văn bản được kích hoạt tương ứng với một phiên context C-ABI độc lập.
+- [x] **M3.2 — Triển khai thành phần Server và Controller (`IMKInputController`)**
+  - [x] Khởi tạo lớp điều khiển nhập liệu kế thừa từ `IMKInputController`.
+  - [x] Quản lý con trỏ context C-ABI riêng cho từng thể hiện của Controller.
+  - [x] Cài đặt hàm khởi tạo và hàm hủy phiên để giải phóng context handle tương ứng.
+  - [x] *Tiêu chuẩn hoàn thành (DoD):* Mỗi ô văn bản được kích hoạt tương ứng với một phiên context C-ABI độc lập.
 
-- [ ] **M3.3 — Cài đặt quy trình xử lý sự kiện phím bấm (`handleEvent`)**
-  - [ ] Đón sự kiện nhấn phím từ hệ điều hành và trích xuất mã ký tự Unicode.
-  - [ ] Kiểm tra và nhường phím cho hệ thống khi phát hiện cờ bổ trợ `Command` hoặc `Control`.
-  - [ ] Gọi hàm C-ABI `bmk_process_key` và tiếp nhận mã hành động trả về.
-  - [ ] *Tiêu chuẩn hoàn thành (DoD):* Sự kiện phím được chuyển giao chính xác vào lõi F# và nhận diện đúng các trường hợp cần xử lý.
+- [x] **M3.3 — Cài đặt quy trình xử lý sự kiện phím bấm (`handleEvent`)**
+  - [x] Đón sự kiện nhấn phím từ hệ điều hành và trích xuất mã ký tự Unicode.
+  - [x] Kiểm tra và nhường phím cho hệ thống khi phát hiện cờ bổ trợ `Command` hoặc `Control`.
+  - [x] Gọi hàm C-ABI `bmk_process_key` và tiếp nhận mã hành động trả về.
+  - [x] *Tiêu chuẩn hoàn thành (DoD):* Sự kiện phím được chuyển giao chính xác vào lõi F# và nhận diện đúng các trường hợp cần xử lý.
 
-- [ ] **M3.4 — Cài đặt hiển thị Marked Text và cơ chế tắt gạch chân**
-  - [ ] Lấy chuỗi preedit từ C-ABI khi nhận mã hành động cập nhật trạng thái đang gõ.
-  - [ ] Thiết lập chuỗi thuộc tính văn bản yêu cầu ẩn đường gạch chân (Stealth mode) gửi đến đối tượng văn bản đích.
-  - [ ] Giữ nguyên hiển thị mặc định của ứng dụng đối với các app không tuân theo chỉ thị ẩn gạch chân.
-  - [ ] Di chuyển vị trí con trỏ văn bản chính xác về cuối chuỗi đang soạn thảo.
-  - [ ] *Tiêu chuẩn hoàn thành (DoD):* Chữ đang gõ hiển thị mượt mà tại con trỏ, tắt gạch chân tại các ứng dụng hỗ trợ, không phát sinh lỗi hiển thị.
+- [x] **M3.4 — Cài đặt hiển thị Marked Text và cơ chế tắt gạch chân**
+  - [x] Lấy chuỗi preedit từ C-ABI khi nhận mã hành động cập nhật trạng thái đang gõ.
+  - [x] Thiết lập chuỗi thuộc tính văn bản yêu cầu ẩn đường gạch chân (Stealth mode) gửi đến đối tượng văn bản đích.
+  - [x] Giữ nguyên hiển thị mặc định của ứng dụng đối với các app không tuân theo chỉ thị ẩn gạch chân.
+  - [x] Di chuyển vị trí con trỏ văn bản chính xác về cuối chuỗi đang soạn thảo.
+  - [x] *Tiêu chuẩn hoàn thành (DoD):* Chữ đang gõ hiển thị mượt mà tại con trỏ, tắt gạch chân tại các ứng dụng hỗ trợ, không phát sinh lỗi hiển thị.
 
-- [ ] **M3.5 — Cài đặt cơ chế chốt văn bản (Commit String)**
-  - [ ] Lấy chuỗi commit từ C-ABI khi gặp phím ngắt từ, dấu cách hoặc phím Enter.
-  - [ ] Gửi lệnh chèn văn bản hoàn chỉnh vào ứng dụng đích và xóa sạch vùng đệm đánh dấu.
-  - [ ] Xử lý an toàn khi người dùng nhấp chuột ra ngoài ô nhập liệu hoặc chuyển cửa sổ.
-  - [ ] *Tiêu chuẩn hoàn thành (DoD):* Chốt từ dứt khoát, không sót ký tự cũ, không chớp giật màn hình.
+- [x] **M3.5 — Cài đặt cơ chế chốt văn bản (Commit String)**
+  - [x] Lấy chuỗi commit từ C-ABI khi gặp phím ngắt từ, dấu cách hoặc phím Enter.
+  - [x] Gửi lệnh chèn văn bản hoàn chỉnh vào ứng dụng đích và xóa sạch vùng đệm đánh dấu.
+  - [x] Xử lý an toàn khi người dùng nhấp chuột ra ngoài ô nhập liệu hoặc chuyển cửa sổ.
+- [x] **M3.6 — Kiểm chứng thực địa & Khắc phục sự cố runtime IMK** ([008_MacOS_M3_Verification_And_Fixes_Report.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/4.Progress/008_MacOS_M3_Verification_And_Fixes_Report.md))
+  - [x] Khắc phục Issue 016: cấu hình `ComponentInputModeDict`, `TISInputSourceID` trong `Info.plist`, nhận diện thành công trong Input Sources.
+  - [x] Sửa triệt để lỗi nhân đôi ký tự (`thuwrthử`) bằng chuẩn Cocoa `NSRange(location: NSNotFound, length: NSNotFound)`.
+  - [x] Sửa lỗi mất gõ chữ khi đổi focus/click menu: bảo toàn `contextHandle` trong `deactivateServer`, thêm `activateServer` và `ensureContext()` tự phục hồi.
+  - [x] Rút gọn tên hiển thị thô thành `BambooMintKey` qua `Resources/{en,vi}.lproj/InfoPlist.strings`.
+  - [x] Chuẩn hóa kích thước Icon Retina 16x16 & 32x32 Aqua và hiện thực hóa menu tương tác (`override func menu() -> NSMenu!`).
+  - [x] *Tiêu chuẩn hoàn thành (DoD):* Người dùng thử nghiệm thực tế xác nhận gõ mượt mà, ổn định đa ứng dụng, menu bar trực quan, đạt 100% nghiệm thu M3.
 
 ---
 
@@ -253,4 +261,5 @@
 | **2026-10-09** | **Khởi động Phase 10** | Hoàn thành tài liệu Khảo sát khả thi & Kế hoạch tổng thể ([010_01_Investigation.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_01_Investigation.md)). Thiết lập 4 nguyên tắc kiến trúc bất biến (bảo toàn Windows/Linux, thuần IMK Preedit, tắt gạch chân tối đa, ưu tiên gõ đúng). Khởi tạo tài liệu theo dõi tiến độ chi tiết `007_MacOSProgressTracking.md`. | ✅ Hoàn thành |
 | **2026-10-09** | **Milestone 1** | Hoàn thành toàn diện 4 tài liệu thiết kế kỹ thuật kiến trúc bằng lời (hoàn toàn không dùng code mẫu) tại `docs/2.Design/Phase10/`: [010_02_Architecture_and_CABI_Design.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_02_Architecture_and_CABI_Design.md), [010_03_IMK_Engine_Design.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_03_IMK_Engine_Design.md), [010_04_UIMac_Design.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_04_UIMac_Design.md), [010_05_E2E_TestPlan_and_Delivery.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/2.Design/Phase10/010_05_E2E_TestPlan_and_Delivery.md). Đã liên kết đầy đủ vào Progress Tracking, đạt 100% Milestone 1 (tổng tiến độ Phase 10 đạt 15%). | ✅ Hoàn thành |
 | **2026-10-09** | **Milestone 2** | Biên dịch thành công thư viện lõi C-ABI NativeAOT macOS `BambooMintKeyCore.dylib` (Mach-O) cho cả `osx-arm64` (4.4MB) và `osx-x64` (4.6MB). Xuất đủ 14 hàm C-ABI (`bmk_*`). Bộ kiểm thử C-ABI `scripts/tests/test-cabi.py` được điều chỉnh chạy đa nền tảng (bỏ phụ thuộc `/proc/self/statm`, thêm đường dẫn mặc định macOS) và đạt 9/9 PASS (lifecycle, telex cơ bản, tổ hợp dấu, backspace, wordbreak, khôi phục tiếng Anh, đa context song song, chống rò rỉ bộ nhớ, config JSON). Đạt 100% Milestone 2 (tổng tiến độ Phase 10 đạt 35%). | ✅ Hoàn thành |
-| *Tiếp theo* | **M3** | Bắt đầu Milestone 3: Xây dựng Bộ Gõ Bản Địa macOS (IMK Engine Service) — Server & Controller IMK, quản lý Marked Text và commit string. | ⏳ Sẵn sàng |
+| **2026-10-09** | **Milestone 3** | Xây dựng Bộ Gõ Bản Địa macOS (IMK Engine Service) bằng Swift tại `src/BambooMintKey.Mac.IMK/`: `main.swift` (điểm vào `IMKServer`), `BambooMintKeyController.swift` (kế thừa `IMKInputController`, quản lý context C-ABI riêng từng phiên, `handleEvent` phân loại phím Command/Control/Backspace/ngắt từ, Marked Text ẩn gạch chân, commit string). Giải quyết triệt để Issue 016 (đăng ký Input Sources), sửa lỗi nhân đôi ký tự (`thuwrthử`), sửa lỗi mất gõ chữ khi đổi focus, chuẩn hóa tên hiển thị `BambooMintKey` và icon Retina 16x16/32x32 Aqua kèm Menu Bar thả xuống ([008_MacOS_M3_Verification_And_Fixes_Report.md](file:///Users/lmo1720/Self-App/BambooMintKey/docs/4.Progress/008_MacOS_M3_Verification_And_Fixes_Report.md)). Người dùng nghiệm thu thực tế đạt 100% Milestone 3 (tổng tiến độ Phase 10 đạt 60%). | ✅ Hoàn thành |
+| *Tiếp theo* | **M4** | Bắt đầu Milestone 4: Xây dựng Giao Diện Cài Đặt Bản Địa (`BambooMintKey.UI.Mac`) — Clone UI Avalonia, bỏ D-Bus, cấu hình JSON Application Support. | ⏳ Sẵn sàng |

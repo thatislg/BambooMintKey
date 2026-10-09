@@ -1,0 +1,5 @@
+/* BambooMintKey Localized Strings - English */
+CFBundleName = "BambooMintKey";
+CFBundleDisplayName = "BambooMintKey";
+"com.bamboomintkey.inputmethod.BambooMintKey" = "BambooMintKey";
+"com.bamboomintkey.inputmethod.BambooMintKey.Vietnamese" = "BambooMintKey";

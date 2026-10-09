@@ -31,12 +31,12 @@ Mọi chương phải đóng góp trả lời ít nhất một trong hai RQ. Đ�
 
 Dùng đúng marker để phân biệt "đo được" với "ước lượng" với "cần kiểm chứng":
 
-| Marker | Ý nghĩa | Khi nào dùng |
-|---|---|---|
-| `[MEASURE: x — lệnh/môi trường]` | Giá trị đo thật | Đã chạy và ghi nhận số liệu |
-| `[ESTIMATE: ~x — cơ sở]` | Giá trị ước lượng | Chưa đo, nêu rõ cơ sở ước lượng |
-| `[CLAIM: cần nguồn]` | Phát biểu chưa kiểm chứng | Đã viết nhưng chưa có nguồn |
-| `[TODO (VN): ...]` | Ghi chú draft tiếng Việt | Chưa viết, sẽ convert sang EN sau |
+| Marker                                  | Ý nghĩa                      | Khi nào dùng                            |
+| --------------------------------------- | ------------------------------ | ----------------------------------------- |
+| `[MEASURE: x — lệnh/môi trường]` | Giá trị đo thật            | Đã chạy và ghi nhận số liệu        |
+| `[ESTIMATE: ~x — cơ sở]`           | Giá trị ước lượng        | Chưa đo, nêu rõ cơ sở ước lượng |
+| `[CLAIM: cần nguồn]`                | Phát biểu chưa kiểm chứng | Đã viết nhưng chưa có nguồn        |
+| `[TODO (VN): ...]`                    | Ghi chú draft tiếng Việt    | Chưa viết, sẽ convert sang EN sau      |
 
 > **Nguyên tắc vàng:** Nếu chưa đo, **không** ghi số liệu "có vẻ đúng". Ghi `[ESTIMATE]` hoặc `[MEASURE]` sau khi thực sự chạy.
 

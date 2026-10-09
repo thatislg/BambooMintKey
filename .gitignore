@@ -45,3 +45,5 @@ __pycache__/
 ## Wikipedia Corpus Dump (tải về tạm, không commit)
 viwiki-latest-pages-articles.xml.bz2
 viwiki-latest-pages-articles.xml
+
+.fake
