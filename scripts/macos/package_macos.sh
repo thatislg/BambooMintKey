@@ -93,36 +93,83 @@ cp -R "$ROOT/build/ui-mac-$ARCH/BambooMintKey.app" "$PKG_ROOT/Applications/"
 
 cat << 'EOF' > "$PKG_SCRIPTS/postinstall"
 #!/bin/bash
-set -e
+# Không bật set -e để đảm bảo không bị ngắt quãng cài đặt
+pkill -f "BambooMintKey.app/Contents/MacOS/BambooMintKey" 2>/dev/null || true
+pkill -f "BambooMintKeyStatusBar" 2>/dev/null || true
+pkill -f "BambooMintKey.UI.Mac" 2>/dev/null || true
 
-# Đóng các tiến trình cũ nếu đang chạy
-pkill -f "BambooMintKey.app/Contents/MacOS/BambooMintKey" || true
-pkill -f "BambooMintKeyStatusBar" || true
-pkill -f "BambooMintKey.UI.Mac" || true
-
-# Xóa bản cài cũ trong ~/Library nếu có để tránh xung đột
 CONSOLE_USER=$(stat -f "%Su" /dev/console 2>/dev/null || echo "")
 if [ -n "$CONSOLE_USER" ] && [ "$CONSOLE_USER" != "root" ]; then
     USER_HOME=$(eval echo "~$CONSOLE_USER")
-    if [ -d "$USER_HOME/Library/Input Methods/BambooMintKey.app" ]; then
-        rm -rf "$USER_HOME/Library/Input Methods/BambooMintKey.app"
-    fi
-    if [ -d "$USER_HOME/Applications/BambooMintKey.app" ]; then
-        rm -rf "$USER_HOME/Applications/BambooMintKey.app"
-    fi
+    rm -rf "$USER_HOME/Library/Input Methods/BambooMintKey.app" 2>/dev/null || true
+    rm -rf "$USER_HOME/Applications/BambooMintKey.app" 2>/dev/null || true
 fi
 
-chmod -R 755 "/Library/Input Methods/BambooMintKey.app"
-chmod -R 755 "/Applications/BambooMintKey.app"
-/System/Library/Frameworks/CoreServices.framework/Frameworks/CarbonCore.framework/Support/lsregister -f "/Library/Input Methods/BambooMintKey.app" || true
+if [ -d "/Library/Input Methods/BambooMintKey.app" ]; then
+    chmod -R 755 "/Library/Input Methods/BambooMintKey.app" 2>/dev/null || true
+fi
+if [ -d "/Applications/BambooMintKey.app" ]; then
+    chmod -R 755 "/Applications/BambooMintKey.app" 2>/dev/null || true
+fi
+
+/System/Library/Frameworks/CoreServices.framework/Frameworks/CarbonCore.framework/Support/lsregister -f "/Library/Input Methods/BambooMintKey.app" 2>/dev/null || true
 
 exit 0
 EOF
 chmod +x "$PKG_SCRIPTS/postinstall"
 
+# Khóa vị trí cài đặt cố định (BundleIsRelocatable = false) để PackageKit không di dời sai đường dẫn
+PKG_PLIST="$STAGE_DIR/components.plist"
+cat << 'EOF' > "$PKG_PLIST"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<array>
+	<dict>
+		<key>BundleHasStrictIdentifier</key>
+		<true/>
+		<key>BundleIsRelocatable</key>
+		<false/>
+		<key>BundleIsVersionChecked</key>
+		<true/>
+		<key>BundleOverwriteAction</key>
+		<string>upgrade</string>
+		<key>ChildBundles</key>
+		<array>
+			<dict>
+				<key>BundleHasStrictIdentifier</key>
+				<true/>
+				<key>BundleIsRelocatable</key>
+				<false/>
+				<key>BundleOverwriteAction</key>
+				<string></string>
+				<key>RootRelativeBundlePath</key>
+				<string>Library/Input Methods/BambooMintKey.app/Contents/SharedSupport/BambooMintKeyStatusBar.app</string>
+			</dict>
+		</array>
+		<key>RootRelativeBundlePath</key>
+		<string>Library/Input Methods/BambooMintKey.app</string>
+	</dict>
+	<dict>
+		<key>BundleHasStrictIdentifier</key>
+		<true/>
+		<key>BundleIsRelocatable</key>
+		<false/>
+		<key>BundleIsVersionChecked</key>
+		<true/>
+		<key>BundleOverwriteAction</key>
+		<string>upgrade</string>
+		<key>RootRelativeBundlePath</key>
+		<string>Applications/BambooMintKey.app</string>
+	</dict>
+</array>
+</plist>
+EOF
+
 COMPONENT_PKG="$STAGE_DIR/BambooMintKey-component.pkg"
 pkgbuild \
     --root "$PKG_ROOT" \
+    --component-plist "$PKG_PLIST" \
     --identifier "com.bamboomintkey.installer" \
     --version "1.1.5" \
     --scripts "$PKG_SCRIPTS" \
@@ -133,7 +180,48 @@ productbuild \
     --package "$COMPONENT_PKG" \
     "$PKG_FILE"
 
-# 7. Nén thành .zip và .tar.gz lưu vào delivery/macos/
+# 7. Đóng gói đĩa ảo macOS (.dmg Disk Image - Thân thiện người dùng)
+DMG_FILE="$OUT_DELIVERY/$PACKAGE_NAME.dmg"
+echo "==> Đang đóng gói đĩa ảo .dmg: $DMG_FILE ..."
+
+DMG_STAGE="$STAGE_DIR/dmg_root"
+rm -rf "$DMG_STAGE"
+mkdir -p "$DMG_STAGE"
+
+cp -R "$ROOT/build/imk-$ARCH/BambooMintKey.app" "$DMG_STAGE/"
+cp -R "$ROOT/build/ui-mac-$ARCH/BambooMintKey.app" "$DMG_STAGE/BambooMintKeySettings.app"
+ln -s "/Library/Input Methods" "$DMG_STAGE/Input Methods"
+ln -s "/Applications" "$DMG_STAGE/Applications"
+
+cat << 'EOF' > "$DMG_STAGE/Cài Đặt BambooMintKey.command"
+#!/bin/bash
+DIR="$(cd "$(dirname "$0")" && pwd)"
+echo "=================================================="
+echo "  Cài đặt BambooMintKey vào macOS"
+echo "=================================================="
+mkdir -p "$HOME/Library/Input Methods"
+mkdir -p "$HOME/Applications"
+
+pkill -f "BambooMintKey.app/Contents/MacOS/BambooMintKey" 2>/dev/null || true
+pkill -f "BambooMintKeyStatusBar" 2>/dev/null || true
+
+rm -rf "$HOME/Library/Input Methods/BambooMintKey.app"
+rm -rf "$HOME/Applications/BambooMintKey.app"
+
+cp -R "$DIR/BambooMintKey.app" "$HOME/Library/Input Methods/"
+cp -R "$DIR/BambooMintKeySettings.app" "$HOME/Applications/BambooMintKey.app" 2>/dev/null || true
+
+/System/Library/Frameworks/CoreServices.framework/Frameworks/CarbonCore.framework/Support/lsregister -f "$HOME/Library/Input Methods/BambooMintKey.app" 2>/dev/null || true
+
+echo "✅ Cài đặt thành công!"
+echo "Đang mở Cài đặt Bàn phím hệ thống..."
+open "x-apple.systempreferences:com.apple.Keyboard-Settings.extension" 2>/dev/null || open "/System/Library/PreferencePanes/Keyboard.prefPane" 2>/dev/null || true
+EOF
+chmod +x "$DMG_STAGE/Cài Đặt BambooMintKey.command"
+
+hdiutil create -volname "BambooMintKey" -srcfolder "$DMG_STAGE" -ov -format UDZO "$DMG_FILE"
+
+# 8. Nén thành .zip và .tar.gz lưu vào delivery/macos/
 ZIP_FILE="$OUT_DELIVERY/$PACKAGE_NAME.zip"
 TAR_FILE="$OUT_DELIVERY/$PACKAGE_NAME.tar.gz"
 
@@ -145,7 +233,8 @@ echo "==> Đang nén $TAR_FILE ..."
 
 echo "=================================================="
 echo "  ✅ Đóng gói hoàn tất!"
-echo "  - PKG (Cài trực tiếp): $PKG_FILE"
-echo "  - ZIP:                 $ZIP_FILE"
-echo "  - TAR.GZ:              $TAR_FILE"
+echo "  - DMG (Kéo thả / Mở chạy): $DMG_FILE"
+echo "  - PKG (Bộ cài đặt macOS): $PKG_FILE"
+echo "  - ZIP:                    $ZIP_FILE"
+echo "  - TAR.GZ:                 $TAR_FILE"
 echo "=================================================="

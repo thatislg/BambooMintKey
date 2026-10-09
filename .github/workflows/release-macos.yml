@@ -44,6 +44,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
+            delivery/macos/*.dmg
             delivery/macos/*.pkg
             delivery/macos/*.zip
             delivery/macos/*.tar.gz
