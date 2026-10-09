@@ -112,7 +112,17 @@ if [ -d "/Applications/BambooMintKey.app" ]; then
     chmod -R 755 "/Applications/BambooMintKey.app" 2>/dev/null || true
 fi
 
-/System/Library/Frameworks/CoreServices.framework/Frameworks/CarbonCore.framework/Support/lsregister -f "/Library/Input Methods/BambooMintKey.app" 2>/dev/null || true
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister"
+if [ ! -f "$LSREGISTER" ]; then
+    LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+fi
+if [ -f "$LSREGISTER" ]; then
+    "$LSREGISTER" -f "/Library/Input Methods/BambooMintKey.app" 2>/dev/null || true
+fi
+
+# Tải lại danh sách Input Sources để hiển thị ngay trong Cài đặt hệ thống
+killall TextInputMenuAgent 2>/dev/null || true
+killall TextInputSwitcher 2>/dev/null || true
 
 exit 0
 EOF
@@ -211,7 +221,17 @@ rm -rf "$HOME/Applications/BambooMintKey.app"
 cp -R "$DIR/BambooMintKey.app" "$HOME/Library/Input Methods/"
 cp -R "$DIR/BambooMintKeySettings.app" "$HOME/Applications/BambooMintKey.app" 2>/dev/null || true
 
-/System/Library/Frameworks/CoreServices.framework/Frameworks/CarbonCore.framework/Support/lsregister -f "$HOME/Library/Input Methods/BambooMintKey.app" 2>/dev/null || true
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister"
+if [ ! -f "$LSREGISTER" ]; then
+    LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+fi
+if [ -f "$LSREGISTER" ]; then
+    "$LSREGISTER" -f "$HOME/Library/Input Methods/BambooMintKey.app" 2>/dev/null || true
+fi
+
+# Tải lại danh sách Input Sources để hiển thị ngay
+killall TextInputMenuAgent 2>/dev/null || true
+killall TextInputSwitcher 2>/dev/null || true
 
 echo "✅ Cài đặt thành công!"
 echo "Đang mở Cài đặt Bàn phím hệ thống..."

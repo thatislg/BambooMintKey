@@ -26,11 +26,11 @@ APP_DIR="$PUBLISH_DIR/BambooMintKey.app"
 MACOS_DIR="$APP_DIR/Contents/MacOS"
 BIN="BambooMintKey.UI.Mac"
 
-echo "==> Publish BambooMintKey.UI.Mac (framework-dependent) cho $ARCH ..."
+echo "==> Publish BambooMintKey.UI.Mac (self-contained) cho $ARCH ..."
 rm -rf "$PUBLISH_DIR"
 mkdir -p "$MACOS_DIR"
 
-dotnet publish "$PROJECT" -c Release -r "$RID" -o "$PUBLISH_DIR"
+dotnet publish "$PROJECT" -c Release -r "$RID" --self-contained true -o "$PUBLISH_DIR"
 
 # Di chuyển toàn bộ output publish vào Contents/MacOS (trừ chính thư mục .app).
 for item in "$PUBLISH_DIR"/*; do
