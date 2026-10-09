@@ -1,0 +1,174 @@
+================================================================================
+BAMBOOMINTKEY - BỘ GÕ TIẾNG VIỆT TELEX CHO MACOS (PHASE 10)
+010_05_E2E_TestPlan_and_Delivery
+KẾ HOẠCH KIỂM THỬ E2E TOÀN DIỆN & KỊCH BẢN ĐÓNG GÓI TRIỂN KHAI MACOS
+================================================================================
+
+Mã tài liệu: 010_05_E2E_TestPlan_and_Delivery
+Giai đoạn: Phase 10 — Thiết kế kỹ thuật nền tảng macOS (InputMethodKit)
+Thuộc module: Toàn bộ giải pháp BambooMintKey trên macOS
+Trạng thái: Đã hoàn thiện thiết kế — Chờ phê duyệt
+
+Tài liệu tham chiếu:
+- Khảo sát khả thi & Kế hoạch: docs/2.Design/Phase10/010_01_Investigation.md
+- Kiến trúc & C-ABI: docs/2.Design/Phase10/010_02_Architecture_and_CABI_Design.md
+- Thiết kế IMK Engine: docs/2.Design/Phase10/010_03_IMK_Engine_Design.md
+- Giao diện UI.Mac: docs/2.Design/Phase10/010_04_UIMac_Design.md
+- Theo dõi tiến độ: docs/4.Progress/007_MacOSProgressTracking.md
+
+--------------------------------------------------------------------------------
+1. MỤC TIÊU KIỂM THỬ & TIÊU CHUẨN CHẤT LƯỢNG
+--------------------------------------------------------------------------------
+
+1. Thực thi nguyên tắc cốt lõi — Đầu tiên là đảm bảo gõ đúng được đã:
+   Bộ gõ phải đảm bảo tính chuẩn xác tuyệt đối của ngữ pháp tiếng Việt theo chuẩn
+   Unicode dựng sẵn (NFC), không nuốt phím, không nhân đôi ký tự và không làm gián
+   đoạn việc soạn thảo của người dùng.
+
+2. Kiểm chứng chính sách hiển thị Preedit & Tắt gạch chân:
+   - Xác nhận đường gạch chân được ẩn thành công trên các ứng dụng hỗ trợ, đem lại
+     trải nghiệm chữ hiển thị tự nhiên, không che khuất dấu nặng (.) tiếng Việt.
+   - Xác nhận trên các ứng dụng không hỗ trợ ẩn gạch chân (tự vẽ đường gạch chân mặc
+     định), văn bản vẫn được xử lý biến đổi dấu và chốt từ hoàn toàn chính xác,
+     không phát sinh lỗi hiển thị hay ký tự lạ.
+
+3. Kiểm chứng tương thích đa ứng dụng diện rộng:
+   Đảm bảo bộ gõ hoạt động ổn định trên toàn bộ hệ sinh thái phần mềm macOS (trình
+   duyệt, bộ công cụ lập trình, ứng dụng chat, terminal và bộ văn phòng).
+
+4. Kiểm chứng quy trình cài đặt & gỡ cài đặt một chạm:
+   Đảm bảo kịch bản đóng gói và triển khai tự động hoạt động mượt mà, người dùng
+   chỉ cần một câu lệnh duy nhất là hoàn tất cài đặt vào hệ thống.
+
+--------------------------------------------------------------------------------
+2. MA TRẬN KIỂM THỬ NGỮ PHÁP TIẾNG VIỆT (LANGUAGE CORRECTNESS MATRIX)
+--------------------------------------------------------------------------------
+
+Toàn bộ các ca kiểm thử ngôn ngữ được thực hiện bằng phương pháp đối chiếu chuỗi
+phím vật lý đầu vào và chuỗi ký tự Unicode đầu ra tương ứng:
+
+[TC-LNG-01] Telex Cơ Bản & Dấu Mũ:
+  - Chuỗi phím gõ: v-i-e-e-t-j
+  - Kết quả kỳ vọng: "việt"
+  - Tiêu chuẩn đạt: Ghép đúng dấu mũ và dấu nặng, không sót phím.
+
+[TC-LNG-02] Dấu Móc & Dấu Trăng:
+  - Chuỗi phím gõ: d-u-w-o-w-n-g-f
+  - Kết quả kỳ vọng: "đường"
+  - Tiêu chuẩn đạt: Ghép đúng dấu móc và chữ đ.
+
+[TC-LNG-03] Đặt Dấu Thanh Tự Do:
+  - Chuỗi phím gõ: t-o-a-n-s
+  - Kết quả kỳ vọng: "toán"
+  - Tiêu chuẩn đạt: Vị trí dấu thanh di chuyển đúng theo chuẩn cấu hình đã chọn.
+
+[TC-LNG-04] Lặp Phím Thoát Dấu (Undo):
+  - Chuỗi phím gõ: a-s-s
+  - Kết quả kỳ vọng: "as"
+  - Tiêu chuẩn đạt: Nhấn phím dấu lần 2 sẽ hoàn tác dấu về ký tự nguyên bản.
+
+[TC-LNG-05] Khôi Phục Từ Tiếng Anh:
+  - Chuỗi phím gõ: c-e-n-t-e-r
+  - Kết quả kỳ vọng: "center"
+  - Tiêu chuẩn đạt: Tự động trả về từ tiếng Anh chuẩn, không biến thành từ lỗi.
+
+[TC-LNG-06] Xóa Lùi Preedit (Backspace):
+  - Chuỗi phím gõ: t-h-u-y-e-e-n-f rồi bấm Delete 3 lần
+  - Kết quả kỳ vọng: Rút lùi từng âm tiết (thuyền -> thuyên -> thuê -> thu)
+  - Tiêu chuẩn đạt: Âm tiết rút lùi từng bước chính xác, không xóa đứt đoạn.
+
+[TC-LNG-07] Phím Tắt Hệ Thống (Cmd+Keys):
+  - Chuỗi phím gõ: vieetj rồi bấm Cmd+A hoặc Cmd+C
+  - Kết quả kỳ vọng: Chốt "việt" vào văn bản và chọn tất cả hoặc sao chép bình thường
+  - Tiêu chuẩn đạt: Không nuốt phím Cmd, không làm mất từ đang gõ dở.
+
+[TC-LNG-08] Chuyển Đổi V/E Tức Thì:
+  - Chuỗi phím gõ: vieetj ở chế độ V rồi đổi sang E và gõ vieetj
+  - Kết quả kỳ vọng: "việt vieetj"
+  - Tiêu chuẩn đạt: Chế độ E nhường toàn bộ phím, icon Menu Bar cập nhật tức thì.
+
+--------------------------------------------------------------------------------
+3. MA TRẬN KIỂM THỬ HIỂN THỊ PREEDIT & CHÍNH SÁCH TẮT GẠCH CHÂN
+--------------------------------------------------------------------------------
+
+[TC-PRE-01] Tắt gạch chân trên Apple Cocoa:
+  - Thao tác: Mở TextEdit hoặc Safari, gõ từ đang soạn dở "đang"
+  - Kết quả kỳ vọng: Chữ hiển thị sạch sẽ, sắc nét, không có đường gạch chân bên dưới
+  - Tiêu chuẩn đạt: PASS nếu dấu nặng không bị che khuất.
+
+[TC-PRE-02] Ứng xử với app tự vẽ gạch chân:
+  - Thao tác: Mở terminal emulator có bộ renderer riêng, gõ "đang"
+  - Kết quả kỳ vọng: Chấp nhận hiển thị mặc định của app, gõ đúng dấu tiếng Việt 100%
+  - Tiêu chuẩn đạt: PASS nếu không xuất hiện ký tự rác hay lỗi vỡ từ.
+
+[TC-PRE-03] Chuyển cửa sổ khi đang gõ dở (Focus Switch):
+  - Thao tác: Đang gõ dở ở Safari, nhấp chuột sang Word
+  - Kết quả kỳ vọng: Từ dở được chốt an toàn vào Safari, Word mở ra với bộ đệm rỗng
+  - Tiêu chuẩn đạt: PASS nếu không mất từ, không lẫn ký tự giữa 2 cửa sổ.
+
+[TC-PRE-04] Chốt từ bằng phím ngắt:
+  - Thao tác: Gõ xong từ "đường", nhấn phím Space hoặc Enter
+  - Kết quả kỳ vọng: Chuỗi "đường " được chốt vào văn bản, vùng đánh dấu biến mất
+  - Tiêu chuẩn đạt: PASS nếu chốt từ mượt mà, con trỏ theo sát nhịp văn bản.
+
+--------------------------------------------------------------------------------
+4. MA TRẬN TƯƠNG THÍCH ĐA ỨNG DỤNG TRÊN MACOS (COMPATIBILITY MATRIX)
+--------------------------------------------------------------------------------
+
+4.1. Nhóm Ứng Dụng Apple Native Cocoa:
+  - Ứng dụng đại diện: Safari, Apple Notes, TextEdit, Pages, Mail.
+  - Giao thức nhập liệu: Cocoa Text System (NSTextInputClient).
+  - Tiêu chí đánh giá:
+    * Chữ hiển thị mượt mà không có đường gạch chân.
+    * Bôi đen hoặc nhấp chuột không làm mất dấu tiếng Việt.
+    * Nhấn Space hoặc Enter chốt từ tức thì.
+
+4.2. Nhóm Môi Trường Lập Trình (IDEs):
+  - Ứng dụng đại diện: Xcode, Visual Studio Code, JetBrains IDEs (IntelliJ, Rider).
+  - Giao thức nhập liệu: Cocoa, Electron và JVM Input Framework.
+  - Tiêu chí đánh giá:
+    * Không xung đột với tính năng gợi ý mã (Autocomplete, IntelliSense).
+    * Không làm phá vỡ thụt lề tự động khi nhấn Enter chốt từ.
+    * Các tổ hợp phím tắt lập trình (Cmd+Slash, Cmd+D, Cmd+F) hoạt động bình thường.
+
+4.3. Nhóm Ứng Dụng Nền Chromium & Electron:
+  - Ứng dụng đại diện: Google Chrome, Slack, Discord, Microsoft Teams.
+  - Giao thức nhập liệu: Chromium IME Layer.
+  - Tiêu chí đánh giá:
+    * Không xảy ra hiện tượng nhân đôi ký tự khi gõ nhanh.
+    * Nhập bình luận hoặc tin nhắn trong khung chat mượt mà, không bị trễ.
+
+4.4. Nhóm Dòng Lệnh (Terminal):
+  - Ứng dụng đại diện: macOS Terminal.app, iTerm2.
+  - Giao thức nhập liệu: Direct Pty và Command Line Input.
+  - Tiêu chí đánh giá:
+    * Xuất đúng mã UTF-8 dựng sẵn vào dòng lệnh của zsh hoặc bash.
+    * Không làm hỏng các chuỗi escape sequence khi gõ lệnh.
+
+4.5. Nhóm Ứng Dụng Văn Phòng Đa Nền Tảng:
+  - Ứng dụng đại diện: Microsoft Word, Microsoft Excel trên macOS.
+  - Giao thức nhập liệu: Microsoft Mac Office Framework.
+  - Tiêu chí đánh giá:
+    * Con trỏ văn bản không bị lệch vị trí khi đang ráp từ tiếng Việt.
+    * Định dạng văn bản (đậm, nghiêng, màu sắc) giữ nguyên vẹn sau khi chốt từ.
+
+--------------------------------------------------------------------------------
+5. KỊCH BẢN ĐÓNG GÓI BUNDLE & SCRIPT TRIỂN KHAI TỰ ĐỘNG
+--------------------------------------------------------------------------------
+
+5.1. Kịch bản cài đặt tự động (scripts/install_macos.sh):
+  - Kiểm tra môi trường: .NET 10 SDK, Swift/Xcode Command Line Tools.
+  - Biên dịch các thành phần:
+    * libBambooMintKeyCore.dylib (C-ABI NativeAOT).
+    * BambooMintKey.Mac.IMK (Swift Engine Service).
+    * BambooMintKey.UI.Mac (Avalonia Settings GUI).
+  - Đóng gói bundle: Cấu trúc thư mục chuẩn tại ~/Library/Input Methods/BambooMintKey.app
+    đầy đủ file thực thi, thư viện dylib, icon và Info.plist.
+  - Đăng ký hệ thống: Kích hoạt đăng ký Input Method với macOS System Settings.
+  - Khởi động giao diện Cài đặt để người dùng tùy chỉnh ngay nếu muốn.
+
+5.2. Kịch bản gỡ cài đặt sạch sẽ (scripts/uninstall_macos.sh):
+  - Dừng các tiến trình bộ gõ và cửa sổ Cài đặt đang chạy.
+  - Xóa bỏ hoàn toàn gói bundle BambooMintKey.app khỏi ~/Library/Input Methods/.
+  - Dọn dẹp tập tin cấu hình trong Application Support khi người dùng có yêu cầu.
+  - Yêu cầu hệ thống làm mới danh sách bàn phím, trả lại trạng thái ban đầu sạch sẽ.

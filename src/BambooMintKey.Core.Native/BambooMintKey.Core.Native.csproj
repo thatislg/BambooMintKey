@@ -11,7 +11,11 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
-    <!-- NativeAOT configuration for Linux Fcitx5 shared library -->
+    <!-- NativeAOT configuration for the C-ABI shared library.
+         Output per platform (NativeLib=Shared):
+           - Linux  -> BambooMintKeyCore.so
+           - macOS  -> BambooMintKeyCore.dylib (Mach-O)
+           - Windows-> BambooMintKeyCore.dll -->
     <PublishAot>true</PublishAot>
     <IsPackable>false</IsPackable>
     <AssemblyName>BambooMintKeyCore</AssemblyName>
@@ -23,7 +27,7 @@
 
     <!-- Library metadata -->
     <Product>BambooMintKey Vietnamese Input</Product>
-    <Description>NativeAOT C-ABI shared library exposing the F# Telex engine to the Linux Fcitx5 addon</Description>
+    <Description>NativeAOT C-ABI shared library exposing the F# Telex engine (Linux Fcitx5 addon, macOS InputMethodKit, Windows TSF)</Description>
   </PropertyGroup>
 
   <ItemGroup>

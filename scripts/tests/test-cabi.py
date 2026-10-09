@@ -10,6 +10,8 @@
 # Cách dùng:
 #   python3 scripts/test-cabi.py [đường dẫn tới BambooMintKeyCore.so]
 import ctypes
+import os
+import resource
 import sys
 
 # Mã hành động
@@ -178,9 +180,13 @@ def tc_cabi_07_multicontext(lib):
 
 
 def current_rss_kb() -> int:
-    with open("/proc/self/statm") as f:
-        resident_pages = int(f.read().split()[1])
-    return resident_pages * 4096 // 1024  # KB
+    """RSS hiện tại (KB), chỉ mang tính tham khảo. Linux dùng /proc, macOS dùng resource."""
+    if os.path.exists("/proc/self/statm"):
+        with open("/proc/self/statm") as f:
+            resident_pages = int(f.read().split()[1])
+        return resident_pages * 4096 // 1024  # KB
+    # macOS: ru_maxrss tính bằng byte
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024  # KB
 
 
 def tc_cabi_08_stress(lib):
@@ -234,7 +240,12 @@ def tc_cabi_09_config_bonus(lib):
 
 
 def main() -> int:
-    so_path = sys.argv[1] if len(sys.argv) > 1 else "publish/linux-x64/BambooMintKeyCore.so"
+    default = (
+        "publish/osx-arm64/BambooMintKeyCore.dylib"
+        if sys.platform == "darwin"
+        else "publish/linux-x64/BambooMintKeyCore.so"
+    )
+    so_path = sys.argv[1] if len(sys.argv) > 1 else default
 
     try:
         lib = load_library(so_path)
