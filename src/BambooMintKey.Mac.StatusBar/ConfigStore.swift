@@ -83,4 +83,21 @@ enum ConfigStore {
             return false
         }
     }
+
+    /// Theo dõi thư mục cấu hình để cập nhật khi config.json bị ghi từ UI.Mac hoặc IMK.
+    /// Trả về DispatchSource để caller giữ reference (ngăn bị giải phóng).
+    static func watchConfig(onChanged: @escaping () -> Void) -> DispatchSourceFileSystemObject? {
+        try? FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
+        let fd = open(configDir.path, O_EVTONLY)
+        guard fd >= 0 else { return nil }
+        let source = DispatchSource.makeFileSystemObjectSource(
+            fileDescriptor: fd,
+            eventMask: [.write, .rename, .delete],
+            queue: .main
+        )
+        source.setEventHandler { onChanged() }
+        source.setCancelHandler { close(fd) }
+        source.resume()
+        return source
+    }
 }

@@ -16,7 +16,7 @@
         WindowStartupLocation="CenterScreen"
         Background="#f8fafc"
         Foreground="#0f172a"
-        FontFamily="sans-serif">
+        FontFamily=".AppleSystemUIFont">
 
     <Window.Styles>
         <Style Selector="TabItem">
@@ -243,7 +243,7 @@
             <TextBlock Grid.Column="0" Name="TxtStatus" Text="Sẵn sàng." VerticalAlignment="Center" FontSize="12" Foreground="#64748b"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
                 <Button Name="BtnDefault" Classes="secondary" Content="Mặc định"/>
-                <Button Name="BtnSave" Classes="primary" Content="Áp dụng &amp; Đóng"/>
+                <Button Name="BtnSave" Classes="primary" Content="ÁP DỤNG &amp; ĐÓNG"/>
             </StackPanel>
         </Grid>
     </Grid>

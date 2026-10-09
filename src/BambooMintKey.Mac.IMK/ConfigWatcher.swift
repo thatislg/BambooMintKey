@@ -3,20 +3,19 @@
 // SPDX-License-Identifier: MIT
 import Foundation
 
-/// Theo dõi tệp config.json và nạp lại cấu hình vào `InputSettings` khi có thay đổi.
+/// Theo dõi THƯ MỤC cấu hình và nạp lại `config.json` vào `InputSettings` khi thay đổi.
 ///
-/// Khi người dùng bấm Lưu trên UI.Mac, tệp `config.json` được ghi nguyên tử
-/// (rename). Trình theo dõi phát hiện sự kiện và nạp lại toàn bộ tùy chọn gõ
-/// (V/E, kiểu dấu, bỏ dấu tự do, khôi phục tiếng Anh, lặp phím undo) ngay lập tức,
-/// không cần khởi động lại hay logout.
+/// Vì UI.Mac/StatusBar ghi `config.json` bằng ghi nguyên tử (rename tệp tạm -> config.json),
+/// phải theo dõi **thư mục** (không phải file) để bắt được sự kiện rename — file descriptor
+/// của file cũ không nhận biết inode mới sau khi đổi tên.
 final class ConfigWatcher {
 
     private var source: DispatchSourceFileSystemObject?
-    private let configURL: URL
+    private let configDir: URL
 
     init() {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        configURL = base.appendingPathComponent("BambooMintKey").appendingPathComponent("config.json")
+        configDir = base.appendingPathComponent("BambooMintKey", isDirectory: true)
     }
 
     /// Đọc và áp dụng cấu hình hiện tại một lần (khởi động).
@@ -24,16 +23,18 @@ final class ConfigWatcher {
         applyConfig()
     }
 
-    /// Bắt đầu theo dõi thay đổi của tệp config.json.
+    /// Bắt đầu theo dõi thay đổi của thư mục chứa config.json.
     func start() {
         loadOnce()
 
-        let fd = open(configURL.path, O_EVTONLY)
+        try? FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
+
+        let fd = open(configDir.path, O_EVTONLY)
         guard fd >= 0 else { return }
 
         let source = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: fd,
-            eventMask: [.write, .delete, .rename],
+            eventMask: [.write, .rename, .delete],
             queue: .main
         )
         source.setEventHandler { [weak self] in
@@ -52,7 +53,8 @@ final class ConfigWatcher {
 
     /// Đọc config.json và cập nhật `InputSettings`.
     private func applyConfig() {
-        guard let data = try? Data(contentsOf: configURL),
+        let url = configDir.appendingPathComponent("config.json")
+        guard let data = try? Data(contentsOf: url),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return
         }

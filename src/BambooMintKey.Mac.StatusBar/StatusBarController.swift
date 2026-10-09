@@ -17,6 +17,7 @@ final class StatusBarController: NSObject {
 
     private let statusItem: NSStatusItem
     private var settings: ConfigStore.Settings
+    private var configWatcherSource: DispatchSourceFileSystemObject?
 
     override init() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -50,10 +51,16 @@ final class StatusBarController: NSObject {
             name: NSNotification.Name("com.apple.Carbon.TISNotifySelectedKeyboardInputSourceChanged"),
             object: nil
         )
+
+        // Theo dõi config.json để đồng bộ khi UI.Mac/IMK thay đổi tùy chọn.
+        configWatcherSource = ConfigStore.watchConfig { [weak self] in
+            self?.reloadFromDisk()
+        }
     }
 
     deinit {
         DistributedNotificationCenter.default().removeObserver(self)
+        configWatcherSource?.cancel()
     }
 
     // MARK: - Icon động V/E (cờ Việt Nam)
@@ -214,6 +221,13 @@ final class StatusBarController: NSObject {
 
     private func refreshIcon() {
         statusItem.button?.image = Self.makeIcon(letter: settings.isVietnamese ? "V" : "E")
+    }
+
+    /// Nạp lại toàn bộ cấu hình từ config.json (khi bị ghi bởi UI.Mac/IMK).
+    private func reloadFromDisk() {
+        settings = ConfigStore.readSettings()
+        refreshIcon()
+        rebuildMenu()
     }
 
     // MARK: - Đồng bộ với input source đang chọn
