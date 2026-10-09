@@ -142,12 +142,6 @@ final class StatusBarController: NSObject {
         aboutItem.target = self
         menu.addItem(aboutItem)
 
-        menu.addItem(NSMenuItem.separator())
-
-        let quitItem = NSMenuItem(title: "Thoát BambooMintKey", action: #selector(quit), keyEquivalent: "q")
-        quitItem.target = self
-        menu.addItem(quitItem)
-
         statusItem.menu = menu
     }
 
@@ -278,9 +272,5 @@ final class StatusBarController: NSObject {
                 return
             }
         }
-    }
-
-    @objc private func quit() {
-        NSApplication.shared.terminate(nil)
     }
 }

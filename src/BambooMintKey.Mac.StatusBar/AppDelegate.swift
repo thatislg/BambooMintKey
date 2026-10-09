@@ -10,4 +10,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusBarController = StatusBarController()
     }
+
+    /// Chặn mọi lệnh thoát (Cmd+Q, menu Quit): icon E/V phải luôn sẵn sàng,
+    /// chỉ ẩn/hiện theo input source BambooMintKey, không được tự ý tắt.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        return .terminateCancel
+    }
 }

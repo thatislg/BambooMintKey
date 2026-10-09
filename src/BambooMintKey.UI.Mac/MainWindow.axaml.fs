@@ -56,7 +56,11 @@ type MainWindow() as this =
                     cfg <- newCfg
                     this.LoadSettings()))
         this.Closed.Add(fun _ ->
-            if configWatcher <> null then configWatcher.Dispose())
+            try if configWatcher <> null then configWatcher.Dispose() with _ -> ()
+            // Bấm nút Close X chỉ đóng window mà không qua SaveAndClose, nên phải
+            // thoát hẳn tiến trình ở đây để tránh treo Not Responding (listener socket
+            // của single-instance giữ tiến trình sống).
+            Environment.Exit(0))
 
     member private this.InitializeComponent() = AvaloniaXamlLoader.Load(this)
 
