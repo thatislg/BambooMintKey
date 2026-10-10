@@ -7,10 +7,16 @@
 # Issue 019: Xung đột chế độ gõ song ngữ và lỗi hoàn tác phím W đầu từ (`AllowLeadingWAsU`)
 
 **Mã tài liệu:** `019_LeadingW_As_U_Bilingual_Conflict_And_Undo_Fix`  
-**Trạng thái:** 🟡 Đang điều tra / Đề xuất giải pháp kỹ thuật  
+**Trạng thái:** ✅ Đã triển khai — đang kiểm chứng trên môi trường Fcitx5  
 **Mức độ nghiêm trọng:** Trung bình - Cao (ảnh hưởng trực tiếp tới trải nghiệm gõ song ngữ Việt – Anh và gõ URL/ký tự W độc lập)  
 **Ngày ghi nhận:** 09/10/2026  
-**Phạm vi ảnh hưởng:** **Chỉ duy nhất Lõi Engine (`BambooMintKey.Core`)**, các tầng UI, NativeBridge, macOS IMK và Linux Fcitx5 không bị ảnh hưởng.
+**Phạm vi ảnh hưởng:** **Lõi Engine (`BambooMintKey.Core`)** và **addon Linux Fcitx5 (`BambooMintKey.Fcitx5`)** (xem mục 6); các tầng UI, NativeBridge, macOS IMK và Windows TSF cần rà soát riêng.
+
+> **⚠️ Ghi chú về tính chính xác của các mục 1–5 (cập nhật sau khi triển khai):**
+>
+> Vấn đề này đã được **sửa và kiểm chứng**. Các mục từ 1 đến 5 bên dưới là bản ghi **quá trình điều tra ban đầu**: mục 1–2 mô tả hiện tượng và nguyên nhân gốc rễ của mã nguồn *trước khi sửa*; mục 3–4 nêu phương án *đề xuất* tại thời điểm đó. Trong quá trình triển khai thực tế, một số chi tiết đã được **điều chỉnh** (ví dụ trường hợp `Ww` đổi từ `W` thành `Uw` để đối xứng với `wW` thành `uW`), vì vậy **các đoạn code mẫu và bảng trong mục 1–5 có thể không còn khớp chính xác với mã nguồn hiện tại**.
+>
+> **Hành vi cuối cùng và phương án đã triển khai thực tế** được mô tả đầy đủ **bằng lời (không có code)** tại **mục 6**. Hãy lấy mục 6 làm nguồn tham chiếu chính xác nhất.
 
 ---
 
@@ -239,3 +245,70 @@ Sửa đổi test case cũ và bổ sung các test case gõ song ngữ:
    * **UI Settings (Avalonia):** Chỉ đọc/ghi cờ `AllowLeadingWAsU` (boolean) vào shared config.
 
 $\rightarrow$ **Kết luận:** Mọi thay đổi logic đều nằm gọn trong `BambooMintKey.Core`. Khi bạn build lại Core và chạy `dotnet test`, toàn bộ logic mới sẽ được kiểm chứng trực tiếp mà không gây bất kỳ tác dụng phụ nào tới các nền tảng Windows, macOS hay Linux.
+
+---
+
+## 6. Kết quả thực nghiệm & Phát hiện bổ sung ngoài Lõi Engine
+
+### 6.1. Quyết định cuối cùng cho Lõi Engine (đã triển khai & kiểm chứng bằng unit test)
+
+Sau khi triển khai và kiểm tra thực tế, quy tắc xử lý phím `w`/`W` đứng đầu từ khi bật Option A được chốt lại như sau:
+
+* **Cùng chữ hoa/thường (`ww`, `WW`):** khôi phục ký tự thô tương ứng (`ww` ra `w`, `WW` ra `W`). Đây là tín hiệu người dùng muốn gõ ký tự `w`/`W` độc lập để tiếp tục soạn tiếng Anh hoặc song ngữ.
+* **Khác chữ hoa/thường — gọi là mixed-case (`wW`, `Ww`):** hoàn tác dấu móc (horn) trên `ư`/`Ư` để trả về ký tự nền `u`/`U` rồi nối thêm phím mới gõ vào. Cụ thể `wW` ra `uW`, `Ww` ra `Uw`. Nguyên tắc quan trọng là **không tự ý viết hoa**: chữ hoa/thường của ký tự nền đi theo phím đầu, của ký tự nối thêm đi theo phím thứ hai.
+
+Điểm chỉnh sửa so với đề xuất ban đầu trong tài liệu này: trường hợp `Ww` trước đây được đề xuất ra `W`, nhưng thực tế phải ra `Uw` để đối xứng với `wW` ra `uW`. Ngoài ra, nguyên tắc "không tự ý viết hoa" cũng được khẳng định lại: muốn gõ `WORD` phải gõ hoa toàn bộ (`WWORD`), còn gõ `WWorD` chỉ cho ra `WorD`.
+
+Riêng chuỗi địa chỉ web `www` không được xử lý đặc biệt: do phím `w` thứ hai đóng vai trò thoát, nên để hiển thị `www` người dùng cần gõ bốn lần phím `w`. Hành vi này được chấp nhận, giữ nguyên tính nhất quán của cơ chế hoàn tác lặp phím.
+
+### 6.2. Phát hiện bổ sung: lỗi phím Shift ở tầng Fcitx5 (Linux)
+
+Trong quá trình kiểm tra trên môi trường Fcitx5 thực tế, phát hiện thêm một lỗi **độc lập, nằm ngoài Lõi Engine**, thuộc tầng tích hợp Fcitx5.
+
+Để gõ được `wW`, người dùng không gõ trực tiếp hai ký tự `w` rồi `W`, mà phải bấm ba lần phím vật lý theo thứ tự: `w`, rồi `Shift`, rồi `w`. Vấn đề nằm ở phím `Shift` ở giữa:
+
+* Khi bấm `Shift` một mình, nó không sinh ra ký tự Unicode nào. Tầng addon Fcitx5 đã phân loại `Shift` vào nhóm "phím không in được" (cùng nhóm với phím mũi tên, phím chức năng), và theo cơ chế hiện có, mọi phím không in được đều làm **commit chuỗi đang gõ dở (preedit)** trước khi nhả phím cho ứng dụng.
+* Hệ quả: chuỗi `w` + `Shift` + `w` bị xử lý thành ba bước tách rời — `w` sinh preedit `ư`, phím `Shift` commit luôn `ư` và reset trạng thái, rồi `w` thứ hai bắt đầu một từ mới sinh `Ư`. Kết quả cuối cùng là `ư` + `Ư`, tức chuỗi `ưƯ`, thay vì `wW` mong đợi ra `uW`.
+
+Nói cách khác, lỗi ở tầng Fcitx5 đã làm "đứt" chuỗi gõ ngay tại phím `Shift`, khiến Lõi Engine không bao giờ nhận được cặp ký tự `wW` liền mạch để thực thi quy tắc hoàn tác đã nêu ở mục 6.1.
+
+### 6.3. Vì sao unit test của Lõi không phát hiện ra lỗi này
+
+Unit test hiện có (trong `BambooMintKey.Core.Tests`) mô phỏng việc gõ bằng cách nạp trực tiếp từng ký tự vào Lõi Engine (gõ `w` rồi gõ `W` liên tiếp), mà **không mô phỏng phím `Shift` vật lý** nằm giữa hai lần bấm. Do đó:
+
+* Unit test chỉ kiểm chứng đúng phần logic của Lõi Engine (quy tắc hoàn tác `wW`/`Ww`), phần này đã đúng.
+* Lỗi phím `Shift` lại nằm ở luồng xử lý sự kiện phím của addon Fcitx5 — nơi phím `Shift` là một sự kiện độc lập, không được unit test của Lõi bao phủ.
+
+Đây là dạng lỗi "chỉ xuất hiện khi gõ phím vật lý thực tế", cần kiểm tra trực tiếp trên môi trường Fcitx5 thay vì chỉ chạy unit test của Lõi.
+
+### 6.4. Phương án xử lý (đã triển khai)
+
+Hướng xử lý ở tầng addon Fcitx5 (file `engine.cpp`) như sau:
+
+* Tách nhóm phím **bổ trợ thuần** (phím `Shift` trái/phải, `CapsLock`, `Shift Lock`) ra khỏi nhóm "phím không in được".
+* Khi gặp các phím bổ trợ thuần này, addon phải **chuyển tiếp phím mà KHÔNG commit preedit**, để giữ nguyên chuỗi đang gõ dở chờ ký tự chữ hoa tiếp theo.
+* Chỉ những trường hợp sau mới được phép commit chuỗi dở dang: phím ngắt từ (dấu cách, xuống dòng, tab, dấu câu), phím điều hướng (mũi tên, Home/End, PageUp/Down, phím chức năng), tổ hợp phím tắt hệ thống (giữ Ctrl/Alt/Super), và khi mất tiêu điểm hoặc chuyển bộ gõ.
+
+Sau khi áp dụng, chuỗi `w` + `Shift` + `w` sẽ được addon chuyển tiếp thành cặp ký tự `w` rồi `W` liền mạch cho Lõi Engine, nhờ đó quy tắc `wW` ra `uW` ở mục 6.1 được thực thi đúng.
+
+### 6.5. Hướng dẫn kiểm tra lại trên môi trường Fcitx5
+
+Sau khi build lại bản Linux chứa cả hai tầng sửa đổi, cần kiểm tra lần lượt các trường hợp sau với tùy chọn "phím `w` đầu từ thành `ư`" (Option A) được bật:
+
+* `w` ra `ư`, `W` ra `Ư` — biến đổi tiến đúng thiết kế.
+* `ww` ra `w`, `WW` ra `W` — hoàn tác cùng chữ hoa/thường.
+* `wW` (bấm `w` rồi `Shift` rồi `w`) ra `uW` — trường hợp trọng tâm của lỗi phím Shift.
+* `Ww` (bấm `Shift`+`w` rồi `w` thường) ra `Uw` — mixed-case đối xứng.
+* `www` (bấm bốn lần `w`) ra `www` — gõ URL, chấp nhận cần thêm một phím.
+* `wweb` ra `web`, `wwar` ra `war` (không thành `wả`), `wwas` ra `was` (không thành `wá`) — bảo vệ từ tiếng Anh tiếp nối.
+* `wiw` ra `uiw` — giữ nguyên hành vi cũ cho trường hợp `w` đứng sau ký tự khác.
+* Các âm tiết tiếng Việt hợp lệ phải được bảo toàn tuyệt đối: `wa` ra `ưa`, `wong` ra `ương`, `ws` ra `ứ`, `wf` ra `ừ`, `wr` ra `ử`, `wx` ra `ữ`, `wj` ra `ự`.
+
+### 6.6. Cập nhật phạm vi ảnh hưởng
+
+Phần kết luận ở mục 5 (chỉ ảnh hưởng trong Lõi Engine) cần được điều chỉnh: thực tế lỗi trải trên **hai tầng**:
+
+1. **Lõi Engine (`BambooMintKey.Core`):** sửa quy tắc hoàn tác phím `w`/`W` đứng đầu (mục 6.1).
+2. **Addon Linux Fcitx5 (`BambooMintKey.Fcitx5`):** sửa luồng xử lý phím `Shift`/`CapsLock` để không commit preedit giữa chừng (mục 6.4).
+
+Hai tầng macOS IMK và Windows TSF cũng cần được rà soát lại cơ chế xử lý phím `Shift`, vì nhiều khả năng tồn tại vấn đề tương tự khi gõ chữ hoa giữa chừng một từ.
