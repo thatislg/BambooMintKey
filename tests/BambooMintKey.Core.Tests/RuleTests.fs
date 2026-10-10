@@ -122,3 +122,35 @@ module RuleTests =
     let ``M2.4 - không hồi quy các từ chuẩn`` (input: string, expected: string) =
         let result = typeWord input EngineConfig.Default
         Assert.Equal(expected, result)
+
+    // =========================================================================
+    // Issue 022: Thẩm định ngữ âm, đồng bộ cặp nhị trùng âm (uô+w -> ươ),
+    // chặn vần khép ở âm tiết mở (vuaxa -> vũa, buafa/buaaf -> bùa),
+    // khóa nhị trùng âm bão hòa (suwaxa -> sữa).
+    // =========================================================================
+
+    [<Theory>]
+    // 1. Đồng bộ hóa cặp đôi uô + w -> ươ (không sinh ưô, lưộc)
+    [<InlineData("dduoocjw", "được")>]
+    [<InlineData("luoocjw", "lược")>]
+    [<InlineData("buoocjw", "bược")>]
+    [<InlineData("dduoocj", "đuộc")>]
+    [<InlineData("luoocj", "luộc")>]
+    // 2. Chặn vần uâ ở âm tiết mở (chủ đích vũa, bùa, dũa)
+    [<InlineData("vuaxa", "vũa")>]
+    [<InlineData("buafa", "bùa")>]
+    [<InlineData("buaaf", "bùa")>]
+    [<InlineData("vuaax", "vũa")>]
+    [<InlineData("duaax", "dũa")>]
+    [<InlineData("duaxa", "dũa")>]
+    // 3. Cho phép vần uâ khi có phụ âm cuối
+    [<InlineData("xuan", "xuan")>]
+    [<InlineData("xuana", "xuân")>]
+    // 4. Khóa nhị trùng âm bão hòa (không sinh Sữâ, ưâ)
+    [<InlineData("suwaxa", "sữa")>]
+    [<InlineData("muaxa", "mũa")>]
+    [<InlineData("cuaxa", "cũa")>]
+    let ``Issue 022 - Thẩm định ngữ âm và biến đổi vần chuẩn xác`` (input: string, expected: string) =
+        let result = typeWord input EngineConfig.Default
+        Assert.Equal(expected, result)
+

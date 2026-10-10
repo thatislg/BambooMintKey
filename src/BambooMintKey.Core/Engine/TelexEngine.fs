@@ -254,7 +254,12 @@ module TelexEngine =
                             Some (ToneRules.applyTone tone config.ToneStyle currentSyl)
                         | _ ->
                             match ModifierRules.applyModifier c currentSyl with
-                            | Some s -> Some s
+                            | Some s ->
+                                let finalSyl =
+                                    if s.Tone <> Tone.None then
+                                        ToneRules.applyTone s.Tone config.ToneStyle s
+                                    else s
+                                Some finalSyl
                             | None ->
                                 // Thử ghép phụ âm cuối vào Syllable hiện có
                                 let f = currentSyl.FinalConsonant.ToLowerInvariant()

@@ -69,6 +69,20 @@ module ModifierRules =
         if String.IsNullOrEmpty cluster then false
         else ValidVowelClusters.Contains (cluster.ToLowerInvariant())
 
+    /// Danh sách các cụm nguyên âm cấm tuyệt đối trong tiếng Việt
+    let isForbiddenVowelCluster (cluster: string) : bool =
+        if String.IsNullOrEmpty cluster then false
+        else
+            let lower = cluster.ToLowerInvariant()
+            lower.Contains "ưô" || lower.Contains "uă" || lower.Contains "ưâ" || lower.Contains "oâ" || lower.Contains "iâ"
+
+    /// Danh sách các cụm nguyên âm bắt buộc phải có phụ âm cuối
+    let requiresFinalConsonant (cluster: string) : bool =
+        if String.IsNullOrEmpty cluster then false
+        else
+            let lower = cluster.ToLowerInvariant()
+            lower = "uâ" || lower = "ă" || lower = "â" || lower = "oă"
+
     /// Thử mở rộng Syllable hiện tại khi ký tự mới là nguyên âm:
     /// - Từ trạng thái chỉ có phụ âm đầu (VowelNucleus = "") tiếp nhận nguyên âm đầu tiên (Đ + i -> Đi)
     /// - Từ trạng thái đã có nguyên âm sau modifier tiếp nhận thêm nguyên âm hợp lệ (Ư + u -> Ưu, Ơ + i -> Ơi)
@@ -99,7 +113,6 @@ module ModifierRules =
 
     let applyModifier (c: char) (syllable: Syllable) : Syllable option =
         let lower = Char.ToLowerInvariant c
-        let vowels = syllable.VowelNucleus.ToLowerInvariant()
         let initial = syllable.InitialConsonant.ToLowerInvariant()
 
         // 1. Biến đổi d -> đ
@@ -110,53 +123,83 @@ module ModifierRules =
                     Modifiers = ('d', Modifier.DBar) :: syllable.Modifiers }
 
         // 2. Biến đổi nguyên âm có mũ / móc
-        elif String.IsNullOrEmpty vowels then None
+        elif String.IsNullOrEmpty syllable.VowelNucleus then None
         else
+            // Bóc tách dấu thanh khỏi hạt nhân nguyên âm để xử lý modifier thuần khiết
+            let cleanChars, detectedTone =
+                let mutable detTone = Tone.None
+                let chars =
+                    syllable.VowelNucleus.ToCharArray()
+                    |> Array.map (fun ch ->
+                        let b, m, t = decomposeChar ch
+                        if t <> Tone.None && detTone = Tone.None then
+                            detTone <- t
+                        match composeChar (b, m, Tone.None) with
+                        | Some cleanC -> if Char.IsUpper ch then Char.ToUpperInvariant cleanC else cleanC
+                        | None -> ch)
+                (String(chars), detTone)
+
+            let currentTone = if detectedTone <> Tone.None then detectedTone else syllable.Tone
+            let cleanLower = cleanChars.ToLowerInvariant()
+            let hasFinal = not (String.IsNullOrEmpty syllable.FinalConsonant)
+
             let transformVowel (targetBase: char) (modType: Modifier) =
-                let chars = syllable.VowelNucleus.ToCharArray()
+                let chars = cleanChars.ToCharArray()
                 let mutable changed = false
                 for i = 0 to chars.Length - 1 do
-                    let b, _, t = decomposeChar chars[i]
+                    let b, _, _ = decomposeChar chars[i]
                     if not changed && b = targetBase then
-                        match composeChar (b, modType, t) with
+                        match composeChar (b, modType, Tone.None) with
                         | Some newC ->
                             chars[i] <- if Char.IsUpper(chars[i]) then Char.ToUpperInvariant newC else newC
                             changed <- true
                         | None -> ()
                 if changed then Some (String(chars)) else None
 
+            let formatCaseLike (sample: string) (target: string) =
+                if sample.Length >= 2 && Char.IsUpper sample[0] && Char.IsUpper sample[1] then target.ToUpperInvariant()
+                elif sample.Length >= 1 && Char.IsUpper sample[0] then
+                    string (Char.ToUpperInvariant target[0]) + (if target.Length > 1 then target[1..] else "")
+                else target.ToLowerInvariant()
+
             let newNucleusOpt =
                 match lower with
-                | 'w' when (vowels.Contains "uo" || vowels.Contains "uô" || vowels.Contains "ưo" || vowels.Contains "uơ") ->
-                    // Biến đổi cặp đôi uo -> ươ
-                    let replaced = 
-                        vowels
-                            .Replace("uo", "ươ")
-                            .Replace("uô", "ươ")
-                            .Replace("ưo", "ươ")
-                            .Replace("uơ", "ươ")
-                    Some replaced
-                | 'w' when vowels.Contains "ua" && not (vowels.Contains "ư") ->
+                | 'w' when (cleanLower = "uo" || cleanLower = "uô" || cleanLower = "ưo" || cleanLower = "uơ") ->
+                    // Biến đổi cặp đôi uo/uô -> ươ (đồng bộ cả cặp, bảo toàn hoa/thường)
+                    Some (formatCaseLike cleanChars "ươ")
+                | 'w' when cleanLower.Contains "ua" && not (cleanLower.Contains "ư") ->
                     // Ưu tiên cụm "ua" -> "ưa" (vừa, mưa, chưa, cửa...).
                     // Phải đặt TRƯỚC nhánh biến 'a' -> 'ă' để không sinh "uă" (lỗi vuawf -> vuằ).
                     transformVowel 'u' Modifier.Horn
-                | 'a' when vowels.Contains "a" && not (vowels.Contains "â") && not (vowels.Contains "ă") ->
+                | 'a' when cleanLower = "ưa" || cleanLower.Contains "ưa" ->
+                    // Nhị trùng âm ưa đã bão hòa: phím a thừa -> giữ nguyên (no-op)
+                    Some cleanChars
+                | 'a' when cleanLower = "ua" && not hasFinal && currentTone <> Tone.None ->
+                    // Đã có thanh điệu ở âm tiết mở (vũa, bùa, dũa): cấm sinh uâ trần -> giữ nguyên (no-op)
+                    Some cleanChars
+                | 'a' when cleanLower.Contains "a" && not (cleanLower.Contains "â") && not (cleanLower.Contains "ă") ->
                     transformVowel 'a' Modifier.Hat
-                | 'w' when vowels.Contains "a" && not (vowels.Contains "ă") && not (vowels.Contains "â") ->
+                | 'w' when cleanLower.Contains "a" && not (cleanLower.Contains "ă") && not (cleanLower.Contains "â") ->
                     transformVowel 'a' Modifier.Breve
-                | 'e' when vowels.Contains "e" && not (vowels.Contains "ê") ->
+                | 'e' when cleanLower.Contains "e" && not (cleanLower.Contains "ê") ->
                     transformVowel 'e' Modifier.Hat
-                | 'o' when vowels.Contains "o" && not (vowels.Contains "ô") && not (vowels.Contains "ơ") ->
+                | 'o' when cleanLower.Contains "o" && not (cleanLower.Contains "ô") && not (cleanLower.Contains "ơ") ->
                     transformVowel 'o' Modifier.Hat
-                | 'w' when vowels.Contains "o" && not (vowels.Contains "ơ") && not (vowels.Contains "ô") ->
+                | 'w' when cleanLower.Contains "o" && not (cleanLower.Contains "ơ") && not (cleanLower.Contains "ô") ->
                     transformVowel 'o' Modifier.Horn
-                | 'w' when vowels.Contains "u" && not (vowels.Contains "ư") ->
+                | 'w' when cleanLower.Contains "u" && not (cleanLower.Contains "ư") ->
                     transformVowel 'u' Modifier.Horn
-                | 'w' when vowels = "ươ" ->
+                | 'w' when cleanLower = "ươ" ->
                     // Đã đủ móc (ư + ơ): phím w thừa -> giữ nguyên (no-op)
-                    Some vowels
+                    Some cleanChars
                 | _ -> None
 
             match newNucleusOpt with
-            | Some newNucleus -> Some { syllable with VowelNucleus = newNucleus }
+            | Some newNucleus ->
+                let candLower = newNucleus.ToLowerInvariant()
+                // Thẩm định âm vị học: Cấm tuyệt đối các cụm dị dạng (ưô, uă, ưâ, oâ, iâ)
+                if isForbiddenVowelCluster candLower then
+                    None
+                else
+                    Some { syllable with VowelNucleus = newNucleus; Tone = currentTone }
             | None -> None

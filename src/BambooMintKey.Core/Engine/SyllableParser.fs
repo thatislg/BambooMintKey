@@ -62,6 +62,7 @@ module SyllableParser =
                             |> String
 
                         if not (ModifierRules.isValidVowelCluster baseVowelsRaw) then None
+                        elif String.IsNullOrEmpty final && (baseVowelsRaw = "uâ" || baseVowelsRaw = "ă" || baseVowelsRaw = "oă") then None
                         else
                             // Trích xuất Tone hiện tại nếu có trong nguyên âm
                             let detectedTone =

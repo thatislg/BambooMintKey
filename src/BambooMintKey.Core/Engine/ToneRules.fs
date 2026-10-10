@@ -32,6 +32,10 @@ module ToneRules =
         | "ieu" -> "iêu"
         | "uo" when hasFinal -> "uô"
         | "ye" when hasFinal -> "yê"
+        | "uâ" when not hasFinal ->
+            if vowels.Length >= 2 && Char.IsUpper vowels[0] && Char.IsUpper vowels[1] then "UA"
+            elif vowels.Length >= 1 && Char.IsUpper vowels[0] then "Ua"
+            else "ua"
         | "e" when initLower = "gi" && hasFinal -> "ê"
         | "o" when initLower = "qu" && hasFinal -> "ô"
         | _ -> vowels
