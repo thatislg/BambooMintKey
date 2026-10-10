@@ -166,15 +166,16 @@ module TelexEngine =
             let resultKeys =
                 if lowerChar = 'w' && isLeadingW then
                     if state.RawKeys.Length = 1 then
-                        // Phím 'w'/'W' đứng đầu từ được gõ lặp (ww -> w, WW -> W, Ww -> W):
-                        // Người dùng muốn khôi phục ký tự thô 'w'/'W' để gõ tiếng Anh / song ngữ.
-                        if Char.IsLower state.RawKeys.Head && Char.IsUpper c then
-                            // Mixed-case 'wW' (chữ thường rồi chữ hoa): tương đương gõ 'uW' trong Telex chuẩn,
-                            // mixed case không tự ý viết hoa -> undo horn trả về base 'u' + phím 'W' mới = "uW".
-                            [ 'u'; 'W' ]
+                        // Phím 'w'/'W' đứng đầu từ được gõ lặp:
+                        // - Cùng case (ww -> w, WW -> W): khôi phục ký tự thô 'w'/'W' để gõ tiếng Anh / song ngữ.
+                        // - Mixed case (wW -> uW, Ww -> Uw): undo horn trả về base 'u'/'U' + phím mới,
+                        //   KHÔNG tự ý viết hoa (case của base theo phím đầu, case phím mới theo phím thứ 2).
+                        let headUpper = Char.IsUpper state.RawKeys.Head
+                        let cUpper = Char.IsUpper c
+                        if headUpper <> cUpper then
+                            [ (if headUpper then 'U' else 'u'); (if cUpper then 'W' else 'w') ]
                         else
-                            let finalChar = if Char.IsUpper state.RawKeys.Head || Char.IsUpper c then Char.ToUpperInvariant state.RawKeys.Head else Char.ToLowerInvariant state.RawKeys.Head
-                            [ finalChar ]
+                            [ (if headUpper then 'W' else 'w') ]
                     else
                         // Trường hợp w xuất hiện sau các ký tự khác (vd wiw -> uiw)
                         let baseU = if Char.IsUpper state.RawKeys.Head then 'U' else 'u'

@@ -156,7 +156,7 @@ module UppercaseModifierTests =
     [<InlineData("wongw", "ương")>]   // w + o + ng + w -> ương (w tự do sau phụ âm cuối)
     [<InlineData("ww", "w")>]         // w -> ư, lặp w hủy -> w (khôi phục ký tự thường)
     [<InlineData("WW", "W")>]         // WW -> W
-    [<InlineData("Ww", "W")>]         // W -> ư, lặp w hủy -> W (khôi phục ký tự hoa)
+    [<InlineData("Ww", "Uw")>]        // Ww -> Uw (mixed case, undo horn -> U + w, không tự viết hoa)
     [<InlineData("wW", "uW")>]         // wW -> uW (mixed-case tương đương gõ uW trong Telex chuẩn, không tự viết hoa)
     [<InlineData("wweb", "web")>]     // Thoát w và gõ tiếp tiếng Anh
     [<InlineData("wwar", "war")>]     // Thoát w, không dính dấu tiếng Việt (war không thành wả)
