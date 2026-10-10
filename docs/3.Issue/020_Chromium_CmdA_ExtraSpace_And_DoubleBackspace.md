@@ -7,11 +7,20 @@
 # Issue 020: Lỗi bôi đen dư khoảng trắng (`Cmd+A`/`Ctrl+A`) và phải bấm Backspace 2 lần trên hệ ứng dụng Chromium (Antigravity Chat, Google Sheets, Chrome)
 
 **Mã tài liệu:** `020_Chromium_CmdA_ExtraSpace_And_DoubleBackspace`  
-**Trạng thái:** 🟡 Đang điều tra / Đề xuất giải pháp toàn diện đa nền tảng  
-**Mức độ nghiêm trọng:** Trung bình - Cao (ảnh hưởng trực tiếp đến trải nghiệm thao tác phím tắt, bôi đen và xóa văn bản trên mọi ứng dụng nhân Chromium/Electron)  
+**Trạng thái:** ✅ Đã điều tra — kết luận: lỗi "dư space" **KHÔNG cần sửa** (vô hại); lỗi "Backspace 2 lần" **chỉ ở Windows/macOS**  
+**Mức độ nghiêm trọng:** Thấp (lỗi "dư space" thuần cosmetic) — riêng lỗi "Backspace 2 lần" ở mức Trung bình nhưng chỉ Windows/macOS  
 **Ngày ghi nhận:** 09/10/2026  
-**Nền tảng ảnh hưởng:** Cả 3 hệ điều hành: **macOS (InputMethodKit)**, **Windows (TSF)**, **Linux (Fcitx5)**  
+**Nền tảng ảnh hưởng:** "dư space" có trên cả 3 nền tảng nhưng vô hại; "Backspace 2 lần" chỉ trên **Windows (TSF)** và **macOS (IMK)** — KHÔNG có trên **Linux (Fcitx5)**  
 **Ứng dụng ghi nhận:** Antigravity AI Chat (Electron/Monaco Editor), Google Sheets (trên trình duyệt Chrome), VS Code, Chrome/Edge textareas.
+
+> **⚠️ Kết luận quan trọng (cập nhật sau khi điều tra thực tế):**
+>
+> Tài liệu này gộp chung **hai lỗi độc lập, khác nguyên nhân, khác nền tảng**. Cần tách rõ để **tránh sửa nhầm những thứ không cần thiết**:
+>
+> 1. **Lỗi "dư khoảng trắng" khi `Cmd+A`/`Ctrl+A`** — do **node đệm con trỏ của Chromium/Blink**, thuần **cosmetic** (chỉ hiển thị bôi đen thừa một vùng đệm, không phải ký tự space thật; khi copy sang nơi khác tự bị loại bỏ). **Vô hại, KHÔNG cần sửa.**
+> 2. **Lỗi "phải bấm Backspace 2 lần"** — do **IME nuốt phím Backspace** khi còn composition. Đây mới là lỗi thật sự ảnh hưởng UX, nhưng **chỉ xảy ra trên Windows (TSF) và macOS (IMK)** — vì trên 2 nền tảng này IME chưa đóng Composition khi gặp phím tắt / chưa kiểm tra vùng chọn. **Trên Linux (Fcitx5) KHÔNG bị** (đã flush + pass-through Backspace đúng).
+>
+> → **Chỉ cần sửa lỗi "Backspace 2 lần" trên Windows và macOS** (xem mục 3.1 và 3.2). **Không cần đụng tới Linux** cho cả 2 lỗi này.
 
 ---
 
@@ -19,8 +28,8 @@
 
 ### 1.1. Hiện tượng
 Khi người dùng nhập liệu tiếng Việt trong các ô nhập văn bản thuộc hệ Chromium (khung chat AI của Antigravity IDE, ô tính Excel trên Google Sheets, hoặc các form soạn thảo web trên Chrome):
-1. **Dư khoảng trắng khi chọn tất cả:** Người dùng gõ một từ tiếng Việt (ví dụ `chào`). Ngay sau đó bấm tổ hợp `Cmd + A` (trên macOS) hoặc `Ctrl + A` (trên Windows/Linux) để chọn toàn bộ văn bản. Vùng được bôi đen lại bị **dư thêm 1 khoảng trắng ở cuối** (`chào ` thay vì `chào`).
-2. **Phải bấm Backspace 2 lần mới xóa được:** Khi toàn bộ chuỗi đang được bôi đen, người dùng bấm phím Backspace (Delete) để xóa. Thay vì xóa sạch toàn bộ nội dung trong 1 lần bấm như quy chuẩn soạn thảo thông thường:
+1. **Dư khoảng trắng khi chọn tất cả** *(thuần cosmetic, vô hại — KHÔNG cần sửa)*: Người dùng gõ một từ tiếng Việt (ví dụ `chào`). Ngay sau đó bấm tổ hợp `Cmd + A` (trên macOS) hoặc `Ctrl + A` (trên Windows/Linux) để chọn toàn bộ văn bản. Vùng được bôi đen lại bị **dư thêm 1 khoảng trắng ở cuối** (`chào ` thay vì `chào`). Đây chỉ là node đệm của Chromium, không phải ký tự space thật.
+2. **Phải bấm Backspace 2 lần mới xóa được** *(chỉ xảy ra trên Windows và macOS, KHÔNG có trên Linux)*: Khi toàn bộ chuỗi đang được bôi đen, người dùng bấm phím Backspace (Delete) để xóa. Thay vì xóa sạch toàn bộ nội dung trong 1 lần bấm như quy chuẩn soạn thảo thông thường:
    - **Lần bấm 1:** Chỉ xóa dấu cách thừa (hoặc vùng bôi đen bị biến mất/deselect), chữ `chào` vẫn còn trơ lại trên màn hình.
    - **Lần bấm 2:** Người dùng phải bấm thêm một lần nữa thì chữ `chào` mới thực sự bị xóa.
 
@@ -67,7 +76,7 @@ Hiện tượng này bắt nguồn từ **sự xung đột giữa hai tầng**:
 ### 2.2. Tại sao phải bấm Backspace 2 lần mới xóa được?
 Có 2 nguyên nhân độc lập nhưng cùng dẫn đến kết quả này:
 1. **Hành vi xử lý Selection có chứa node đệm của Blink:** Khi vùng chọn chứa cả văn bản và node đệm, phím Backspace đầu tiên được trình duyệt hoặc JavaScript của ứng dụng (Google Sheets / Monaco) ưu tiên xử lý là: xóa node đệm / đưa con trỏ về trạng thái bình thường (collapse selection). Chỉ khi con trỏ đã về trạng thái bình thường ở lần bấm thứ 2, lệnh xóa ký tự văn bản mới được thực thi.
-2. **Bộ gõ can thiệp và nuốt phím Backspace khi không nhận diện được Selection:** Trên cả 3 nền tảng (macOS, Windows, Linux), bộ gõ đều có xu hướng chặn phím Backspace để phục vụ việc xóa lùi trong từ tiếng Việt. Nếu bộ gõ không kiểm tra xem ứng dụng **có đang có vùng chọn (Selection)** hay không, bộ gõ sẽ xử lý Backspace theo logic nội bộ của mình ở lần 1 (hoặc nuốt phím), đến lần 2 khi trạng thái nội bộ đã rỗng thì mới nhả phím cho ứng dụng.
+2. **Bộ gõ can thiệp và nuốt phím Backspace khi không nhận diện được Selection** *(chỉ trên Windows và macOS)*: Trên Windows (TSF) và macOS (IMK), bộ gõ có xu hướng chặn phím Backspace để phục vụ việc xóa lùi trong từ tiếng Việt. Nếu bộ gõ không kiểm tra xem ứng dụng **có đang có vùng chọn (Selection)** hay không, bộ gõ sẽ xử lý Backspace theo logic nội bộ của mình ở lần 1 (hoặc nuốt phím), đến lần 2 khi trạng thái nội bộ đã rỗng thì mới nhả phím cho ứng dụng. Linux (Fcitx5) không gặp nguyên nhân này vì đã flush + pass-through Backspace đúng.
 
 ---
 
@@ -115,6 +124,9 @@ Trong file [KeyEventSinkImpl.cs](file:///Users/lmo1720/Self-App/BambooMintKey/sr
 ---
 
 ### 3.3. Trên Linux (`BambooMintKey.Fcitx5`)
+
+> **Kết luận (cập nhật):** Linux **KHÔNG cần sửa**. Linux đã flush đúng khi gặp `Ctrl`/`Alt`/`Super` (Backspace pass-through, chỉ 1 lần xóa) — lỗi "Backspace 2 lần" KHÔNG xảy ra trên Linux; phần "dư space" còn lại chỉ là node đệm của Chromium, vô hại.
+
 Trong file [engine.cpp](file:///Users/lmo1720/Self-App/BambooMintKey/src/BambooMintKey.Fcitx5/engine.cpp):
 * **Dòng 198–201:** Fcitx5 có gọi `flushPendingComposition(ic, state)` khi phát hiện `isSystemModifier`.
 * Tuy nhiên, trong cơ chế giao tiếp Wayland (`wayland-text-input-v3`) hoặc X11 với Chromium, lệnh `ic->commitString()` và `keyEvent` phím `Ctrl+A` gửi lệch nhịp (async IPC) có thể khiến Chromium nhận lệnh `SelectAll` khi composition chưa kịp unmark hoàn toàn trên DOM, sinh ra trailing space tương tự.
@@ -217,6 +229,8 @@ Mọi nền tảng (macOS, Windows, Linux) phải tuân thủ 2 nguyên tắc b�
 
 #### 🐧 C. Trên Linux (`src/BambooMintKey.Fcitx5/engine.cpp`)
 
+> **Không cần thực hiện.** Linux không bị "Backspace 2 lần" (đã flush + pass-through đúng) và "dư space" là vô hại. Mục này chỉ giữ lại để tham khảo lịch sử.
+
 1. **Đảm bảo đồng bộ Preedit và Input Context khi gặp phím tắt (Dòng 198):**
    ```cpp
    if (isSystemModifier(keyEvent.key())) {
@@ -252,5 +266,5 @@ Trong một số trường hợp cực đoan của Google Sheets (nơi Google Sh
 2. **Áp dụng bản vá cho Windows TSF:**
    * Chỉnh sửa `KeyEventSinkImpl.cs` theo mục 4.2.B.
    * Kiểm thử trên Chrome và Excel cho Windows.
-3. **Áp dụng cho Linux Fcitx5:**
-   * Chỉnh sửa `engine.cpp` theo mục 4.2.C.
+3. **~~Áp dụng cho Linux Fcitx5~~ — KHÔNG cần thực hiện:**
+   * Linux đã xử lý đúng (không bị "Backspace 2 lần"; "dư space" vô hại). Bỏ qua mục 4.2.C.
