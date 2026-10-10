@@ -23,6 +23,9 @@ jobs:
         with:
           dotnet-version: '10.0.x'
           cache: true
+          cache-dependency-path: |
+            **/*.fsproj
+            **/*.csproj
 
       - name: Cache & Install APT packages
         uses: awalsh128/cache-apt-pkgs-action@v1
@@ -72,6 +75,9 @@ jobs:
         with:
           dotnet-version: '10.0.x'
           cache: true
+          cache-dependency-path: |
+            **/*.fsproj
+            **/*.csproj
 
       - name: Build and package .rpm
         env:

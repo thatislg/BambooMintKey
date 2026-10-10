@@ -24,6 +24,9 @@ jobs:
         with:
           dotnet-version: '10.0.x'
           cache: true
+          cache-dependency-path: |
+            **/*.fsproj
+            **/*.csproj
 
       - name: Build and Package macOS
         env:

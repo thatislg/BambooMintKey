@@ -23,6 +23,9 @@ jobs:
         with:
           dotnet-version: '10.0.x'
           cache: true
+          cache-dependency-path: |
+            **/*.fsproj
+            **/*.csproj
 
       - name: Setup Python (for icon generation)
         uses: actions/setup-python@v5
