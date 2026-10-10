@@ -91,6 +91,10 @@ mkdir -p "$PKG_SCRIPTS"
 cp -R "$ROOT/build/imk-$ARCH/BambooMintKey.app" "$PKG_ROOT/Library/Input Methods/"
 cp -R "$ROOT/build/ui-mac-$ARCH/BambooMintKey.app" "$PKG_ROOT/Applications/"
 
+# Kèm uninstaller double-click vào /Applications để người dùng gỡ dễ dàng.
+cp "$ROOT/scripts/macos/uninstall_macos.command" "$PKG_ROOT/Applications/Gỡ Cài Đặt BambooMintKey.command"
+chmod +x "$PKG_ROOT/Applications/Gỡ Cài Đặt BambooMintKey.command"
+
 cat << 'EOF' > "$PKG_SCRIPTS/postinstall"
 #!/bin/bash
 # Không bật set -e để đảm bảo không bị ngắt quãng cài đặt
@@ -238,6 +242,10 @@ echo "Đang mở Cài đặt Bàn phím hệ thống..."
 open "x-apple.systempreferences:com.apple.Keyboard-Settings.extension" 2>/dev/null || open "/System/Library/PreferencePanes/Keyboard.prefPane" 2>/dev/null || true
 EOF
 chmod +x "$DMG_STAGE/Cài Đặt BambooMintKey.command"
+
+# Kèm uninstaller double-click (dùng chung file chuẩn cho cả .dmg và .pkg).
+cp "$ROOT/scripts/macos/uninstall_macos.command" "$DMG_STAGE/Gỡ Cài Đặt BambooMintKey.command"
+chmod +x "$DMG_STAGE/Gỡ Cài Đặt BambooMintKey.command"
 
 hdiutil create -volname "BambooMintKey" -srcfolder "$DMG_STAGE" -ov -format UDZO "$DMG_FILE"
 
