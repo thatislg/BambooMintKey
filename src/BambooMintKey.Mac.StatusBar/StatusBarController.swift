@@ -6,8 +6,8 @@ import Carbon
 
 /// Bộ điều khiển Menu Bar (Status Item) cho BambooMintKey.
 ///
-/// - Icon động: chữ "V" (tiếng Việt) hoặc "E" (tiếng Anh) màu vàng trên nền đỏ
-///   (cờ Việt Nam) thể hiện trạng thái gõ hiện tại.
+/// - Icon động: chữ "V" (tiếng Việt) hoặc "E" (tiếng Anh) màu trắng trên nền xanh
+///   (#16a34a) — khớp màu thương hiệu trên Linux/Windows — thể hiện trạng thái gõ hiện tại.
 /// - Menu chứa toàn bộ tùy chọn gõ (tương đương tab "Nâng cao" của UI.Mac):
 ///   chuyển V/E, kiểu đặt dấu, bỏ dấu tự do, lặp phím undo, phím w đầu từ,
 ///   khôi phục từ tiếng Anh; kèm "Cài đặt…" (mở UI.Mac) và "Thông tin…".
@@ -73,20 +73,21 @@ final class StatusBarController: NSObject {
         configWatcherSource?.cancel()
     }
 
-    // MARK: - Icon động V/E (cờ Việt Nam)
+    // MARK: - Icon động V/E (nền xanh chữ trắng)
 
     private static func makeIcon(letter: String) -> NSImage {
         let size = NSSize(width: 18, height: 18)
         let image = NSImage(size: size)
         image.lockFocus()
 
-        NSColor(calibratedRed: 0.85, green: 0.13, blue: 0.13, alpha: 1.0).setFill()
+        // Nền xanh #16a34a (đồng bộ màu thương hiệu Linux/Windows).
+        NSColor(calibratedRed: 0.086, green: 0.639, blue: 0.290, alpha: 1.0).setFill()
         NSBezierPath(roundedRect: NSRect(x: 0, y: 0, width: size.width, height: size.height),
                      xRadius: 3, yRadius: 3).fill()
 
         let attrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.boldSystemFont(ofSize: 12),
-            .foregroundColor: NSColor(calibratedRed: 1.0, green: 0.84, blue: 0.0, alpha: 1.0),
+            .foregroundColor: NSColor.white,
         ]
         let str = NSAttributedString(string: letter, attributes: attrs)
         let strSize = str.size()
