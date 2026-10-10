@@ -66,6 +66,7 @@ final class ConfigWatcher {
         InputSettings.freeTone = json["allowFreeTonePlacement"] as? Bool ?? InputSettings.freeTone
         InputSettings.englishBacktrack = json["enableEnglishBacktracking"] as? Bool ?? InputSettings.englishBacktrack
         InputSettings.repeatUndo = json["allowRepeatKeyUndo"] as? Bool ?? InputSettings.repeatUndo
+        InputSettings.allowLeadingW = json["allowLeadingWAsU"] as? Bool ?? InputSettings.allowLeadingW
 
         // Báo trạng thái V/E mới cho Menu Bar app (nếu thay đổi từ UI.Mac).
         DistributedNotificationCenter.default().postNotificationName(

@@ -22,6 +22,7 @@ struct InputSettings {
     static var freeTone: Bool = true
     static var englishBacktrack: Bool = true
     static var repeatUndo: Bool = true
+    static var allowLeadingW: Bool = false
 
     /// Đảm bảo chỉ đăng ký observer một lần cho toàn bộ tiến trình.
     private static var observerRegistered = false
@@ -36,7 +37,7 @@ struct InputSettings {
             isVietnamese ? 1 : 0,
             toneStyle,
             repeatUndo ? 1 : 0,
-            0, // allowLeadingW
+            allowLeadingW ? 1 : 0,
             freeTone ? 1 : 0,
             1, // enableVietnameseDictionary
             englishBacktrack ? 1 : 0
