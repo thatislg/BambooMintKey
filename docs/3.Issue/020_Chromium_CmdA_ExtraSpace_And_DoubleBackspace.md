@@ -7,7 +7,7 @@
 # Issue 020: Lỗi bôi đen dư khoảng trắng (`Cmd+A`/`Ctrl+A`) và phải bấm Backspace 2 lần trên hệ ứng dụng Chromium (Antigravity Chat, Google Sheets, Chrome)
 
 **Mã tài liệu:** `020_Chromium_CmdA_ExtraSpace_And_DoubleBackspace`  
-**Trạng thái:** ✅ Đã điều tra — kết luận: lỗi "dư space" **KHÔNG cần sửa** (vô hại); lỗi "Backspace 2 lần" **chỉ ở Windows/macOS**  
+**Trạng thái:** ✅ Đã điều tra — kết luận cuối: cả 3 hiện tượng ("dư space", "Cmd+A 2 lần", "Backspace 2 lần") đều **KHÔNG phải bug của bộ gõ** — là hành vi chuẩn IME / giới hạn nền tảng (Mozc cũng bị), **KHÔNG sửa, chỉ ghi nhận**  
 **Mức độ nghiêm trọng:** Thấp (lỗi "dư space" thuần cosmetic) — riêng lỗi "Backspace 2 lần" ở mức Trung bình nhưng chỉ Windows/macOS  
 **Ngày ghi nhận:** 09/10/2026  
 **Nền tảng ảnh hưởng:** "dư space" có trên cả 3 nền tảng nhưng vô hại; "Backspace 2 lần" chỉ trên **Windows (TSF)** và **macOS (IMK)** — KHÔNG có trên **Linux (Fcitx5)**  
@@ -21,6 +21,14 @@
 > 2. **Lỗi "phải bấm Backspace 2 lần"** — do **IME nuốt phím Backspace** khi còn composition. Đây mới là lỗi thật sự ảnh hưởng UX, nhưng **chỉ xảy ra trên Windows (TSF) và macOS (IMK)** — vì trên 2 nền tảng này IME chưa đóng Composition khi gặp phím tắt / chưa kiểm tra vùng chọn. **Trên Linux (Fcitx5) KHÔNG bị** (đã flush + pass-through Backspace đúng).
 >
 > → **Chỉ cần sửa lỗi "Backspace 2 lần" trên Windows và macOS** (xem mục 3.1 và 3.2). **Không cần đụng tới Linux** cho cả 2 lỗi này.
+>
+> **🔎 Bổ sung (10/10/2026) — "Cmd+A 2 lần" KHÔNG phải bug:**
+>
+> Hiện tượng "đang preedit mà bấm `Cmd+A` thì lần 1 chấm dứt preedit, lần 2 mới select-all" **là hành vi CHUẨN của IME, không coi là lỗi**. Nguyên lý: preedit phải "end" trước thì lệnh kế tiếp mới áp dụng được — hoàn toàn tương tự việc bấm `space` để kết thúc từ (tiếng Việt kèm space ngăn cách, còn tiếng Nhật/Mozc thì chỉ end preedit mà không thêm space). Việc một số app bản địa (Numbers) select-all được ngay "1 lần" chỉ là do app xử lý "commit + lệnh" gộp trong một vòng sự kiện.
+>
+> **🔎 Bổ sung (10/10/2026) — "Backspace 2 lần" cũng KHÔNG phải bug:**
+>
+> Nguyên tắc **bắt buộc phải "end preedit" trước** mới thao tác lệnh/lựa chọn. Sau khi đã end preedit rồi `Cmd+A` thì Backspace chắc chắn xóa hết. Hiện tượng "đôi khi chỉ xóa được chữ cuối" là do **editor cell của Excel không tuân thủ vòng đời composition của IMK** (báo `selectedRange`/`markedRange` không nhất quán) — **bộ gõ tiếng Nhật Mozc (Google) cũng dính y hệt**, chứng tỏ đây là **giới hạn nền tảng**, không thể vá từ phía bộ gõ. → **Chấp nhận là known limitation, không sửa.**
 
 ---
 
