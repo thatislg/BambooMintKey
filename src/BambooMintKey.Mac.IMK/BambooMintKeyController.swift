@@ -91,8 +91,10 @@ final class BambooMintKeyController: IMKInputController {
     /// Handle ngữ cảnh C-ABI cho phiên gõ này (nil nếu khởi tạo thất bại).
     private var contextHandle: UnsafeMutableRawPointer?
 
-    /// Hằng số phạm vi thay thế mặc định của Cocoa (thay thế vùng marked text hiện tại).
-    private let notFoundRange = NSRange(location: NSNotFound, length: NSNotFound)
+    /// Hằng số phạm vi thay thế mặc định của Cocoa (không chỉ định vùng thay thế).
+    /// Chuẩn Apple: NSMakeRange(NSNotFound, 0). Dùng length: 0 (KHÔNG dùng NSNotFound =
+    /// Int.max) để Chromium/Blink không tính sai phạm vi thay thế (Issue 020).
+    private let notFoundRange = NSRange(location: NSNotFound, length: 0)
 
     /// Đảm bảo luôn có context hợp lệ; tự động tạo nếu chưa có hoặc sau khi mất focus.
     private func ensureContext() -> UnsafeMutableRawPointer? {
@@ -164,6 +166,13 @@ final class BambooMintKeyController: IMKInputController {
 
         // 4. Backspace (keyCode 51 = delete/backspace trên bàn phím Mac).
         if event.keyCode == 51 {
+            // Nếu ứng dụng đang có vùng bôi đen (vd vừa Cmd+A): nhường phím ngay để app
+            // tự xóa selection trong 1 lần bấm, không để engine nuốt phím (Issue 020).
+            if let input = getTextInput(sender), input.selectedRange().length > 0 {
+                CABIBridge.contextReset(handle)
+                return false
+            }
+
             let action = CABIBridge.processBackspace(handle)
             return handleAction(action, client: sender)
         }
@@ -287,6 +296,9 @@ final class BambooMintKeyController: IMKInputController {
         let text = CABIBridge.preeditString(handle)
         if !text.isEmpty {
             input.insertText(text, replacementRange: notFoundRange)
+        } else {
+            // Xóa sạch marked text còn sót lại để tránh node đệm của Chromium (Issue 020).
+            input.setMarkedText("", selectionRange: NSRange(location: 0, length: 0), replacementRange: notFoundRange)
         }
         CABIBridge.contextReset(handle)
     }
