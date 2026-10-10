@@ -208,6 +208,15 @@ void BambooMintKeyEngine::keyEvent(const fcitx::InputMethodEntry &entry,
         return;
     }
 
+    // 4b. Bỏ qua phím Shift/CapsLock (modifier thuần) — KHÔNG commit preedit.
+    // Người dùng gõ chữ hoa kiểu w + Shift + w (ra wW) không được ngắt preedit
+    // giữa chừng thành ư + Ư. Trước đây Shift bị coi là "phím không in được"
+    // (unicode == 0) nên bị flush/commit preedit.
+    if (sym == FcitxKey_Shift_L || sym == FcitxKey_Shift_R ||
+        sym == FcitxKey_Caps_Lock || sym == FcitxKey_Shift_Lock) {
+        return;
+    }
+
     const uint32_t unicode = fcitx::Key::keySymToUnicode(sym);
     if (unicode == 0) {
         // Phím không in được (mũi tên, Home/End, PageUp/Down, F1-F12...):
