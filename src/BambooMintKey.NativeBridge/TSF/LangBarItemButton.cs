@@ -46,6 +46,29 @@ public static unsafe class LangBarItemButton
     private static extern IntPtr GetForegroundWindow();
 
     [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetKeyboardLayout(uint idThread);
+
+    /// <summary>
+    /// Kiểm tra xem bàn phím / Input Method hiện tại có phải là BambooMintKey (tiếng Việt - 0x042A) không.
+    /// Nếu người dùng chuyển sang Google Japanese Input (0x0411) hoặc English US (0x0409), trả về false để ẩn icon E/V.
+    /// </summary>
+    public static bool IsBambooMintKeyActive()
+    {
+        IntPtr hWnd = GetForegroundWindow();
+        uint tid = 0;
+        if (hWnd != IntPtr.Zero)
+        {
+            tid = GetWindowThreadProcessId(hWnd, out _);
+        }
+        IntPtr hkl = tid != 0 ? GetKeyboardLayout(tid) : GetKeyboardLayout(0);
+        ushort langId = (ushort)((ulong)hkl & 0xFFFF);
+        return langId == Constants.LangIdVietnamese;
+    }
+
+    [DllImport("user32.dll")]
     private static extern bool SetForegroundWindow(IntPtr hWnd);
 
     [DllImport("user32.dll")]
@@ -286,9 +309,10 @@ public static unsafe class LangBarItemButton
 
         pInfo->clsidService = Guids.TextServiceClsid;
         pInfo->guidItem = Guids.GuidLbiInputMode;
-        // Dùng TfLbiStyleBtnButton | TfLbiStyleShownInTray theo chuẩn Google Mozc TSF
+        // Dùng TfLbiStyleBtnButton | TfLbiStyleShownInTray | TfLbiStyleHiddenStatusControl theo chuẩn Windows TSF
         pInfo->dwStyle = TsfLangBarFlags.TfLbiStyleBtnButton |
-                         TsfLangBarFlags.TfLbiStyleShownInTray;
+                         TsfLangBarFlags.TfLbiStyleShownInTray |
+                         TsfLangBarFlags.TfLbiStyleHiddenStatusControl;
         pInfo->ulSort = 0;
 
         string desc = "BambooMintKey Mode";
@@ -309,6 +333,11 @@ public static unsafe class LangBarItemButton
     private static int GetStatus(IntPtr thisPtr, uint* pdwStatus)
     {
         if (pdwStatus == null) return HResult.InvalidArgument;
+        if (!IsBambooMintKeyActive())
+        {
+            *pdwStatus = TsfLangBarFlags.TfLbiStatusHidden;
+            return HResult.Ok;
+        }
         *pdwStatus = BridgeStateManager.IsVietnameseMode ? TsfLangBarFlags.TfLbiStatusBtnToggled : 0;
         return HResult.Ok;
     }

@@ -487,6 +487,9 @@ public unsafe class BambooMintKeyTextService
         var target = GetTarget(thisPtr);
         if (!target._isActivated) return HResult.Ok;
 
+        // Báo cho Language Bar cập nhật trạng thái nút (ẩn nếu chuyển sang bộ gõ khác)
+        LangBarItemButton.NotifyStateChanged();
+
         // Dừng luồng lắng nghe cấu hình
         target.StopStateWatcher();
 
