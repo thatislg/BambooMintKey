@@ -13,6 +13,7 @@
   <ItemGroup>
     <Compile Include="SharedConfig.fs" />
     <Compile Include="MainWindow.axaml.fs" />
+    <Compile Include="TrayIconManager.fs" />
     <Compile Include="App.axaml.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>

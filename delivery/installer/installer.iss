@@ -1,6 +1,6 @@
 #define MyAppName "BambooMintKey"
 #ifndef MyAppVersion
-  #define MyAppVersion "1.1.5"
+  #define MyAppVersion "1.2.0"
 #endif
 #define MyAppPublisher "LMO-LAB"
 #define MyAppURL "https://github.com/thatislg/BambooMintKey"
@@ -47,14 +47,14 @@ Source: "..\..\src\media\bamboomintkey.ico"; DestDir: "{app}"; Flags: ignorevers
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\bamboomintkey.ico"
 
 [Registry]
-; Dọn sạch khóa Run cũ khi gỡ cài đặt để tránh UI vẫn tự khởi động cùng Windows sau khi xóa phần mềm
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "{#MyAppName}"; Flags: uninsdeletevalue
+; Tự động chạy ngầm ở khay hệ thống khi khởi động Windows
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#MyAppName}"; ValueData: """{app}\{#MyAppExeName}"" --tray"; Flags: uninsdeletevalue
 
 [Run]
 ; Kích hoạt DllRegisterServer để đưa TIP vào hệ thống TSF
 Filename: "{sys}\regsvr32.exe"; Parameters: "/s ""{app}\BambooMintKey.dll"""; StatusMsg: "Đang đăng ký Text Services Framework Profile..."; Flags: runhidden
-; Mở ứng dụng cấu hình sau khi cài đặt
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+; Mở ứng dụng Tray Icon sau khi cài đặt
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--tray"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
 ; Kích hoạt DllUnregisterServer để dọn sạch TSF Profile trước khi xóa tệp tin

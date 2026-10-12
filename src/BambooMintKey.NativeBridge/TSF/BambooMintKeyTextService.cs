@@ -84,20 +84,22 @@ public unsafe class BambooMintKeyTextService
             {
                 if (hEvent != IntPtr.Zero)
                 {
-                    uint res = WaitForSingleObject(hEvent, 1000);
+                    uint res = WaitForSingleObject(hEvent, 500);
+                    if (!_isWatcherActive) break;
                     if (res == 0 /* WAIT_OBJECT_0 */)
                     {
-                        DebugLog.Write("StateWatcher: Sự kiện cấu hình thay đổi đã được kích hoạt!");
-                        KeyEventSinkHelper.UpdatePreservedKeys(pThreadMgr, clientId);
-                        if (pThreadMgr != IntPtr.Zero)
+                        IntPtr curMgr = _pThreadMgr;
+                        uint curClient = _clientId;
+                        if (curMgr != IntPtr.Zero && curClient != TsfFlags.TfInvalidClientId && _isActivated)
                         {
+                            DebugLog.Write("StateWatcher: Sự kiện cấu hình thay đổi đã được kích hoạt!");
+                            KeyEventSinkHelper.UpdatePreservedKeys(curMgr, curClient);
                             try
                             {
                                 IsInternalCompartmentSync = true;
                                 bool currentGlobalMode = SharedMemoryManager.IsVietnameseMode;
-                                TsfCompartmentHelper.SetOpenClose(pThreadMgr, clientId, currentGlobalMode);
-                                TsfCompartmentHelper.SetConversionMode(pThreadMgr, clientId, currentGlobalMode);
-                                LangBarItemButton.NotifyStateChanged();
+                                TsfCompartmentHelper.SetOpenClose(curMgr, curClient, currentGlobalMode);
+                                TsfCompartmentHelper.SetConversionMode(curMgr, curClient, currentGlobalMode);
                             }
                             finally
                             {
@@ -108,7 +110,7 @@ public unsafe class BambooMintKeyTextService
                 }
                 else
                 {
-                    Thread.Sleep(1000);
+                    Thread.Sleep(500);
                     hEvent = SharedMemoryManager.EventHandle;
                 }
             }
@@ -123,7 +125,12 @@ public unsafe class BambooMintKeyTextService
     private void StopStateWatcher()
     {
         _isWatcherActive = false;
+        var thread = _stateWatcherThread;
         _stateWatcherThread = null;
+        if (thread != null && thread.IsAlive && thread != Thread.CurrentThread)
+        {
+            try { thread.Join(600); } catch { }
+        }
     }
 
     // Properties cho các component khác truy cập
@@ -436,16 +443,16 @@ public unsafe class BambooMintKeyTextService
         // 4. Khởi tạo / Đồng bộ Engine State
         BridgeStateManager.InitializeEngine();
 
-        // 5. Đăng ký Language Bar Item Button vào Taskbar
-        LangBarItemButton.Register(pThreadMgr, tfClientId);
+        target._hasFocus = true;
+        SharedMemoryManager.IsBambooMintKeyActive = true;
 
-        // 6. Đồng bộ trạng thái ban đầu vào Open/Close Compartment và ConversionMode
+        // 5. Đồng bộ trạng thái ban đầu vào Open/Close Compartment và ConversionMode
         bool initialMode = SharedMemoryManager.IsVietnameseMode;
         BridgeStateManager.IsVietnameseMode = initialMode;
         TsfCompartmentHelper.SetOpenClose(pThreadMgr, tfClientId, initialMode);
         TsfCompartmentHelper.SetConversionMode(pThreadMgr, tfClientId, initialMode);
 
-        // 6.1. Đăng ký ITfCompartmentEventSink lắng nghe thay đổi của GUID_COMPARTMENT_KEYBOARD_OPENCLOSE
+        // 5.1. Đăng ký ITfCompartmentEventSink lắng nghe thay đổi của GUID_COMPARTMENT_KEYBOARD_OPENCLOSE
         var compSinkPtr = thisPtr + (sizeof(IntPtr) * 4);
         fixed (Guid* pGuidOpenClose = &Guids.GuidCompartmentKeyboardOpenClose)
         {
@@ -454,7 +461,7 @@ public unsafe class BambooMintKeyTextService
             DebugLog.Write($"Advise CompartmentEventSink cookie={target._compartmentEventSinkCookie}");
         }
 
-        // 7. Khởi động luồng lắng nghe cập nhật cấu hình theo thời gian thực
+        // 6. Khởi động luồng lắng nghe cập nhật cấu hình theo thời gian thực
         target.StartStateWatcher();
 
         DebugLog.Write("ActivateExImpl completed");
@@ -487,8 +494,7 @@ public unsafe class BambooMintKeyTextService
         var target = GetTarget(thisPtr);
         if (!target._isActivated) return HResult.Ok;
 
-        // Báo cho Language Bar cập nhật trạng thái nút (ẩn nếu chuyển sang bộ gõ khác)
-        LangBarItemButton.NotifyStateChanged();
+        SharedMemoryManager.IsBambooMintKeyActive = false;
 
         // Dừng luồng lắng nghe cấu hình
         target.StopStateWatcher();
@@ -558,20 +564,24 @@ public unsafe class BambooMintKeyTextService
         BridgeStateManager.ResetState();
 
         // Chỉ khi thực sự có focus vào ô nhập liệu (pdimFocus != IntPtr.Zero) mới đồng bộ trạng thái vào Thread Compartment
-        if (target._hasFocus && target._pThreadMgr != IntPtr.Zero)
+        if (target._hasFocus && target._pThreadMgr != IntPtr.Zero && target._isActivated)
         {
+            SharedMemoryManager.IsBambooMintKeyActive = true;
             try
             {
                 IsInternalCompartmentSync = true;
                 bool currentGlobalMode = SharedMemoryManager.IsVietnameseMode;
                 TsfCompartmentHelper.SetOpenClose(target._pThreadMgr, target._clientId, currentGlobalMode);
                 TsfCompartmentHelper.SetConversionMode(target._pThreadMgr, target._clientId, currentGlobalMode);
-                LangBarItemButton.NotifyStateChanged();
             }
             finally
             {
                 IsInternalCompartmentSync = false;
             }
+        }
+        else if (!target._hasFocus)
+        {
+            SharedMemoryManager.IsBambooMintKeyActive = false;
         }
 
         return HResult.Ok;

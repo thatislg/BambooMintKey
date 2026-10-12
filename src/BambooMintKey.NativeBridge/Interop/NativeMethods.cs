@@ -55,6 +55,9 @@ public static class NativeMethods
     [DllImport("msctf.dll", ExactSpelling = true)]
     public static extern int TF_CreateCategoryMgr(out IntPtr ppcat);
 
+    [DllImport("msctf.dll", ExactSpelling = true)]
+    public static extern int TF_CreateLangBarItemMgr(out IntPtr ppItemMgr);
+
     [DllImport("ole32.dll", ExactSpelling = true)]
     public static extern int CoInitializeEx(IntPtr pvReserved, uint dwCoInit);
 

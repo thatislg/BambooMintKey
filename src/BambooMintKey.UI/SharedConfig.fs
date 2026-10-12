@@ -88,7 +88,7 @@ module ConfigStore =
     let private RunRegistryKey = @"Software\Microsoft\Windows\CurrentVersion\Run"
     let private AppName = "BambooMintKey"
 
-    /// Đọc số đếm vòng lặp StateSequence (offset 8) từ Shared Memory để kiểm tra thay đổi từ Language Bar
+    /// Đọc số đếm vòng lặp StateSequence (offset 8) từ Shared Memory để kiểm tra thay đổi
     let getStateSequence () : uint32 =
         try
             let hMap = OpenFileMappingW(FILE_MAP_READ, false, MapName)
@@ -105,6 +105,42 @@ module ConfigStore =
                     0u
             else 0u
         with _ -> 0u
+
+    /// Đọc cờ IsActive (offset 24) từ Shared Memory để biết BambooMintKey có đang được chọn ở cửa sổ tiền cảnh
+    let getIsActive () : bool =
+        try
+            let hMap = OpenFileMappingW(FILE_MAP_READ, false, MapName)
+            if hMap <> IntPtr.Zero then
+                let pView = MapViewOfFile(hMap, FILE_MAP_READ, 0u, 0u, 64n)
+                if pView <> IntPtr.Zero then
+                    let activePtr : nativeptr<byte> = NativePtr.ofNativeInt (pView + 24n)
+                    let active = (NativePtr.read activePtr) <> 0uy
+                    UnmapViewOfFile(pView) |> ignore
+                    CloseHandle(hMap) |> ignore
+                    active
+                else
+                    CloseHandle(hMap) |> ignore
+                    false
+            else false
+        with _ -> false
+
+    /// Đọc chế độ V/E (offset 0) từ Shared Memory: true = Tiếng Việt (V), false = Tiếng Anh (E)
+    let getIsVietnameseMode () : bool =
+        try
+            let hMap = OpenFileMappingW(FILE_MAP_READ, false, MapName)
+            if hMap <> IntPtr.Zero then
+                let pView = MapViewOfFile(hMap, FILE_MAP_READ, 0u, 0u, 64n)
+                if pView <> IntPtr.Zero then
+                    let vnPtr : nativeptr<byte> = NativePtr.ofNativeInt (pView + 0n)
+                    let isVn = (NativePtr.read vnPtr) <> 0uy
+                    UnmapViewOfFile(pView) |> ignore
+                    CloseHandle(hMap) |> ignore
+                    isVn
+                else
+                    CloseHandle(hMap) |> ignore
+                    true
+            else true
+        with _ -> true
 
     let getHotkeyDisplayString (vKey: uint32) (modifiers: uint32) =
         HotkeyFormatter.getHotkeyDisplayString vKey modifiers
@@ -130,7 +166,7 @@ module ConfigStore =
             if key <> null then
                 if enable then
                     let exePath = Process.GetCurrentProcess().MainModule.FileName
-                    key.SetValue(AppName, $"\"%s{exePath}\"")
+                    key.SetValue(AppName, $"\"%s{exePath}\" --tray")
                 else
                     key.DeleteValue(AppName, false)
         with _ -> ()

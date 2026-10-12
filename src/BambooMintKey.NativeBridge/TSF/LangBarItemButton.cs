@@ -42,31 +42,10 @@ public static unsafe class LangBarItemButton
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool DestroyMenu(IntPtr hMenu);
 
+
+
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
-
-    [DllImport("user32.dll")]
-    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetKeyboardLayout(uint idThread);
-
-    /// <summary>
-    /// Kiểm tra xem bàn phím / Input Method hiện tại có phải là BambooMintKey (tiếng Việt - 0x042A) không.
-    /// Nếu người dùng chuyển sang Google Japanese Input (0x0411) hoặc English US (0x0409), trả về false để ẩn icon E/V.
-    /// </summary>
-    public static bool IsBambooMintKeyActive()
-    {
-        IntPtr hWnd = GetForegroundWindow();
-        uint tid = 0;
-        if (hWnd != IntPtr.Zero)
-        {
-            tid = GetWindowThreadProcessId(hWnd, out _);
-        }
-        IntPtr hkl = tid != 0 ? GetKeyboardLayout(tid) : GetKeyboardLayout(0);
-        ushort langId = (ushort)((ulong)hkl & 0xFFFF);
-        return langId == Constants.LangIdVietnamese;
-    }
 
     [DllImport("user32.dll")]
     private static extern bool SetForegroundWindow(IntPtr hWnd);
@@ -309,7 +288,6 @@ public static unsafe class LangBarItemButton
 
         pInfo->clsidService = Guids.TextServiceClsid;
         pInfo->guidItem = Guids.GuidLbiInputMode;
-        // Dùng TfLbiStyleBtnButton | TfLbiStyleShownInTray | TfLbiStyleHiddenStatusControl theo chuẩn Windows TSF
         pInfo->dwStyle = TsfLangBarFlags.TfLbiStyleBtnButton |
                          TsfLangBarFlags.TfLbiStyleShownInTray |
                          TsfLangBarFlags.TfLbiStyleHiddenStatusControl;
@@ -333,7 +311,7 @@ public static unsafe class LangBarItemButton
     private static int GetStatus(IntPtr thisPtr, uint* pdwStatus)
     {
         if (pdwStatus == null) return HResult.InvalidArgument;
-        if (!IsBambooMintKeyActive())
+        if (!_isAdded)
         {
             *pdwStatus = TsfLangBarFlags.TfLbiStatusHidden;
             return HResult.Ok;
@@ -832,8 +810,11 @@ public static unsafe class LangBarItemButton
         thread.Start();
     }
 
+    private static readonly Lock LangBarLock = new();
+    private static bool _isAdded = false;
+
     /// <summary>
-    /// Đăng ký nút Language Bar vào hệ thống thông qua ITfLangBarItemMgr.
+    /// Đăng ký nút Language Bar vào hệ thống thông qua ITfLangBarItemMgr khi TextService kích hoạt.
     /// </summary>
     public static void Register(IntPtr pThreadMgr, uint clientId = 0)
     {
@@ -843,84 +824,90 @@ public static unsafe class LangBarItemButton
             return;
         }
 
-        _pThreadMgr = pThreadMgr;
-        _clientId = clientId;
-
-        if (!_listenerStarted)
+        lock (LangBarLock)
         {
-            _listenerStarted = true;
-            StartEventListener();
-        }
+            if (_isAdded && _langBarMgr != IntPtr.Zero)
+            {
+                DebugLog.Write("LangBarItemButton.Register: Already added to Language Bar");
+                return;
+            }
 
-        Guid iidMgr = Guids.IidITfLangBarItemMgr;
-        IntPtr pMgr = IntPtr.Zero;
+            _pThreadMgr = pThreadMgr;
+            _clientId = clientId;
 
-        var unk = *(TfSourceVTable**)pThreadMgr;
-        int hrQi = unk->QueryInterface(pThreadMgr, &iidMgr, &pMgr);
-        DebugLog.Write($"LangBarItemButton.Register QI ITfLangBarItemMgr hr=0x{hrQi:X8}, pMgr={pMgr}");
+            if (!_listenerStarted)
+            {
+                _listenerStarted = true;
+                StartEventListener();
+            }
 
-        if (hrQi != HResult.Ok || pMgr == IntPtr.Zero)
-        {
-            // Fallback sang CoCreateInstance với CLSID_TF_LangBarItemMgr nếu pThreadMgr không hỗ trợ QI trực tiếp
-            Guid clsidMgr = Guids.ClsidTfLangBarItemMgr;
-            const uint clsctxInprocServer = 1;
-            hrQi = NativeCom.CoCreateInstance(&clsidMgr, IntPtr.Zero, clsctxInprocServer, &iidMgr, &pMgr);
-            DebugLog.Write($"LangBarItemButton.Register CoCreateInstance ITfLangBarItemMgr hr=0x{hrQi:X8}, pMgr={pMgr}");
-        }
+            Guid iidMgr = Guids.IidITfLangBarItemMgr;
+            IntPtr pMgr = IntPtr.Zero;
 
-        if (pMgr != IntPtr.Zero)
-        {
-            _langBarMgr = pMgr;
-            var mgrVTable = *(TfLangBarItemMgrVTable**)_langBarMgr;
-            
-            // [WinSDK: ITfLangBarItemMgr::AddItem]
-            // Windows sẽ tự gọi QI(ITfSource) -> AdviseSink trên _comInstance để trao Sink
-            int hr = mgrVTable->AddItem(_langBarMgr, ComInstance);
-            DebugLog.Write($"LangBarItemButton.Register AddItem result=0x{hr:X8}");
-            NotifyStateChanged();
-        }
-        else
-        {
-            DebugLog.Write("LangBarItemButton.Register: Failed to obtain ITfLangBarItemMgr");
+            var unk = *(TfSourceVTable**)pThreadMgr;
+            int hrQi = unk->QueryInterface(pThreadMgr, &iidMgr, &pMgr);
+            DebugLog.Write($"LangBarItemButton.Register QI ITfLangBarItemMgr hr=0x{hrQi:X8}, pMgr={pMgr}");
+
+            if (hrQi != HResult.Ok || pMgr == IntPtr.Zero)
+            {
+                hrQi = NativeMethods.TF_CreateLangBarItemMgr(out pMgr);
+                DebugLog.Write($"LangBarItemButton.Register TF_CreateLangBarItemMgr hr=0x{hrQi:X8}, pMgr={pMgr}");
+            }
+
+            if (pMgr != IntPtr.Zero)
+            {
+                _langBarMgr = pMgr;
+                var mgrVTable = *(TfLangBarItemMgrVTable**)_langBarMgr;
+                
+                // [WinSDK: ITfLangBarItemMgr::AddItem]
+                int hr = mgrVTable->AddItem(_langBarMgr, ComInstance);
+                DebugLog.Write($"LangBarItemButton.Register AddItem result=0x{hr:X8}");
+                _isAdded = (hr == HResult.Ok);
+                NotifyStateChanged();
+            }
+            else
+            {
+                DebugLog.Write("LangBarItemButton.Register: Failed to obtain ITfLangBarItemMgr");
+            }
         }
     }
 
     /// <summary>
-    /// Gỡ nút khỏi Language Bar và giải phóng tài nguyên.
+    /// Gỡ nút khỏi Language Bar khi deactive hoặc mất focus để không xung đột với các bộ gõ khác.
     /// </summary>
     public static void Unregister()
     {
-        if (_langBarMgr != IntPtr.Zero)
+        lock (LangBarLock)
         {
-            var mgrVTable = *(TfLangBarItemMgrVTable**)_langBarMgr;
-            // [WinSDK: ITfLangBarItemMgr::RemoveItem]
-            int hr = mgrVTable->RemoveItem(_langBarMgr, ComInstance);
-            DebugLog.Write($"LangBarItemButton.Unregister RemoveItem hr=0x{hr:X8}");
-
-            NativeCom.Release(_langBarMgr);
-            _langBarMgr = IntPtr.Zero;
-            DebugLog.Write("LangBarItemButton.Unregister: _langBarMgr released");
-        }
-
-        if (_pLangBarSink != IntPtr.Zero)
-        {
-            NativeCom.Release(_pLangBarSink);
-            _pLangBarSink = IntPtr.Zero;
-            _sinkCookie = 0;
-        }
-
-        lock (MsgWndLock)
-        {
-            if (_hMsgWnd != IntPtr.Zero)
+            IntPtr pMgr = _langBarMgr;
+            if (pMgr == IntPtr.Zero && _isAdded)
             {
-                DestroyWindow(_hMsgWnd);
-                _hMsgWnd = IntPtr.Zero;
+                NativeMethods.TF_CreateLangBarItemMgr(out pMgr);
             }
-        }
-        _uiThreadId = 0;
 
-        _pThreadMgr = IntPtr.Zero;
-        _clientId = 0;
+            if (pMgr != IntPtr.Zero)
+            {
+                var mgrVTable = *(TfLangBarItemMgrVTable**)pMgr;
+                // [WinSDK: ITfLangBarItemMgr::RemoveItem]
+                int hr = mgrVTable->RemoveItem(pMgr, ComInstance);
+                DebugLog.Write($"LangBarItemButton.Unregister RemoveItem hr=0x{hr:X8}");
+
+                NativeCom.Release(pMgr);
+                _langBarMgr = IntPtr.Zero;
+            }
+
+            _isAdded = false;
+
+            if (_pLangBarSink != IntPtr.Zero)
+            {
+                NativeCom.Release(_pLangBarSink);
+                _pLangBarSink = IntPtr.Zero;
+                _sinkCookie = 0;
+            }
+
+            _pThreadMgr = IntPtr.Zero;
+            _clientId = 0;
+        }
     }
 
     /// <summary>

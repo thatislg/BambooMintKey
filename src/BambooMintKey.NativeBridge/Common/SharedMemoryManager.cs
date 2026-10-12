@@ -449,6 +449,37 @@ public static unsafe class SharedMemoryManager
     }
 
     /// <summary>
+    /// Cờ báo BambooMintKey đang được kích hoạt ở cửa sổ tiền cảnh.
+    /// true = BambooMintKey đang được chọn, false = chuyển sang bộ gõ khác (Google Japanese, US English...).
+    /// Dùng để Tray Icon tự động Ẩn/Hiện tương tự macOS StatusBar.
+    /// </summary>
+    public static bool IsBambooMintKeyActive
+    {
+        get
+        {
+            EnsureInitialized();
+            if (_pShared != null)
+            {
+                return _pShared[24] != 0;
+            }
+            return false;
+        }
+        set
+        {
+            EnsureInitialized();
+            if (_pShared != null)
+            {
+                byte val = (byte)(value ? 1 : 0);
+                if (_pShared[24] != val)
+                {
+                    _pShared[24] = val;
+                    SignalStateChanged();
+                }
+            }
+        }
+    }
+
+    /// <summary>
     /// Trạng thái bật/tắt gõ tiếng Việt đồng bộ xuyên suốt mọi tiến trình người dùng.
     /// true = V (Tiếng Việt), false = E (Tiếng Anh).
     /// </summary>

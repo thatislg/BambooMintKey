@@ -44,11 +44,18 @@ type MainWindow (args: string[]) as this =
     let fixedModifiers = 0x0001u
     let fixedDisplay = "`/ ~ / 半角/全角 (JP) | Alt + ~"
 
+    let mutable allowClose = false
+
     do
         this.InitializeComponent()
         this.BindControls()
         this.LoadSettings()
         this.HandleCommandLineArgs()
+        this.Closing.Add(fun e ->
+            if not allowClose then
+                e.Cancel <- true
+                this.Hide()
+        )
 
     new() = MainWindow([||])
 
@@ -245,6 +252,21 @@ type MainWindow (args: string[]) as this =
         if hasAboutArg && mainTabs <> null && tabAbout <> null then
             mainTabs.SelectedItem <- tabAbout
 
+    member this.SelectAboutTab() =
+        if mainTabs <> null && tabAbout <> null then
+            mainTabs.SelectedItem <- tabAbout
+
+    member this.SelectMainTab() =
+        if mainTabs <> null then
+            mainTabs.SelectedIndex <- 0
+
+    member this.ReloadSettings() =
+        this.LoadSettings()
+
+    member this.ForceClose() =
+        allowClose <- true
+        this.Close()
+
     member private this.SaveAndClose() =
         let cfg = ConfigStore.loadConfig()
 
@@ -287,4 +309,4 @@ type MainWindow (args: string[]) as this =
             cfg.EnableEnglishBacktracking <- chkEnableBacktrack.IsChecked.GetValueOrDefault(true)
 
         ConfigStore.saveConfig(cfg)
-        this.Close()
+        this.Hide()

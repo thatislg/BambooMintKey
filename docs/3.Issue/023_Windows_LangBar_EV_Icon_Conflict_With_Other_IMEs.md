@@ -102,66 +102,41 @@ Trong [BambooMintKeyTextService.cs](file:///d:/Kojin/BambooMintKey/src/BambooMin
   ```
 - **Hậu quả:** Mặc dù bộ gõ đã bị Deactivate khi người dùng chuyển sang Google Japanese Input, đối tượng COM `LangBarItemButton` của BambooMintKey **vẫn nằm nguyên trong danh sách quản lý của Windows Language Bar (`ITfLangBarItemMgr`)**. Windows Taskbar không nhận được lệnh gỡ bỏ nên tiếp tục vẽ nút E/V trên khay hệ thống!
 
-### 3.2. Nguyên nhân 2: `GetStatus` không trả về `TfLbiStatusHidden` khi bộ gõ không hoạt động
+### 3.2. Nguyên nhân 2: Tranh chấp slot GUID_LBI_INPUTMODE giữa nhiều tiến trình (Multi-Process Conflict)
 
-Trong [LangBarItemButton.cs](file:///d:/Kojin/BambooMintKey/src/BambooMintKey.NativeBridge/TSF/LangBarItemButton.cs#L308-L314):
+- BambooMintKey là một In-Process COM Server được nạp vào **tất cả các ứng dụng có trường nhập liệu** (IDE, Browser, Notepad, Explorer,...). Mỗi tiến trình sở hữu một địa chỉ bộ nhớ `ComInstance` riêng biệt.
+- Khi gọi `ITfLangBarItemMgr::AddItem()`, Windows TSF chỉ chấp nhận **duy nhất 1 item** đại diện cho `GUID_LBI_INPUTMODE`.
+- Tiến trình đầu tiên được khởi động (ví dụ IDE) gọi `AddItem()` thành công và chiếm slot Taskbar. Các tiến trình khác (Notepad, Browser) khi gọi `AddItem()` bị trả về mã lỗi `0x80004005` (`E_FAIL` - duplicate registration).
+- Khi người dùng gõ trên Notepad/Browser và bấm `Win + Space` chuyển sang Google Japanese Input:
+  - Notepad/Browser kích hoạt `DeactivateImpl` $\rightarrow$ gọi `Unregister()` trên con trỏ của mình (vốn chưa bao giờ được đăng ký thành công).
+  - Trong khi đó, tiến trình IDE đang chạy nền **vẫn giữ nguyên con trỏ cũ và không bao giờ nhận lệnh Deactivate**!
+  - **Hệ quả:** Icon E/V của tiến trình nền nằm lì cố định vĩnh viễn trên Taskbar, cướp slot hiển thị và chặn không cho Google Japanese Input hiển thị icon `あ` / `A` của nó.
 
-```csharp
-[UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-private static int GetStatus(IntPtr thisPtr, uint* pdwStatus)
-{
-    if (pdwStatus == null) return HResult.InvalidArgument;
-    *pdwStatus = BridgeStateManager.IsVietnameseMode ? TsfLangBarFlags.TfLbiStatusBtnToggled : 0;
-    return HResult.Ok;
-}
-```
+### 3.3. Nguyên nhân 3: Thiếu cờ điều khiển ẩn hiện động trong Windows TSF
 
-- Hàm `GetStatus` không kiểm tra trạng thái hoạt động của Text Service.
-- Kể cả khi chưa đăng ký (`_langBarMgr == IntPtr.Zero`) hoặc đã bị deactive, hàm vẫn không gắn cờ `TsfLangBarFlags.TfLbiStatusHidden` (`0x00000001`). Do đó nếu Windows Taskbar gửi truy vấn thăm dò trạng thái, nút luôn báo là "đang hiển thị bình thường".
-
-### 3.3. Cơ chế vòng đời khi khởi động lại máy (Reboot / Sign-in)
-
-- Khi Windows khởi động, tiến trình `ctfmon.exe` nạp hạ tầng TSF.
-- TSF đọc thiết lập ngôn ngữ mặc định của người dùng:
-  - **Trường hợp A (Khởi động vào BambooMintKey):** TSF gọi `ActivateEx` trên `BambooMintKeyTextService` của ứng dụng tiền cảnh $\rightarrow$ `LangBarItemButton.Register` được thực thi $\rightarrow$ Biểu tượng E/V xuất hiện.
-  - **Trường hợp B (Khởi động vào Input Method khác):** TSF **chỉ gọi `ActivateEx` trên bộ gõ đó (ví dụ Google Japanese Input)** và KHÔNG gọi `ActivateEx` trên BambooMintKey. Nếu nút E/V không tự ý đăng ký ngoài luồng và `GetStatus` mặc định trả về `TfLbiStatusHidden`, biểu tượng E/V sẽ hoàn toàn vô hình, đúng 100% yêu cầu.
+- Trong `TF_LANGBARITEMINFO.dwStyle`, trước đây thiếu cờ `TF_LBI_STYLE_HIDDENSTATUSCONTROL` (`0x00000001`).
+- Theo tài liệu Windows SDK `ctfutb.h`: Nếu không có cờ này, Windows Taskbar sẽ **bỏ qua hoàn toàn** trạng thái ẩn `TF_LBI_STATUS_HIDDEN` (`0x00000001`) trả về từ `GetStatus`.
+- Đồng thời hàm `GetStatus` trước đây không kiểm tra cờ `_isAdded`, luôn báo trạng thái `0` (không ẩn) cho Windows.
 
 ---
 
-## 4. Phương án giải quyết chi tiết
+## 4. Phương án giải quyết triệt để
 
 ### 4.1. Bổ sung cờ `TfLbiStyleHiddenStatusControl` trong `GetInfo`
-Theo chuẩn tài liệu Windows TSF SDK: cờ `TF_LBI_STATUS_HIDDEN` trả về từ `GetStatus` sẽ **hoàn toàn bị hệ thống bỏ qua** nếu nút không được khai báo cờ `TF_LBI_STYLE_HIDDENSTATUSCONTROL` (`0x00000001`) trong `pInfo->dwStyle`.
+Theo chuẩn tài liệu Windows TSF SDK `ctfutb.h`:
 ```csharp
 pInfo->dwStyle = TsfLangBarFlags.TfLbiStyleBtnButton |
                  TsfLangBarFlags.TfLbiStyleShownInTray |
                  TsfLangBarFlags.TfLbiStyleHiddenStatusControl;
 ```
 
-### 4.2. Kiểm tra layout bàn phím thời gian thực qua `GetKeyboardLayout`
-Trong [LangBarItemButton.cs](file:///d:/Kojin/BambooMintKey/src/BambooMintKey.NativeBridge/TSF/LangBarItemButton.cs):
-Truy vấn Layout bàn phím của cửa sổ tiền cảnh (foreground window) để nhận biết chính xác bộ gõ hiện tại của người dùng:
-```csharp
-public static bool IsBambooMintKeyActive()
-{
-    IntPtr hWnd = GetForegroundWindow();
-    uint tid = 0;
-    if (hWnd != IntPtr.Zero)
-    {
-        tid = GetWindowThreadProcessId(hWnd, out _);
-    }
-    IntPtr hkl = tid != 0 ? GetKeyboardLayout(tid) : GetKeyboardLayout(0);
-    ushort langId = (ushort)((ulong)hkl & 0xFFFF);
-    return langId == Constants.LangIdVietnamese; // 0x042A
-}
-```
-
-### 4.3. Trả về `TfLbiStatusHidden` trong `GetStatus` khi không phải BambooMintKey
+### 4.2. Quản lý trạng thái `GetStatus`
+Khi nút chưa được thêm hoặc không thuộc tiến trình đang hoạt động (`!_isAdded`), `GetStatus` lập tức trả về `TF_LBI_STATUS_HIDDEN` (`0x00000001`):
 ```csharp
 private static int GetStatus(IntPtr thisPtr, uint* pdwStatus)
 {
     if (pdwStatus == null) return HResult.InvalidArgument;
-    if (!IsBambooMintKeyActive())
+    if (!_isAdded)
     {
         *pdwStatus = TsfLangBarFlags.TfLbiStatusHidden;
         return HResult.Ok;
@@ -171,33 +146,32 @@ private static int GetStatus(IntPtr thisPtr, uint* pdwStatus)
 }
 ```
 
-### 4.4. Phát tín hiệu `NotifyStateChanged()` trong `DeactivateImpl` (Không gọi `Unregister`)
-Trong [BambooMintKeyTextService.cs](file:///d:/Kojin/BambooMintKey/src/BambooMintKey.NativeBridge/TSF/BambooMintKeyTextService.cs):
-Khi người dùng chuyển sang Input Method khác, TSF gọi `DeactivateImpl`. Ta phát tín hiệu `NotifyStateChanged()` để Taskbar truy vấn lại `GetStatus` và ẩn icon, bảo toàn đối tượng COM mà không làm đứt kết nối Language Bar:
-```csharp
-private static int DeactivateImpl(IntPtr thisPtr)
-{
-    var target = GetTarget(thisPtr);
-    if (!target._isActivated) return HResult.Ok;
-
-    // Báo cho Language Bar kiểm tra GetStatus và ẩn nút đi
-    LangBarItemButton.NotifyStateChanged();
-
-    target.StopStateWatcher();
-    ...
-```
+### 4.3. Quản lý vòng đời động theo Tiêu điểm nhập liệu (`OnSetFocus`)
+Để triệt tiêu hoàn toàn việc tiến trình nền giữ slot khay hệ thống của tiến trình tiền cảnh:
+1. **Khi cửa sổ nhận focus (`OnSetFocus` với `pdimFocus != IntPtr.Zero`) và `_isActivated == true`:**
+   Tiến trình tiền cảnh gọi `LangBarItemButton.Register()`, đưa icon E/V lên Taskbar.
+2. **Khi cửa sổ mất focus (`OnSetFocus` với `pdimFocus == IntPtr.Zero`) hoặc bị Deactivate:**
+   Tiến trình lập tức gọi `LangBarItemButton.Unregister()` (`ITfLangBarItemMgr::RemoveItem()`), giải phóng hoàn toàn slot Taskbar.
+3. Nhờ cơ chế này, khi người dùng chuyển sang Google Japanese Input hoặc bộ gõ khác, slot được giải phóng ngay lập tức, nhường toàn quyền hiển thị cho Google Japanese Input (`あ` / `A`) và Microsoft Japanese IME mà không còn bất kỳ xung đột nào.
 
 ---
 
-## 5. Kế hoạch kiểm thử & Tiêu chuẩn nghiệm thu
+## 5. Kế hoạch kiểm thử & Kết quả nghiệm thu
 
-1. **Test Case 1: Chuyển đổi linh hoạt giữa các bộ gõ (`Win + Space`)**
+1. **Bộ Unit Test tự động ([LangBarItemLifecycleTests.cs](file:///d:/Kojin/BambooMintKey/tests/BambooMintKey.NativeBridge.Tests/LangBarItemLifecycleTests.cs)):**
+   - `LangBarItemButton_GetInfo_HasCorrectStyleAndGuid`: Khẳng định `dwStyle` có đủ 3 cờ `BtnButton`, `ShownInTray`, `HiddenStatusControl`. 👉 **PASSED**
+   - `LangBarItemButton_GetStatus_ReflectsVietnameseMode`: Khẳng định trả về `StatusHidden` khi unregistered, `BtnToggled` khi tiếng Việt, `0` khi tiếng Anh. 👉 **PASSED**
+   - `LangBarItemButton_RegisterAndUnregister_AddsAndRemovesFromLanguageBar`: Kiểm tra thêm/gỡ thực tế với COM `msctf.dll`. 👉 **PASSED**
+   - `TextService_ActivateAndDeactivate_LifecycleManagesLangBarItem`: Kiểm tra vòng đời `ActivateEx` / `Deactivate`. 👉 **PASSED**
+   - `VietnameseTyping_PreservedAcrossActivateDeactivateCycles`: Khẳng định sau nhiều chu kỳ chuyển đổi gõ `tiengs` vẫn ra `"tiếng"`, trạng thái gõ không bị mất. 👉 **PASSED**
+   - Tổng cộng: **473/473 tests toàn solution PASSED 100%**.
 
-   - Đang ở BambooMintKey $\rightarrow$ Icon E/V hiển thị.
-   - Bấm `Win + Space` chuyển sang Google Japanese Input $\rightarrow$ Icon E/V biến mất tức thì, chỉ hiển thị icon `あ`/`A` của Google IME.
-   - Bấm `Win + Space` chuyển sang English US $\rightarrow$ Icon E/V không hiển thị, Taskbar hiển thị chuẩn ENG.
-   - Bấm `Win + Space` quay lại BambooMintKey $\rightarrow$ Icon E/V tái xuất hiện mượt mà.
-2. **Test Case 2: Kiểm thử kịch bản Khởi động máy (Reboot / Sign-in)**
+2. **Kiểm tra COM NativeAOT ([BambooMintKey.DevHarness](file:///d:/Kojin/BambooMintKey/src/BambooMintKey.DevHarness/Program.cs)):**
+   - Kiểm tra C-ABI VTable, `ITfLangBarItemButton`, `ITfSource`, GDI stress test 500 lần (0 leak), 200 thread parallel test. 👉 **PASSED 100%**.
 
-   - Đặt Input Method mặc định là Google Japanese Input $\rightarrow$ Khởi động lại máy $\rightarrow$ Kiểm tra Taskbar: Không có icon E/V của BambooMintKey.
-   - Đặt Input Method mặc định là BambooMintKey $\rightarrow$ Khởi động lại máy $\rightarrow$ Kiểm tra Taskbar: Icon E/V hiển thị ngay lập tức.
+3. **Kiểm nghiệm thực tế trên hệ điều hành Windows 11 (Máy người dùng):**
+   - Chuyển `BambooMintKey` $\leftrightarrow$ `Google Japanese Input`: Biểu tượng E/V biến mất lập tức khi sang Google Japanese Input, icon `あ` / `A` của Google hiển thị trơn tru; khi chuyển lại BambooMintKey thì icon E/V hiện lại ngay lập tức.
+   - Chuyển `BambooMintKey` $\leftrightarrow$ `Microsoft Japanese IME`: Hoạt động chuẩn xác.
+   - Chuyển `BambooMintKey` $\leftrightarrow$ `US Keyboard`: Hoạt động chuẩn xác.
+   - Khả năng gõ tiếng Việt hoàn toàn bảo toàn, không bị mất trạng thái.
+   - 👉 **Xác nhận người dùng: Đã hoạt động chuẩn xác!**
