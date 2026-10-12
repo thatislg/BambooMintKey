@@ -52,7 +52,7 @@ jobs:
             delivery/macos/*.pkg
             delivery/macos/*.zip
             delivery/macos/*.tar.gz
-          body_path: delivery/commit-message/1.1.5.md
+          body_path: delivery/commit-message/1.2.0.md
           draft: true
           prerelease: false
         env:

@@ -22,6 +22,19 @@ OUT_DELIVERY="$ROOT/delivery/macos"
 STAGE_DIR="$ROOT/build/package-macos-$ARCH"
 PACKAGE_NAME="BambooMintKey-macos-$ARCH"
 
+# Version lấy động: env VERSION (CI truyền từ git tag) hoặc tự đọc git tag.
+APP_VERSION="${VERSION:-}"
+if [ -z "$APP_VERSION" ]; then
+    APP_VERSION="$(git -C "$ROOT" describe --tags --abbrev=0 2>/dev/null || true)"
+fi
+APP_VERSION="${APP_VERSION#macos-}"
+APP_VERSION="${APP_VERSION#windows-}"
+APP_VERSION="${APP_VERSION#linux-}"
+APP_VERSION="${APP_VERSION#v}"
+if [ -z "$APP_VERSION" ]; then
+    APP_VERSION="1.2.0"
+fi
+
 echo "=================================================="
 echo "  Đóng gói BambooMintKey Release cho macOS ($ARCH)"
 echo "=================================================="
@@ -185,7 +198,7 @@ pkgbuild \
     --root "$PKG_ROOT" \
     --component-plist "$PKG_PLIST" \
     --identifier "com.bamboomintkey.installer" \
-    --version "1.1.5" \
+    --version "$APP_VERSION" \
     --scripts "$PKG_SCRIPTS" \
     --install-location "/" \
     "$COMPONENT_PKG"

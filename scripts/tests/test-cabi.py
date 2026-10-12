@@ -239,6 +239,69 @@ def tc_cabi_09_config_bonus(lib):
     return pre == "tiếng", f"preedit sau load_config_json={pre!r}"
 
 
+def tc_cabi_10_leading_w_undo(lib):
+    """Xác minh Issue 019: Thoát phím w đầu từ (ww -> w) và bảo vệ từ tiếng Anh (web, war, was)."""
+    h = lib.bmk_context_create()
+    # Bật AllowLeadingWAsU: param 5 (allowLeadingW) = 1
+    lib.bmk_set_options(h, 1, 0, 1, 1, 1, 1, 1)
+
+    cases = [
+        ("w", "ư"),
+        ("W", "Ư"),
+        ("ww", "w"),
+        ("WW", "W"),
+        ("Ww", "Uw"),
+        ("wW", "uW"),
+        ("wweb", "web"),
+        ("wwar", "war"),
+        ("wwas", "was"),
+        ("wiw", "uiw"),
+    ]
+
+    for inp, expected in cases:
+        lib.bmk_context_reset(h)
+        type_str(lib, h, inp)
+        pre = preedit(lib, h)
+        if pre != expected:
+            lib.bmk_context_free(h)
+            return False, f"gõ {inp!r} kỳ vọng {expected!r}, nhưng ra {pre!r}"
+
+    lib.bmk_context_free(h)
+    return True, "toàn bộ 10 ca kiểm thử Issue 019 (AllowLeadingWAsU undo & bilingual) chính xác"
+
+
+def tc_cabi_11_vowel_cluster_disambiguation(lib):
+    """Xác minh Issue 022: Chuẩn hóa nhị trùng âm (uô+w -> ươ), chặn vần dị dạng (ưô, uâ âm tiết mở, ữâ)."""
+    h = lib.bmk_context_create()
+    lib.bmk_set_options(h, 1, 0, 1, 0, 1, 1, 1)
+
+    cases = [
+        ("dduoocjw", "được"),
+        ("luoocjw", "lược"),
+        ("buoocjw", "bược"),
+        ("dduoocj", "đuộc"),
+        ("luoocj", "luộc"),
+        ("vuaxa", "vũa"),
+        ("buafa", "bùa"),
+        ("buaaf", "bùa"),
+        ("duaxa", "dũa"),
+        ("xuan", "xuan"),
+        ("xuana", "xuân"),
+        ("suwaxa", "sữa"),
+    ]
+
+    for inp, expected in cases:
+        lib.bmk_context_reset(h)
+        type_str(lib, h, inp)
+        pre = preedit(lib, h)
+        if pre != expected:
+            lib.bmk_context_free(h)
+            return False, f"gõ {inp!r} kỳ vọng {expected!r}, nhưng ra {pre!r}"
+
+    lib.bmk_context_free(h)
+    return True, "toàn bộ 12 ca kiểm thử Issue 022 (Vowel cluster disambiguation & phonotactics) chính xác"
+
+
 def main() -> int:
     default = (
         "publish/osx-arm64/BambooMintKeyCore.dylib"
@@ -267,6 +330,8 @@ def main() -> int:
         ("TC-CABI-07", tc_cabi_07_multicontext),
         ("TC-CABI-08", tc_cabi_08_stress),
         ("TC-CABI-09 (bonus: config)", tc_cabi_09_config_bonus),
+        ("TC-CABI-10 (Issue 019: Leading W Undo)", tc_cabi_10_leading_w_undo),
+        ("TC-CABI-11 (Issue 022: Vowel Cluster Disambiguation)", tc_cabi_11_vowel_cluster_disambiguation),
     ]
 
     passed = 0
