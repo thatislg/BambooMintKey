@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using BambooMintKey.Core.Domain;
 using BambooMintKey.NativeBridge.Common;
 using BambooMintKey.NativeBridge.Interop;
 
@@ -133,12 +134,25 @@ public static unsafe class KeyEventSinkImpl
         if (pfEaten == null) return HResult.Pointer;
         *pfEaten = 0;
 
+        uint vkCode = (uint)wParam;
+        var servicePtr = thisPtr - (sizeof(IntPtr) * 2);
+        var service = BambooMintKeyTextService.GetTarget(servicePtr);
+
+        // 1. Phím tắt hệ thống có modifier (Ctrl/Alt/Win)
         if (KeyInputTranslator.IsModifierModifierPressed())
         {
+            // Đang có tổ hợp phím tắt (Ctrl+A, Ctrl+C...):
+            // Chốt từ dở dang để giải phóng composition, tránh treo trạng thái (Issue 020)
+            if (CompositionManager.HasActiveComposition() && service != null)
+            {
+                var curText = BridgeStateManager.CurrentState.TransformedText;
+                CompositionManager.HandleEngineAction(service, pic, Types.EngineAction.NewCommit(curText), curText);
+                DebugLog.Write($"OnKeyDown Modifier pressed with active composition -> committed '{curText}'");
+            }
             return HResult.Ok;
         }
 
-        // Nếu đang ở chế độ tiếng Anh (E) -> Bỏ qua hoàn toàn, không nuốt phím, không gõ dấu
+        // 2. Nếu đang ở chế độ tiếng Anh (E) -> Bỏ qua hoàn toàn, không nuốt phím, không gõ dấu
         if (!BridgeStateManager.IsVietnameseMode)
         {
             if (CompositionManager.HasActiveComposition())
@@ -149,14 +163,10 @@ public static unsafe class KeyEventSinkImpl
             return HResult.Ok;
         }
 
-        uint vkCode = (uint)wParam;
-        var servicePtr = thisPtr - (sizeof(IntPtr) * 2);
-        var service = BambooMintKeyTextService.GetTarget(servicePtr);
-
-        // Trường hợp 1: Phím Backspace
+        // 3. Trường hợp 1: Phím Backspace
         if (vkCode == KeyInputTranslator.VkBack)
         {
-            if (CompositionManager.HasActiveComposition())
+            if (CompositionManager.HasActiveComposition() && service != null)
             {
                 var (newState, action) = BridgeStateManager.ProcessBackspace();
                 CompositionManager.HandleEngineAction(service, pic, action, newState.TransformedText);
@@ -166,9 +176,26 @@ public static unsafe class KeyEventSinkImpl
             return HResult.Ok;
         }
 
-        // Trường hợp 2: Phím Ký tự bình thường / Phím Ngắt
+        // 4. Trường hợp 2: Phím Ký tự bình thường / Phím Ngắt
         var inputChar = KeyInputTranslator.ConvertVirtualKeyToChar(wParam, lParam);
-        if (!inputChar.HasValue) return HResult.Ok;
+        if (!inputChar.HasValue)
+        {
+            // Bỏ qua các modifier thuần (Shift, CapsLock...) để người dùng tiếp tục gõ hoa
+            if (KeyInputTranslator.IsPureModifierKey(vkCode))
+            {
+                return HResult.Ok;
+            }
+
+            // Với phím điều hướng / không in được (Mũi tên, Home, End, Esc, Tab...):
+            // Chốt từ dở dang trước khi nhả phím cho ứng dụng (Issue 021)
+            if (CompositionManager.HasActiveComposition() && service != null)
+            {
+                var curText = BridgeStateManager.CurrentState.TransformedText;
+                CompositionManager.HandleEngineAction(service, pic, Types.EngineAction.NewCommit(curText), curText);
+                DebugLog.Write($"OnKeyDown Nav/Non-printable vkCode=0x{vkCode:X2} with active composition -> committed '{curText}'");
+            }
+            return HResult.Ok;
+        }
 
         char c = inputChar.Value;
 

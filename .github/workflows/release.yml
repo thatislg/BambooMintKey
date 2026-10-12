@@ -1,8 +1,10 @@
-name: Release & Code Signing Pipeline
+name: Release Windows (Setup.exe)
 
 on:
+  workflow_dispatch:
   push:
     tags:
+      - 'windows-v*'
       - 'v*'
 
 permissions:
@@ -132,9 +134,15 @@ jobs:
             Write-Error "Inno Setup compiler (ISCC.exe) not found on the runner."
             exit 1
           }
-          # Truyền version thật (bỏ tiền tố 'v' của tag) để bộ cài ghi đúng version
-          # thay vì fallback cứng trong installer.iss (trước đây mọi tag đều ra 1.1.2).
-          $version = "${{ github.ref_name }}".TrimStart('v')
+          # Trích xuất version chuẩn từ tag (vd: windows-v1.1.5 hoặc v1.1.5) hoặc đọc từ Directory.Build.props
+          $version = ""
+          if ("${{ github.ref_name }}" -match '(\d+\.\d+\.\d+)') {
+            $version = $Matches[1]
+          } else {
+            [xml]$props = Get-Content Directory.Build.props
+            $version = $props.Project.PropertyGroup.Version.Trim()
+          }
+          Write-Host "Inno Setup MyAppVersion: $version"
           & $iscc "/DMyAppVersion=$version" delivery\installer\installer.iss
 
       - name: Sign Final Installer

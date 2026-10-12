@@ -132,7 +132,30 @@ public static class KeyInputTranslator
         return char.IsWhiteSpace(c) || char.IsPunctuation(c) || char.IsSymbol(c);
     }
 
+    // =========================================================================
+    // Modifier & Navigation key classification
+    // =========================================================================
+
     /// <summary>VK_SHIFT (0x10) - Phím Shift (modifier).</summary>
-    private const uint VkShift = 0x10;
+    public const uint VkShift = 0x10;
+
+    /// <summary>VK_LSHIFT (0xA0) - Phím Shift trái.</summary>
+    public const uint VkLShift = 0xA0;
+
+    /// <summary>VK_RSHIFT (0xA1) - Phím Shift phải.</summary>
+    public const uint VkRShift = 0xA1;
+
+    /// <summary>VK_CAPITAL (0x14) - Phím Caps Lock.</summary>
+    public const uint VkCapital = 0x14;
+
+    /// <summary>
+    /// Kiểm tra xem mã phím ảo có phải là modifier thuần (Shift, CapsLock) không.
+    /// Các phím này không sinh ký tự in được nhưng không được ngắt composition dở dang.
+    /// </summary>
+    public static bool IsPureModifierKey(uint vkCode)
+    {
+        return vkCode == VkShift || vkCode == VkLShift || vkCode == VkRShift || vkCode == VkCapital;
+    }
 }
+
 
