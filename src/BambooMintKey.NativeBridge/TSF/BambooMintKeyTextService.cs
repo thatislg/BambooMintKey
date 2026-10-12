@@ -487,6 +487,9 @@ public unsafe class BambooMintKeyTextService
         var target = GetTarget(thisPtr);
         if (!target._isActivated) return HResult.Ok;
 
+        // 0. Gỡ nút Language Bar khỏi Taskbar ngay khi chuyển sang Input Method khác (Issue 023)
+        LangBarItemButton.Unregister();
+
         // Dừng luồng lắng nghe cấu hình
         target.StopStateWatcher();
 

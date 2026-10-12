@@ -27,6 +27,7 @@ public static unsafe class LangBarItemButton
     private static readonly Lock SinkLock = new();
     private static IntPtr _pThreadMgr = IntPtr.Zero;
     private static uint _clientId = 0;
+    private static volatile bool _isRegistered = false;
 
 
     // Win32 Menu APIs cho Context Menu chuột phải
@@ -309,6 +310,11 @@ public static unsafe class LangBarItemButton
     private static int GetStatus(IntPtr thisPtr, uint* pdwStatus)
     {
         if (pdwStatus == null) return HResult.InvalidArgument;
+        if (!_isRegistered || _pThreadMgr == IntPtr.Zero)
+        {
+            *pdwStatus = TsfLangBarFlags.TfLbiStatusHidden;
+            return HResult.Ok;
+        }
         *pdwStatus = BridgeStateManager.IsVietnameseMode ? TsfLangBarFlags.TfLbiStatusBtnToggled : 0;
         return HResult.Ok;
     }
@@ -814,6 +820,11 @@ public static unsafe class LangBarItemButton
             return;
         }
 
+        if (_isRegistered && _langBarMgr != IntPtr.Zero)
+        {
+            Unregister();
+        }
+
         _pThreadMgr = pThreadMgr;
         _clientId = clientId;
 
@@ -848,6 +859,7 @@ public static unsafe class LangBarItemButton
             // Windows sẽ tự gọi QI(ITfSource) -> AdviseSink trên _comInstance để trao Sink
             int hr = mgrVTable->AddItem(_langBarMgr, ComInstance);
             DebugLog.Write($"LangBarItemButton.Register AddItem result=0x{hr:X8}");
+            _isRegistered = (hr == HResult.Ok);
             NotifyStateChanged();
         }
         else
@@ -861,6 +873,7 @@ public static unsafe class LangBarItemButton
     /// </summary>
     public static void Unregister()
     {
+        _isRegistered = false;
         if (_langBarMgr != IntPtr.Zero)
         {
             var mgrVTable = *(TfLangBarItemMgrVTable**)_langBarMgr;
