@@ -2,6 +2,7 @@
 namespace BambooMintKey.UI
 
 open System
+open System.Threading
 open Avalonia
 open Avalonia.Controls
 open Avalonia.Controls.ApplicationLifetimes
@@ -11,6 +12,7 @@ type App() =
     inherit Application()
 
     let mutable trayManager: TrayIconManager = null
+    let mutable uiProcessMutex: Mutex = null
 
     override this.Initialize() =
         AvaloniaXamlLoader.Load(this)
@@ -19,6 +21,12 @@ type App() =
         match this.ApplicationLifetime with
         | :? IClassicDesktopStyleApplicationLifetime as desktop ->
             desktop.ShutdownMode <- ShutdownMode.OnExplicitShutdown
+
+            // Khởi tạo và giữ Named Mutex để Core TSF DLL kiểm tra trạng thái hoạt động của UI
+            try
+                let mutable createdNew = false
+                uiProcessMutex <- new Mutex(true, @"Local\BambooMintKey_UI_Process_Mutex_v1", &createdNew)
+            with _ -> ()
             let args = match desktop.Args with null -> [||] | a -> a
             let mainWindow = MainWindow(args)
             desktop.MainWindow <- mainWindow

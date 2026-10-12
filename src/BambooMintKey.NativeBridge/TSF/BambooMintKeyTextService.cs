@@ -464,6 +464,9 @@ public unsafe class BambooMintKeyTextService
         // 6. Khởi động luồng lắng nghe cập nhật cấu hình theo thời gian thực
         target.StartStateWatcher();
 
+        // 7. Tự động kiểm tra và khởi chạy BambooMintKey.UI (Watchdog / Auto-Respawn tương tự macOS StatusBarLauncher)
+        TrayUiLauncher.EnsureRunning();
+
         DebugLog.Write("ActivateExImpl completed");
 
         return HResult.Ok;
@@ -567,6 +570,7 @@ public unsafe class BambooMintKeyTextService
         if (target._hasFocus && target._pThreadMgr != IntPtr.Zero && target._isActivated)
         {
             SharedMemoryManager.IsBambooMintKeyActive = true;
+            TrayUiLauncher.EnsureRunning();
             try
             {
                 IsInternalCompartmentSync = true;

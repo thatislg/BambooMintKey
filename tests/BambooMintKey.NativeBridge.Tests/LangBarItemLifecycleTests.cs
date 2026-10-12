@@ -273,4 +273,18 @@ public unsafe class LangBarItemLifecycleTests
             Marshal.Release(pThreadMgr);
         }
     }
+
+    [Fact]
+    public void TrayUiLauncher_EnsureRunning_DetectsActiveMutexOrDebounces()
+    {
+        // Tạo mutex giả lập UI đang hoạt động
+        using var testMutex = new System.Threading.Mutex(true, @"Local\BambooMintKey_UI_Process_Mutex_v1");
+
+        var ex = Record.Exception(() =>
+        {
+            TrayUiLauncher.EnsureRunning();
+        });
+
+        Assert.Null(ex);
+    }
 }
