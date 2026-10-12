@@ -7,7 +7,7 @@
 # Issue 023: Xung đột hiển thị biểu tượng E/V của BambooMintKey trên Taskbar khi chuyển đổi qua lại giữa các Input Method (Google Japanese Input, US Keyboard) và xử lý khởi động lại máy
 
 **Mã tài liệu:** `023_Windows_LangBar_EV_Icon_Conflict_With_Other_IMEs`  
-**Trạng thái:** 🛠️ Đang triển khai & Sửa đổi mã nguồn  
+**Trạng thái:** 🔄 Đang rà soát lại kiến trúc TSF (Hoàn nguyên giải pháp Deactivate Unregister để bảo toàn icon và chế độ gõ)  
 **Mức độ nghiêm trọng:** Trung bình (Ảnh hưởng trải nghiệm người dùng đa ngôn ngữ, gây xung đột hiển thị giao diện khay hệ thống)  
 **Ngày ghi nhận:** 12/10/2026  
 **Nền tảng ảnh hưởng:** Windows 10 / Windows 11 (Text Services Framework — TSF)  
