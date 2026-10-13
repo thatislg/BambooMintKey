@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 #nowarn "9"
 #nowarn "3261"
+#nowarn "688"
 namespace BambooMintKey.UI
 
 open System
@@ -95,6 +96,11 @@ module TrayWin32 =
     let WM_LBUTTONUP = 0x0202u
     let WM_RBUTTONUP = 0x0205u
 
+    let WM_NULL = 0x0000u
+    let WM_CANCELMODE = 0x001Fu
+    let WM_KEYDOWN = 0x0100u
+    let VK_ESCAPE = 0x1Bu
+
     let MF_STRING = 0x00000000u
     let MF_SEPARATOR = 0x00000800u
     let MF_CHECKED = 0x00000008u
@@ -142,6 +148,21 @@ module TrayWin32 =
 
     [<DllImport("user32.dll")>]
     extern bool DestroyMenu(IntPtr hMenu)
+
+    [<DllImport("user32.dll")>]
+    extern bool EndMenu()
+
+    [<DllImport("user32.dll", CharSet = CharSet.Unicode)>]
+    extern IntPtr FindWindowExW(IntPtr hWndParent, IntPtr hWndChildAfter, string lpszClass, string lpszWindow)
+
+    [<DllImport("user32.dll")>]
+    extern bool GetWindowRect(IntPtr hWnd, RECT& lpRect)
+
+    [<DllImport("user32.dll")>]
+    extern bool IsWindowVisible(IntPtr hWnd)
+
+    [<DllImport("user32.dll")>]
+    extern bool PostMessageW(IntPtr hWnd, uint32 msg, UIntPtr wParam, IntPtr lParam)
 
     [<DllImport("user32.dll", CharSet = CharSet.Unicode)>]
     extern int GetClassNameW(IntPtr hWnd, System.Text.StringBuilder lpClassName, int nMaxCount)
@@ -378,6 +399,83 @@ type TrayIconManager(onOpenSettings: unit -> unit, onOpenAbout: unit -> unit) =
         let hMenu = TrayWin32.CreatePopupMenu()
         if hMenu = IntPtr.Zero then ()
         else
+            let mutable isMenuOpen = true
+            let currentPid = uint32 (Process.GetCurrentProcess().Id)
+
+            let getMenuRects () =
+                let list = System.Collections.Generic.List<TrayWin32.RECT>()
+                let mutable hMenuWnd = TrayWin32.FindWindowExW(IntPtr.Zero, IntPtr.Zero, "#32768", null)
+                while hMenuWnd <> IntPtr.Zero do
+                    let mutable pid = 0u
+                    TrayWin32.GetWindowThreadProcessId(hMenuWnd, &pid) |> ignore
+                    if pid = currentPid && TrayWin32.IsWindowVisible(hMenuWnd) then
+                        let mutable rc = TrayWin32.RECT()
+                        if TrayWin32.GetWindowRect(hMenuWnd, &rc) && rc.Right > rc.Left && rc.Bottom > rc.Top then
+                            list.Add(rc)
+                    hMenuWnd <- TrayWin32.FindWindowExW(IntPtr.Zero, hMenuWnd, "#32768", null)
+                list
+
+            let isCursorInMenu (curPt: TrayWin32.POINT) (rects: System.Collections.Generic.List<TrayWin32.RECT>) (margin: int) =
+                let mutable inside = false
+                let mutable i = 0
+                while not inside && i < rects.Count do
+                    let rc = rects.[i]
+                    if curPt.X >= (rc.Left - margin) && curPt.X <= (rc.Right + margin) &&
+                       curPt.Y >= (rc.Top - margin) && curPt.Y <= (rc.Bottom + margin) then
+                        inside <- true
+                    i <- i + 1
+                inside
+
+            let cancelActiveMenu () =
+                // 1. Gửi VK_ESCAPE tới các cửa sổ menu Win32 của BambooMintKey đang mở
+                let mutable hMenuWnd = TrayWin32.FindWindowExW(IntPtr.Zero, IntPtr.Zero, "#32768", null)
+                while hMenuWnd <> IntPtr.Zero do
+                    let mutable pid = 0u
+                    TrayWin32.GetWindowThreadProcessId(hMenuWnd, &pid) |> ignore
+                    if pid = currentPid then
+                        TrayWin32.PostMessageW(hMenuWnd, TrayWin32.WM_KEYDOWN, UIntPtr(uint64 TrayWin32.VK_ESCAPE), IntPtr.Zero) |> ignore
+                    hMenuWnd <- TrayWin32.FindWindowExW(IntPtr.Zero, hMenuWnd, "#32768", null)
+                // 2. Gửi WM_CANCELMODE tới hMsgWnd để gọi EndMenu() trên chính UI thread
+                if hMsgWnd <> IntPtr.Zero then
+                    TrayWin32.PostMessageW(hMsgWnd, TrayWin32.WM_CANCELMODE, UIntPtr.Zero, IntPtr.Zero) |> ignore
+
+            // Thread theo dõi vị trí chuột: Khi người dùng move chuột ra khỏi khung options -> tự động ẩn đi
+            let watcherThread = Thread(fun () ->
+                let sw = Stopwatch.StartNew()
+                let mutable hasHovered = false
+                let mutable outsideCount = 0
+                let checkIntervalMs = 30
+                let margin = 12
+
+                while isMenuOpen && isRunning do
+                    Thread.Sleep(checkIntervalMs)
+                    if isMenuOpen && isRunning then
+                        let rects = getMenuRects()
+                        if rects.Count > 0 then
+                            let mutable curPt = TrayWin32.POINT()
+                            if TrayWin32.GetCursorPos(&curPt) then
+                                let inside = isCursorInMenu curPt rects margin
+                                if inside then
+                                    hasHovered <- true
+                                    outsideCount <- 0
+                                else
+                                    outsideCount <- outsideCount + 1
+                                    let elapsed = sw.ElapsedMilliseconds
+
+                                    // Trường hợp 1: Người dùng đã rê chuột vào menu xem rồi rê chuột ra ngoài (150ms ngoài khung -> ẩn ngay)
+                                    let shouldDismissHovered = hasHovered && outsideCount >= 5
+
+                                    // Trường hợp 2: Người dùng bật menu lên nhưng rê chuột đi chỗ khác mà không vào menu (>400ms và 150ms ngoài khung -> ẩn ngay)
+                                    let shouldDismissInitial = not hasHovered && elapsed > 400L && outsideCount >= 5
+
+                                    if shouldDismissHovered || shouldDismissInitial then
+                                        cancelActiveMenu()
+                                        isMenuOpen <- false
+            )
+            watcherThread.IsBackground <- true
+            watcherThread.Name <- "BambooMintKey_Tray_MenuAutoDismissWatcher"
+            watcherThread.Start()
+
             try
                 let cfg = ConfigStore.loadConfig()
                 let isVn = cfg.IsVietnameseMode
@@ -434,10 +532,16 @@ type TrayIconManager(onOpenSettings: unit -> unit, onOpenAbout: unit -> unit) =
                 TrayWin32.AppendMenuW(hMenu, TrayWin32.MF_STRING, UIntPtr(uint64 menuCmdOpenSettings), "Bảng điều khiển & Cài đặt...") |> ignore
                 TrayWin32.AppendMenuW(hMenu, TrayWin32.MF_STRING, UIntPtr(uint64 menuCmdOpenAbout), "Thông tin BambooMintKey...") |> ignore
 
-                let hWndFore = TrayWin32.GetForegroundWindow()
-                if hWndFore <> IntPtr.Zero then TrayWin32.SetForegroundWindow(hWndFore) |> ignore
+                // Đưa hMsgWnd lên làm Foreground Window theo đúng chuẩn Microsoft KB135788 để nhận sự kiện click-away
+                if hMsgWnd <> IntPtr.Zero then
+                    TrayWin32.SetForegroundWindow(hMsgWnd) |> ignore
 
                 let cmd = TrayWin32.TrackPopupMenuEx(hMenu, TrayWin32.TPM_RETURNCMD ||| TrayWin32.TPM_RIGHTBUTTON, pt.X, pt.Y, hMsgWnd, IntPtr.Zero)
+
+                // Theo chuẩn Microsoft KB135788, gửi WM_NULL sau TrackPopupMenu
+                if hMsgWnd <> IntPtr.Zero then
+                    TrayWin32.PostMessageW(hMsgWnd, TrayWin32.WM_NULL, UIntPtr.Zero, IntPtr.Zero) |> ignore
+
                 if cmd <> 0u then
                     match cmd with
                     | c when c = menuCmdToggleVn ->
@@ -485,6 +589,7 @@ type TrayIconManager(onOpenSettings: unit -> unit, onOpenAbout: unit -> unit) =
                         Dispatcher.UIThread.Post(Action(onOpenAbout))
                     | _ -> ()
             finally
+                isMenuOpen <- false
                 TrayWin32.DestroyMenu(hMenu) |> ignore
 
     let updateTrayIconImage (isVn: bool) =
@@ -507,7 +612,10 @@ type TrayIconManager(onOpenSettings: unit -> unit, onOpenAbout: unit -> unit) =
             isIconAdded <- false
 
     let wndProc (hWnd: IntPtr) (msg: uint32) (wParam: UIntPtr) (lParam: IntPtr) : IntPtr =
-        if msg = TrayWin32.WM_TRAYCALLBACK then
+        if msg = TrayWin32.WM_CANCELMODE then
+            TrayWin32.EndMenu() |> ignore
+            IntPtr.Zero
+        elif msg = TrayWin32.WM_TRAYCALLBACK then
             let mouseMsg = uint32 (lParam.ToInt64() &&& 0xFFFFL)
             if mouseMsg = TrayWin32.WM_LBUTTONUP then
                 // Click chuột trái: Đảo nhanh V/E
@@ -550,7 +658,7 @@ type TrayIconManager(onOpenSettings: unit -> unit, onOpenAbout: unit -> unit) =
         hIconE <- TrayIconGdi.createLetterIcon("E")
         currentModeVn <- ConfigStore.getIsVietnameseMode()
 
-        // 1. Tạo Message-Only Window
+        // 1. Tạo Message/Receiver Window (Top-level unowned hidden window để hỗ trợ SetForegroundWindow)
         let className = "BambooMintKey_Tray_MsgWnd_" + Guid.NewGuid().ToString("N")
         wndProcDelegate <- TrayWin32.WNDPROC(wndProc)
 
@@ -563,8 +671,7 @@ type TrayIconManager(onOpenSettings: unit -> unit, onOpenAbout: unit -> unit) =
 
         let atom = TrayWin32.RegisterClassExW(&wc)
         if atom <> 0us then
-            // HWND_MESSAGE = -3
-            hMsgWnd <- TrayWin32.CreateWindowExW(0u, className, "BambooMintKey_Tray_MsgWnd", 0u, 0, 0, 0, 0, IntPtr(-3), IntPtr.Zero, IntPtr.Zero, IntPtr.Zero)
+            hMsgWnd <- TrayWin32.CreateWindowExW(0u, className, "BambooMintKey_Tray_MsgWnd", 0u, 0, 0, 0, 0, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero)
 
         // 2. Cấu hình NOTIFYICONDATAW
         nid.cbSize <- uint32 (Marshal.SizeOf<TrayWin32.NOTIFYICONDATAW>())
