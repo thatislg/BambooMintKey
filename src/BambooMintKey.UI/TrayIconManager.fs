@@ -425,7 +425,7 @@ type TrayIconManager(onOpenSettings: unit -> unit, onOpenAbout: unit -> unit) =
                 let enFlag = if cfg.EnableEnglishBacktracking then TrayWin32.MF_CHECKED else 0u
                 TrayWin32.AppendMenuW(hMenu, TrayWin32.MF_STRING ||| freeFlag, UIntPtr(uint64 menuCmdFreeTone), "Cho phép bỏ dấu tự do") |> ignore
                 TrayWin32.AppendMenuW(hMenu, TrayWin32.MF_STRING ||| undoFlag, UIntPtr(uint64 menuCmdRepeatUndo), "Gõ lặp dấu để khôi phục (ss -> s)") |> ignore
-                TrayWin32.AppendMenuW(hMenu, TrayWin32.MF_STRING ||| wFlag, UIntPtr(uint64 menuCmdLeadingW), "Phím 'w' đầu từ thành 'ư' (w -> ư)") |> ignore
+                TrayWin32.AppendMenuW(hMenu, TrayWin32.MF_STRING ||| wFlag, UIntPtr(uint64 menuCmdLeadingW), "Phím 'w' thành 'ư' ở mọi vị trí (w -> ư, tw -> tư)") |> ignore
                 TrayWin32.AppendMenuW(hMenu, TrayWin32.MF_STRING ||| enFlag, UIntPtr(uint64 menuCmdEnglishBacktrack), "Tự động nhận diện từ tiếng Anh") |> ignore
 
                 TrayWin32.AppendMenuW(hMenu, TrayWin32.MF_SEPARATOR, UIntPtr.Zero, String.Empty) |> ignore

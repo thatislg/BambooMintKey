@@ -649,7 +649,7 @@ public static unsafe class SharedMemoryManager
     }
 
     /// <summary>
-    /// Cho phép phím 'w' đứng đầu từ biến thành 'ư' (True: w -> ư, False: w -> w).
+    /// Cho phép phím 'w' biến thành 'ư' ở mọi vị trí (đầu từ hoặc sau phụ âm đầu hợp lệ: tw -> tư) (True: w -> ư, False: w -> w).
     /// </summary>
     public static bool AllowLeadingWAsU
     {

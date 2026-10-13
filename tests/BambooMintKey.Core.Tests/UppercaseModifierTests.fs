@@ -178,3 +178,85 @@ module UppercaseModifierTests =
         let config = { EngineConfig.Default with AllowLeadingWAsU = false }
         let result = typeWord input config
         Assert.Equal(expected, result)
+
+    // =========================================================================
+    // Nhóm 8c: Phím 'w' ở mọi vị trí -> 'ư' (sau phụ âm đầu hợp lệ)
+    // =========================================================================
+
+    [<Theory>]
+    [<InlineData("tw", "tư")>]
+    [<InlineData("thw", "thư")>]
+    [<InlineData("nhw", "như")>]
+    [<InlineData("nhwng", "nhưng")>]
+    [<InlineData("trwng", "trưng")>]
+    [<InlineData("trwowng", "trương")>]
+    [<InlineData("trwowngf", "trường")>]
+    [<InlineData("hwowngr", "hưởng")>]
+    [<InlineData("ngwowif", "người")>]
+    [<InlineData("ddw", "đư")>]
+    [<InlineData("gwf", "gừ")>]
+    [<InlineData("giwx", "giữ")>]
+    [<InlineData("swa", "sưa")>]
+    [<InlineData("mwa", "mưa")>]
+    [<InlineData("Trw", "Trư")>]
+    [<InlineData("Tw", "Tư")>]
+    [<InlineData("TRW", "TRƯ")>]
+    [<InlineData("twf", "từ")>]
+    let ``8c. w after valid initial maps to ư when AllowLeadingWAsU is on`` (input: string, expected: string) =
+        let config = { EngineConfig.Default with AllowLeadingWAsU = true }
+        Assert.Equal(expected, typeWord input config)
+
+    [<Theory>]
+    [<InlineData("tww", "tw")>]       // lặp w hoàn tác về w thô
+    [<InlineData("thww", "thw")>]
+    [<InlineData("kw", "kw")>]        // k không đi với ư
+    [<InlineData("qw", "qw")>]        // q/qu không đi với ư
+    [<InlineData("quw", "quw")>]
+    [<InlineData("ghw", "ghw")>]      // gh không đi với ư
+    [<InlineData("nghw", "nghw")>]    // ngh không đi với ư
+    [<InlineData("tiw", "tiw")>]      // đã có nguyên âm không nhận w -> giữ nguyên
+    [<InlineData("tuw", "tư")>]       // hành vi cũ không đổi
+    [<InlineData("tuwowng", "tương")>]
+    let ``8d. w mid-word keeps legacy behavior and is protected by spelling rules`` (input: string, expected: string) =
+        let config = { EngineConfig.Default with AllowLeadingWAsU = true }
+        Assert.Equal(expected, typeWord input config)
+
+    [<Theory>]
+    [<InlineData("tw", "tw")>]
+    [<InlineData("thw", "thw")>]
+    [<InlineData("trwowng", "trwowng")>]
+    [<InlineData("tuw", "tư")>]
+    let ``8e. w after consonant stays literal when AllowLeadingWAsU is off`` (input: string, expected: string) =
+        let config = { EngineConfig.Default with AllowLeadingWAsU = false }
+        Assert.Equal(expected, typeWord input config)
+
+    // =========================================================================
+    // Nhóm 8f: Bảo vệ từ tiếng Anh khi bật 'w -> ư' ở mọi vị trí
+    // (backtrack bằng từ điển 20k + gõ lặp 'ww' để khôi phục)
+    // =========================================================================
+
+    [<Theory>]
+    [<InlineData("twin", "twin")>]
+    [<InlineData("twins", "twins")>]
+    [<InlineData("twist", "twist")>]
+    [<InlineData("twelve", "twelve")>]
+    [<InlineData("two", "two")>]
+    [<InlineData("swim", "swim")>]
+    [<InlineData("swing", "swing")>]
+    [<InlineData("sweet", "sweet")>]
+    [<InlineData("dwell", "dwell")>]
+    [<InlineData("Twin", "Twin")>]
+    [<InlineData("TWIN", "TWIN")>]
+    [<InlineData("Swim", "Swim")>]
+    let ``8f. English words with consonant plus w are kept by dictionary backtracking`` (input: string, expected: string) =
+        let config = { EngineConfig.Default with AllowLeadingWAsU = true }
+        Assert.Equal(expected, typeWord input config)
+
+    [<Theory>]
+    [<InlineData("twwin", "twin")>]      // tww -> tw, rồi gõ tiếp tiếng Anh
+    [<InlineData("swwim", "swim")>]
+    [<InlineData("dwwarf", "dwarf")>]    // dwarf bị đọc thành 'dừa' (âm tiết hợp lệ) -> cứu bằng ww
+    [<InlineData("swisss", "swiss")>]    // 'ss' lặp hoàn tác dấu sắc -> cần 'sss' (quy ước repeat-undo sẵn có)
+    let ``8g. Repeat-key undo restores English words that Vietnamese reading would capture`` (input: string, expected: string) =
+        let config = { EngineConfig.Default with AllowLeadingWAsU = true }
+        Assert.Equal(expected, typeWord input config)

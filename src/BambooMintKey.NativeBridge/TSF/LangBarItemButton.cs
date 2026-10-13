@@ -411,7 +411,7 @@ public static unsafe class LangBarItemButton
         AddMenuItemText(menuVTable, pMenu, MenuCommands.ToggleRepeatKeyUndo, repeatUndoFlag, "Gõ lặp dấu để khôi phục (ss -> s)");
 
         uint leadingWFlag = SharedMemoryManager.AllowLeadingWAsU ? TsfMenuFlags.TfLbMenuFlagChecked : 0;
-        AddMenuItemText(menuVTable, pMenu, MenuCommands.ToggleLeadingWAsU, leadingWFlag, "Phím 'w' đầu từ thành 'ư' (w -> ư)");
+        AddMenuItemText(menuVTable, pMenu, MenuCommands.ToggleLeadingWAsU, leadingWFlag, "Phím 'w' thành 'ư' ở mọi vị trí (w -> ư, tw -> tư)");
 
         uint freeToneFlag = SharedMemoryManager.AllowFreeTonePlacement ? TsfMenuFlags.TfLbMenuFlagChecked : 0;
         AddMenuItemText(menuVTable, pMenu, MenuCommands.ToggleFreeTonePlacement, freeToneFlag, "Cho phép bỏ dấu tự do");
@@ -529,7 +529,7 @@ public static unsafe class LangBarItemButton
             AppendMenuW(hMenu, mfString | repeatUndo, MenuCommands.ToggleRepeatKeyUndo, "Gõ lặp dấu để khôi phục (ss -> s)");
 
             uint leadingW = SharedMemoryManager.AllowLeadingWAsU ? mfChecked : 0;
-            AppendMenuW(hMenu, mfString | leadingW, MenuCommands.ToggleLeadingWAsU, "Phím 'w' đầu từ thành 'ư' (w -> ư)");
+            AppendMenuW(hMenu, mfString | leadingW, MenuCommands.ToggleLeadingWAsU, "Phím 'w' thành 'ư' ở mọi vị trí (w -> ư, tw -> tư)");
 
             uint freeTone = SharedMemoryManager.AllowFreeTonePlacement ? mfChecked : 0;
             AppendMenuW(hMenu, mfString | freeTone, MenuCommands.ToggleFreeTonePlacement, "Cho phép bỏ dấu tự do");

@@ -94,6 +94,43 @@ module TelexEngine =
             let b, m, _ = decomposeChar c
             b = baseChar && m = modifier)
 
+    /// Các phụ âm đầu hợp lệ khi đi với nguyên âm 'ư' (chuỗi rỗng = 'w' đầu từ).
+    /// Loại trừ k, qu, gh, ngh, p vì chính tả tiếng Việt không có kư/quư/ghư/nghư/pư.
+    let private initialsAllowingHornU : Set<string> =
+        set [
+            ""; "b"; "c"; "ch"; "d"; "đ"; "g"; "gi"; "h"; "kh"; "l"; "m"
+            "n"; "ng"; "nh"; "ph"; "r"; "s"; "t"; "th"; "tr"; "v"; "x"
+        ]
+
+    let private initialAllowsHornU (initial: string) : bool =
+        initialsAllowingHornU.Contains (initial.ToLowerInvariant())
+
+    /// Phím 'w' (AllowLeadingWAsU) khi chưa có nguyên âm nào nhận nó: 'w' -> nguyên âm 'ư' (u + horn).
+    /// Áp dụng ở mọi vị trí thay vì chỉ đầu từ: w -> ư, tw -> tư, nhw -> như, trwowngf -> trường.
+    /// Chỉ kích hoạt khi âm tiết hiện tại mới có phụ âm đầu hợp lệ (chưa có nguyên âm, chưa có phụ âm cuối).
+    let private tryHornUAfterInitial (c: char) (state: WordState) (config: EngineConfig) : Syllable option =
+        if not config.AllowLeadingWAsU || Char.ToLowerInvariant c <> 'w' then None
+        else
+            let horn = if Char.IsUpper c then "Ư" else "ư"
+            match state.Syllable with
+            | Some s when String.IsNullOrEmpty s.VowelNucleus
+                          && String.IsNullOrEmpty s.FinalConsonant
+                          && initialAllowsHornU s.InitialConsonant ->
+                // Âm tiết chỉ có phụ âm đầu đã được nhận diện (vd 'đ' sau 'dd')
+                Some { s with VowelNucleus = horn; Modifiers = ('w', Modifier.Horn) :: s.Modifiers }
+            | None ->
+                let initial = String(Array.ofList state.RawKeys)
+                if initialAllowsHornU initial then
+                    Some {
+                        InitialConsonant = initial
+                        VowelNucleus = horn
+                        FinalConsonant = ""
+                        Tone = Tone.None
+                        Modifiers = [ ('w', Modifier.Horn) ]
+                    }
+                else None
+            | _ -> None
+
     let private handleCharInput (c: char) (state: WordState) (config: EngineConfig) : WordState * EngineAction =
         let lowerChar = Char.ToLowerInvariant c
         let newRaw = state.RawKeys @ [ c ]
@@ -246,8 +283,10 @@ module TelexEngine =
 
             | None ->
                 // 4. Thử áp dụng biến đổi lên State Syllable hiện có (Luồng gia tăng Telex chuẩn)
+                let hornUOpt = tryHornUAfterInitial c state config
                 let modifiedSyllableOpt =
                     match state.Syllable with
+                    | Some _ when hornUOpt.IsSome -> hornUOpt
                     | Some currentSyl ->
                         match ToneRules.keyToTone c with
                         | Some tone when not (String.IsNullOrEmpty currentSyl.VowelNucleus) ->
@@ -290,16 +329,10 @@ module TelexEngine =
                                 Tone = Tone.None
                                 Modifiers = [ ('d', Modifier.DBar) ]
                             }
-                        elif config.AllowLeadingWAsU && lowerChar = 'w' && state.RawKeys.IsEmpty then
-                            // Phím 'w' đứng đầu từ -> nguyên âm 'ư' (khi bật AllowLeadingWAsU).
-                            // w -> ư, rồi wa -> ưa, wu -> ưu, wi -> ưi, ws -> ứ.
-                            Some {
-                                InitialConsonant = ""
-                                VowelNucleus = if Char.IsUpper c then "Ư" else "ư"
-                                FinalConsonant = ""
-                                Tone = Tone.None
-                                Modifiers = [ ('w', Modifier.Horn) ]
-                            }
+                        elif hornUOpt.IsSome then
+                            // Phím 'w' không gắn được vào nguyên âm nào -> nguyên âm 'ư' (khi bật AllowLeadingWAsU),
+                            // ở đầu từ (w -> ư, wa -> ưa, ws -> ứ) hoặc sau phụ âm đầu (tw -> tư, nhwng -> nhưng).
+                            hornUOpt
                         else None
 
                 match modifiedSyllableOpt with
