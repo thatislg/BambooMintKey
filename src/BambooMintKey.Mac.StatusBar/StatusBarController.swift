@@ -9,7 +9,7 @@ import Carbon
 /// - Icon động: chữ "V" (tiếng Việt) hoặc "E" (tiếng Anh) màu trắng trên nền xanh
 ///   (#16a34a) — khớp màu thương hiệu trên Linux/Windows — thể hiện trạng thái gõ hiện tại.
 /// - Menu chứa toàn bộ tùy chọn gõ (tương đương tab "Nâng cao" của UI.Mac):
-///   chuyển V/E, kiểu đặt dấu, bỏ dấu tự do, lặp phím undo, phím w đầu từ,
+///   chuyển V/E, kiểu đặt dấu, bỏ dấu tự do, lặp phím undo, phím w thành ư ở mọi vị trí,
 ///   khôi phục từ tiếng Anh; kèm "Cài đặt…" (mở UI.Mac) và "Thông tin…".
 /// - Đồng bộ hai chiều với IMK Service qua `NSDistributedNotificationCenter`
 ///   và tệp `config.json` (nguồn chân lý).
@@ -132,7 +132,7 @@ final class StatusBarController: NSObject {
         repeatUndoItem.state = settings.allowRepeatKeyUndo ? .on : .off
         menu.addItem(repeatUndoItem)
 
-        let leadingWItem = NSMenuItem(title: "Phím w đầu từ thành ư", action: #selector(toggleLeadingW), keyEquivalent: "")
+        let leadingWItem = NSMenuItem(title: "Phím w thành ư ở mọi vị trí", action: #selector(toggleLeadingW), keyEquivalent: "")
         leadingWItem.target = self
         leadingWItem.state = settings.allowLeadingWAsU ? .on : .off
         menu.addItem(leadingWItem)
