@@ -1,0 +1,182 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "docs/6.Benchmark/**"
+      - ".github/workflows/deploy-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build Site Structure
+        run: |
+          mkdir -p _site/benchmark/charts
+          
+          # 1. Benchmark Dashboard at /benchmark/
+          cp docs/6.Benchmark/results/dashboard.html _site/benchmark/index.html
+          cp docs/6.Benchmark/results/benchmark_all.csv _site/benchmark/
+          cp docs/6.Benchmark/results/BENCHMARK_REPORT_TIER2_NOTEPAD.md _site/benchmark/
+          if [ -d "docs/6.Benchmark/results/charts" ]; then
+            cp -r docs/6.Benchmark/results/charts/* _site/benchmark/charts/
+          fi
+          
+          # 2. Main Root Landing Page at / (Kept ready for future product website)
+          cat << 'EOF' > _site/index.html
+          <!DOCTYPE html>
+          <html lang="vi">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>BambooMintKey - Modern Vietnamese IME</title>
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+            <style>
+              :root {
+                --bg: #0b0f19;
+                --card-bg: #111827;
+                --border: #374151;
+                --text: #f9fafb;
+                --text-muted: #9ca3af;
+                --bamboo: #10b981;
+                --bamboo-hover: #34d399;
+              }
+              * { box-sizing: border-box; margin: 0; padding: 0; }
+              body {
+                font-family: 'Inter', sans-serif;
+                background-color: var(--bg);
+                color: var(--text);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                padding: 24px;
+              }
+              .card {
+                background: var(--card-bg);
+                border: 1px solid var(--border);
+                border-radius: 20px;
+                padding: 48px 40px;
+                max-width: 640px;
+                text-align: center;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+              }
+              .badge {
+                display: inline-block;
+                background: rgba(16, 185, 129, 0.15);
+                color: var(--bamboo);
+                border: 1px solid rgba(16, 185, 129, 0.4);
+                font-size: 12px;
+                font-weight: 700;
+                padding: 6px 14px;
+                border-radius: 9999px;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                margin-bottom: 20px;
+              }
+              h1 {
+                font-size: 34px;
+                font-weight: 800;
+                letter-spacing: -0.02em;
+                margin-bottom: 14px;
+                background: linear-gradient(135deg, #a7f3d0 0%, #10b981 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+              }
+              p {
+                color: var(--text-muted);
+                font-size: 15px;
+                line-height: 1.7;
+                margin-bottom: 32px;
+              }
+              .btn-group {
+                display: flex;
+                gap: 14px;
+                justify-content: center;
+                flex-wrap: wrap;
+              }
+              .btn {
+                padding: 13px 26px;
+                border-radius: 12px;
+                font-size: 14px;
+                font-weight: 600;
+                text-decoration: none;
+                transition: all 0.2s ease;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+              }
+              .btn-primary {
+                background: var(--bamboo);
+                color: #0b0f19;
+              }
+              .btn-primary:hover {
+                background: var(--bamboo-hover);
+                transform: translateY(-2px);
+                box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+              }
+              .btn-secondary {
+                background: #1f2937;
+                color: var(--text);
+                border: 1px solid var(--border);
+              }
+              .btn-secondary:hover {
+                background: #374151;
+                transform: translateY(-2px);
+              }
+              footer {
+                margin-top: 36px;
+                font-size: 12px;
+                color: #6b7280;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="card">
+              <div class="badge">Open Source Project</div>
+              <h1>BambooMintKey</h1>
+              <p>Bộ gõ tiếng Việt thế hệ mới với kiến trúc Text Services Framework (TSF) thuần túy, an toàn, mượt mà và bảo vệ từ tiếng Anh thông minh trên Windows, macOS và Linux.</p>
+              
+              <div class="btn-group">
+                <a class="btn btn-primary" href="benchmark/">📊 Xem Bảng Benchmark Bộ Gõ</a>
+                <a class="btn btn-secondary" href="https://github.com/thatislg/BambooMintKey" target="_blank" rel="noopener">⭐ Mã Nguồn Trên GitHub</a>
+              </div>
+
+              <footer>
+                © 2026 BambooMintKey Project &bull; Powered by GitHub Pages
+              </footer>
+            </div>
+          </body>
+          </html>
+          EOF
+
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
