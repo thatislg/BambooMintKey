@@ -1,0 +1,42 @@
+==========================================================================
+VIETNAMESE IME BENCHMARK - KẾT QUẢ KIỂM THỬ CHI TIẾT
+==========================================================================
+Thời điểm chạy    : 2026-10-14 22:26:48
+Bộ gõ kiểm thử    : OpenKey (Kiến trúc: Hook)
+Ứng dụng kiểm thử : notepad
+Tốc độ phím gõ    : 15 ms/phím (~66.7 phím/giây)
+Tệp kịch bản      : passage_500.cases
+Thời gian thực tế : 190.54 s (Thời gian lý thuyết: 64 s | Độ trễ Overhead: 197.7 %)
+Tốc độ tương đương: 183.6 WPM
+
+--------------------------------------------------------------------------
+TỔNG HỢP KẾT QUẢ ĐỘ CHÍNH XÁC (ACCURACY)
+--------------------------------------------------------------------------
+Tổng số từ kiểm thử : 583 từ
+Tổng số từ chính xác: 572 từ
+Tổng số từ sai/hỏng : 11 từ
+Độ đúng chung (All) : 98.11 %
+
+* Tiếng Việt (VN)   : 495 từ | Đúng: 495 | Sai: 0 | Độ đúng: 100 %
+* Tiếng Anh  (EN)   : 88 từ | Đúng: 77 | Sai: 11 | Độ đúng: 87.5 %
+
+
+--------------------------------------------------------------------------
+DANH SÁCH TOÀN BỘ CÁC TỪ BỊ LỖI (ERRORS - 11 TỪ)
+--------------------------------------------------------------------------
+[Tiếng Anh] Từ #200 (phím 'buffer,'): mong đợi='buffer,', thực tế='bufer,'
+[Tiếng Anh] Từ #206 (phím 'test,'): mong đợi='test,', thực tế='tét,'
+[Tiếng Anh] Từ #209 (phím 'post,'): mong đợi='post,', thực tế='pót,'
+[Tiếng Anh] Từ #212 (phím 'loop;'): mong đợi='loop;', thực tế='lôp;'
+[Tiếng Anh] Từ #229 (phím '[Shift+']buffer[Shift+'],'): mong đợi='"buffer",', thực tế='"bufer",'
+[Tiếng Anh] Từ #230 (phím '[Shift+']case[Shift+']'): mong đợi='"case"', thực tế='"case|'
+[Tiếng Anh] Từ #286 (phím '([Shift+a]uto-restore)'): mong đợi='(Auto-restore)', thực tế='(Auto-rétore)'
+[Tiếng Anh] Từ #309 (phím 'issue,'): mong đợi='issue,', thực tế='isue,'
+[Tiếng Anh] Từ #317 (phím 'offline,'): mong đợi='offline,', thực tế='ofline,'
+[Tiếng Anh] Từ #437 (phím '([Shift+w][Shift+p][Shift+m]).'): mong đợi='(WPM).', thực tế='(ƯPM).'
+[Tiếng Anh] Từ #493 (phím '[Shift+o]ffice,'): mong đợi='Office,', thực tế='Ofice,'
+
+--------------------------------------------------------------------------
+VĂN BẢN THỰC TẾ THU ĐƯỢC TỪ ỨNG DỤNG (CLIPBOARD OUTPUT)
+--------------------------------------------------------------------------
+Tiếng Việt là một ngôn ngữ giàu đẹp, với hệ thống thanh điệu phong phú và các cụm nguyên âm đa dạng. Trải qua hơn ba mươi năm phát triển của công nghệ thông tin tại Việt Nam, bài toán nhập liệu tiếng Việt trên máy tính luôn là một thách thức kỹ thuật đầy thú vị. Từ những ngày đầu của "VietKey" hay "UniKey" cho đến các bộ gõ hiện đại chạy trên đa nền tảng, các thế hệ lập trình viên đã không ngừng tìm kiếm giải pháp tối ưu nhất nhằm mang lại tốc độ gõ mượt mà và độ chính xác tuyệt đối trong môi trường làm việc ngày nay. Người dùng không chỉ soạn thảo văn bản đơn thuần, mà còn lập trình trên các công cụ như VS Code, soạn code trên terminal, làm việc trên browser và network, trao đổi trên Slack, Discord hay Teams. Khi làm việc, họ thường xuyên phải gõ xen kẽ giữa tiếng Việt và các từ vựng tiếng Anh (Mixed language typing). Nếu bộ gõ không có khả năng nhận diện ngữ cảnh thông minh (Smart English spell-check), các từ tiếng Anh thông dụng như: process, system, bufer, software, hardware, framework, database, server, tét, case, fast, pót, free, và lôp; sẽ rất dễ bị dính dấu sai lệch. Chẳng hạn, các từ tiếng Anh như "process", "bufer", "case| và "free" đòi hỏi bộ gõ phải tự phục hồi thông minh. Người dùng sẽ vô cùng khó chịu nếu phải liên tục bấm phím Backspace để xoá đi gõ lại, hoặc phải bật tắt thủ công giữa hai chế độ V và E. Do đó, tính năng tự động phục hồi từ tiếng Anh (Auto-rétore) khi soạn thảo các từ khoá như: function, class, return, string, syntax, context, index, commit, branch, merge, push, pull, request, release, debug, isue, hotfix, build, deploy, hook, interface, default, online, ofline, và format; chính là thước đo đẳng cấp của một bộ gõ tiếng Việt hiện đại. Sự phân mảnh của các giao thức nhập liệu như: Text Services Framework (TSF) trên Windows, Input Method Kit trên macOS, hay Fcitx và IBus trên Linux; đòi hỏi một kiến trúc bộ gõ phải được thiết kế khoa học và tách bạch rõ ràng giữa thuật toán xử lý ngôn ngữ và tầng giao tiếp hệ điều hành. Khi một từ được người dùng gõ vào, hệ thống phải xử lý ngay lập tức trong vài phần triệu giây để tránh hiện tượng trễ phím hoặc nuốt phím khi người dùng gõ với tốc độ cao trên một trăm từ mỗi phút (ƯPM). Đồng thời, các dự án mã nguồn mở hiện đại như BambooMintKey đang tiếp tục khẳng định vị thế tiên phong bằng việc áp dụng thuật toán cây tiền tố (Trie), mô hình ngữ nghĩa và kiến trúc TSF thuần tuý, giúp tương thích hoàn hảo với các ứng dụng khó tính nhất như Microsoft Ofice, Adobe Photoshop, các game đồ hoạ khủng, và các trình duyệt Chrome, Edge, Firefox. Khát vọng làm chủ công nghệ và nâng tầm sản phẩm phần mềm quốc nội luôn là ngọn lửa thôi thúc các thế hệ kỹ sư không ngừng đổi mới, sáng tạo. Chúng ta tin tưởng rằng, với tinh thần cởi mở, chia sẻ và cùng nhau hoàn thiện, bộ gõ tiếng Việt sẽ ngày càng hoàn mỹ, đáp ứng mọi yêu cầu khắt khe nhất của thời đại công nghệ số hiện đại hôm nay. 

@@ -1,0 +1,13 @@
+Timestamp,IME,Architecture,App,DelayMs,KeysPerSec,TotalWords,Passed,Failed,Accuracy,TotalVN,PassedVN,FailedVN,AccuracyVN,TotalEN,PassedEN,FailedEN,AccuracyEN,WPM,CasesFile
+10/14/2026 18:22,BambooMintKey,TSF,notepad,60,16.7,598,555,43,92.81,508,503,5,99.02,90,52,38,57.78,109.9,passage_500.cases
+10/14/2026 18:27,BambooMintKey,TSF,notepad,45,22.2,598,555,43,92.81,508,503,5,99.02,90,52,38,57.78,133.2,passage_500.cases
+10/14/2026 18:31,BambooMintKey,TSF,notepad,30,33.3,598,555,43,92.81,508,503,5,99.02,90,52,38,57.78,168.8,passage_500.cases
+10/14/2026 18:37,UniKey,Hook,notepad,60,16.7,598,578,20,96.66,508,497,11,97.83,90,81,9,90,109.5,passage_500.cases
+10/14/2026 18:42,UniKey,Hook,notepad,45,22.2,598,578,20,96.66,508,497,11,97.83,90,81,9,90,132,passage_500.cases
+10/14/2026 18:47,UniKey,Hook,notepad,30,33.3,598,578,20,96.66,508,497,11,97.83,90,81,9,90,160.8,passage_500.cases
+10/14/2026 18:54,EVKey,Hook,notepad,60,16.7,598,550,48,91.97,508,499,9,98.23,90,51,39,56.67,109.6,passage_500.cases
+10/14/2026 18:59,EVKey,Hook,notepad,45,22.2,598,550,48,91.97,508,499,9,98.23,90,51,39,56.67,132.1,passage_500.cases
+10/14/2026 19:03,EVKey,Hook,notepad,30,33.3,598,550,48,91.97,508,499,9,98.23,90,51,39,56.67,161.4,passage_500.cases
+10/14/2026 19:10,Windows Built-in Telex,TSF,notepad,60,16.7,598,551,47,92.14,508,501,7,98.62,90,50,40,55.56,110.1,passage_500.cases
+10/14/2026 19:14,Windows Built-in Telex,TSF,notepad,45,22.2,598,551,47,92.14,508,501,7,98.62,90,50,40,55.56,134,passage_500.cases
+10/14/2026 19:18,Windows Built-in Telex,TSF,notepad,30,33.3,598,551,47,92.14,508,501,7,98.62,90,50,40,55.56,168.4,passage_500.cases

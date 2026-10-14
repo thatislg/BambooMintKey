@@ -41,6 +41,8 @@
     <Compile Include="BenchmarkTests.fs" />
     <Compile Include="HotkeyFormatterTests.fs" />
     <Compile Include="AutoCapitalizationTests.fs" />
+    <Compile Include="GoldenBenchmarkTests.fs" />
+    <Compile Include="CorpusBenchmarkTests.fs" />
   </ItemGroup>
 
 </Project>

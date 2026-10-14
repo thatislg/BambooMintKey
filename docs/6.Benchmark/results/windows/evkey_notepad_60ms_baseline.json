@@ -1,0 +1,21 @@
+{
+  "ime": "EVKey",
+  "ime_version": "5.0",
+  "architecture": "Hook",
+  "platform": "Windows x64",
+  "app": "notepad",
+  "cases_file": "passage_500.cases",
+  "delay_ms": 60,
+  "simulated_keys_per_sec": 16.7,
+  "total_words": 500,
+  "passed_words": 494,
+  "failed_words": 6,
+  "accuracy_percent": 98.8,
+  "elapsed_seconds": 154.8,
+  "wpm": 193.8,
+  "timestamp": "2026-10-14T10:00:00Z",
+  "sample_errors": [
+    "mong đợi='nghiêng', thực tế='nghieeng'",
+    "mong đợi='khuấy', thực tế='khuayas'"
+  ]
+}

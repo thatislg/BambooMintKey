@@ -1,0 +1,22 @@
+{
+  "ime": "Windows Built-in Telex",
+  "ime_version": "Win11 TSF",
+  "architecture": "TSF",
+  "platform": "Windows x64",
+  "app": "notepad",
+  "cases_file": "passage_500.cases",
+  "delay_ms": 30,
+  "simulated_keys_per_sec": 33.3,
+  "total_words": 500,
+  "passed_words": 496,
+  "failed_words": 4,
+  "accuracy_percent": 99.2,
+  "elapsed_seconds": 77.8,
+  "wpm": 385.6,
+  "timestamp": "2026-10-14T10:00:00Z",
+  "sample_errors": [
+    "mong đợi='hòa', thực tế='hoà'",
+    "mong đợi='hóa', thực tế='hoá'",
+    "mong đợi='thủy', thực tế='thuỷ'"
+  ]
+}

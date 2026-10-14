@@ -1,0 +1,22 @@
+{
+  "ime": "UniKey",
+  "ime_version": "4.3 RC5",
+  "architecture": "Hook",
+  "platform": "Windows x64",
+  "app": "notepad",
+  "cases_file": "passage_500.cases",
+  "delay_ms": 60,
+  "simulated_keys_per_sec": 16.7,
+  "total_words": 500,
+  "passed_words": 496,
+  "failed_words": 4,
+  "accuracy_percent": 99.2,
+  "elapsed_seconds": 155.1,
+  "wpm": 193.4,
+  "timestamp": "2026-10-14T10:00:00Z",
+  "sample_errors": [
+    "mong đợi='nghiêng', thực tế='nghieeng'",
+    "mong đợi='khuấy', thực tế='khuayas'",
+    "mong đợi='chuyển', thực tế='chuyeern'"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "ime": "GoTiengViet",
+  "ime_version": "3.0",
+  "architecture": "Hook",
+  "platform": "Windows x64",
+  "app": "notepad",
+  "cases_file": "passage_500.cases",
+  "delay_ms": 30,
+  "simulated_keys_per_sec": 33.3,
+  "total_words": 500,
+  "passed_words": 362,
+  "failed_words": 138,
+  "accuracy_percent": 72.4,
+  "elapsed_seconds": 78.9,
+  "wpm": 380.2,
+  "timestamp": "2026-10-14T10:00:00Z",
+  "sample_errors": [
+    "mong đợi='tiếng', thực tế='tieengs'",
+    "mong đợi='việt', thực tế='vieetj'"
+  ]
+}

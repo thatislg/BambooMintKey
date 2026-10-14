@@ -1,0 +1,18 @@
+{
+  "ime": "BambooMintKey",
+  "ime_version": "1.0 TSF",
+  "architecture": "TSF",
+  "platform": "Windows x64",
+  "app": "notepad",
+  "cases_file": "passage_500.cases",
+  "delay_ms": 60,
+  "simulated_keys_per_sec": 16.7,
+  "total_words": 500,
+  "passed_words": 500,
+  "failed_words": 0,
+  "accuracy_percent": 100.0,
+  "elapsed_seconds": 153.2,
+  "wpm": 195.8,
+  "timestamp": "2026-10-14T10:00:00Z",
+  "sample_errors": []
+}

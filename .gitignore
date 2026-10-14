@@ -34,6 +34,7 @@ $RECYCLE.BIN/
 
 ## Logs, Crash Dumps & Temp Files
 *.log
+!docs/6.Benchmark/results/logs/**/*.log
 *.tmp
 *.dmp
 _ReSharper*/

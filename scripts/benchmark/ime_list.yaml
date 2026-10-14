@@ -1,0 +1,23 @@
+# ==============================================================================
+# DANH SÁCH BỘ GÕ TIẾNG VIỆT KIỂM THỬ (BENCHMARK IME LIST)
+# Bạn có thể tự do thêm, bớt, đổi số thứ tự (id) và tên bộ gõ ở đây
+# ==============================================================================
+- id: 1
+  name: BambooMintKey
+  desc: TSF Native (Mã nguồn mở hiện đại)
+
+- id: 2
+  name: UniKey
+  desc: Win32 Hook (Phổ biến nhất)
+
+- id: 3
+  name: EVKey
+  desc: Win32 Hook (Tối ưu game & ứng dụng)
+
+- id: 4
+  name: OpenKey
+  desc: Win32 Hook (Mã nguồn mở đa nền tảng)
+
+- id: 5
+  name: Windows Built-in Telex
+  desc: TSF Native (Tích hợp sẵn Windows 10/11)

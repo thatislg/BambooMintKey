@@ -1,0 +1,112 @@
+# ==============================================================================
+# VIETNAMESE IME BENCHMARK - TIER 1: ENGINE GOLDEN TEST CASES
+# Định dạng: <kiểu gõ> | <chuỗi phím> | <kết quả mong đợi> | <nhóm> | <ghi chú>
+# Hỗ trợ token đặc biệt:
+#   <BS> : Phím Backspace
+#   <SPACE> : Khoảng trắng
+#   A / B : Chấp nhận cả 2 kết quả A hoặc B (Dual-Acceptance)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. ĐẶT DẤU THANH (tone_style): Kiểu mới vs Kiểu cũ & Cụm nguyên âm đóng/mở
+# ------------------------------------------------------------------------------
+telex | hoas      | hóa / hoá          | tone_style | Cụm mở oa: kiểu mới hóa, kiểu cũ hoá
+telex | hoaf      | hòa / hoà          | tone_style | Cụm mở oa: kiểu mới hòa, kiểu cũ hoà
+telex | xoef      | xòe / xoè          | tone_style | Cụm mở oe: kiểu mới xòe, kiểu cũ xoè
+telex | thuys     | thúy / thuý        | tone_style | Cụm mở uy: kiểu mới thúy, kiểu cũ thuý
+telex | hoar      | hỏa / hoả          | tone_style | Cụm mở oa: dấu hỏi
+telex | xoex      | xõe / xoẽ          | tone_style | Cụm mở oe: dấu ngã
+telex | thuyj     | thụy / thuỵ        | tone_style | Cụm mở uy: dấu nặng
+telex | thuas     | thúa / thuá        | tone_style | Cụm mở ua
+telex | hoans     | hoán               | tone_style | Cụm đóng o-a-n: dấu luôn trên nguyên âm chính a
+telex | toanf     | toàn               | tone_style | Cụm đóng o-a-n: dấu trên a
+telex | bieens    | biến               | tone_style | Cụm đóng i-ê-n: dấu trên ê
+telex | buoonf    | buồn               | tone_style | Cụm đóng u-ô-n: dấu trên ô
+telex | muownj    | mượn               | tone_style | Cụm đóng ư-ơ-n: dấu trên ơ
+telex | muowns    | mướn               | tone_style | Cụm đóng ư-ơ-n: dấu trên ơ
+telex | chuyenj   | chuyện             | tone_style | Cụm uyê có phụ âm cuối: dấu trên ê
+telex | tieengs   | tiếng              | tone_style | Cụm iê có phụ âm cuối: dấu trên ê
+telex | thuyets   | thuyết             | tone_style | Cụm uyê có phụ âm cuối: dấu trên ê
+
+# ------------------------------------------------------------------------------
+# 2. GÕ TẮT & NGUYÊN ÂM ĐÔI (shortcuts): w, uw, uow, dd, â, ê, ô, ă, ơ, ư
+# ------------------------------------------------------------------------------
+telex | w         | ư / w              | shortcuts | w đứng riêng (yêu cầu cấu hình AllowLeadingWAsU)
+telex | ws        | ứ / ws             | shortcuts | w đứng riêng thêm sắc -> ứ (khi bật AllowLeadingWAsU)
+telex | wf        | ừ / wf             | shortcuts | w đứng riêng thêm huyền -> ừ (khi bật AllowLeadingWAsU)
+telex | wa        | ưa / wa            | shortcuts | wa -> ưa (khi bật AllowLeadingWAsU)
+telex | tuw       | tư                 | shortcuts | uw sau phụ âm -> tư
+telex | nhwng     | nhưng / nhwng      | shortcuts | w sau phụ âm làm ư (khi bật AllowLeadingWAsU)
+telex | dduwowcj  | được               | shortcuts | Gõ tắt uow kết hợp dd
+telex | thuaanj   | thuận              | shortcuts | ua + an + j -> thuận
+telex | ddang     | đang               | shortcuts | dd -> đ
+telex | ddoor     | đổ                 | shortcuts | dd + oo + r -> đổ
+telex | duowis    | dưới               | shortcuts | uow + i + s -> dưới
+telex | dduwowngf | đường              | shortcuts | dd + uow + ng + f -> đường
+telex | phuowng   | phương             | shortcuts | ph + uow + ng -> phương
+telex | ruowuj    | rượu               | shortcuts | r + uow + u + j -> rượu
+telex | thuworng  | thưởng             | shortcuts | th + uow + ng + r -> thưởng
+telex | quyeets   | quyết              | shortcuts | qu + yee + t + s -> quyết
+telex | ddoong    | đông               | shortcuts | dd + oo + ng -> đông
+telex | ddawsc    | đắc                | shortcuts | dd + aw + s + c -> đắc
+
+# ------------------------------------------------------------------------------
+# 3. PHỤC HỒI LỖI & HOÀN TÁC (undo_recovery): Backspace, Undo lặp phím, Bỏ dấu tự do
+# ------------------------------------------------------------------------------
+telex | aa<BS>    | a                  | undo_recovery | â lùi 1 ký tự quay về a
+telex | ee<BS>    | e                  | undo_recovery | ê lùi 1 ký tự quay về e
+telex | oo<BS>    | o                  | undo_recovery | ô lùi 1 ký tự quay về o
+telex | dd<BS>    | d                  | undo_recovery | đ lùi 1 ký tự quay về d
+telex | thoong<BS>| thôn               | undo_recovery | thông lùi 1 ký tự về thôn
+telex | ddu<BS>   | đ                  | undo_recovery | đu lùi 1 ký tự về đ
+telex | mass      | mas                | undo_recovery | Lặp s hủy dấu sắc, rút về mas
+telex | toff      | tof                | undo_recovery | Lặp f hủy dấu huyền
+telex | luxx      | lux                | undo_recovery | Lặp x hủy dấu ngã
+telex | goxx      | gox                | undo_recovery | Lặp x hủy dấu ngã
+telex | horr      | hor                | undo_recovery | Lặp r hủy dấu hỏi
+telex | dajj      | daj                | undo_recovery | Lặp j hủy dấu nặng
+telex | ddd       | dd                 | undo_recovery | Lặp d hủy gạch ngang đ -> dd
+telex | xaaa      | xaa                | undo_recovery | Lặp a hủy mũ â -> xaa
+telex | deee      | dee                | undo_recovery | Lặp e hủy mũ ê -> dee
+telex | cooo      | coo                | undo_recovery | Lặp o hủy mũ ô -> coo
+telex | aww       | aw                 | undo_recovery | Lặp w hủy móc ă -> aw
+telex | chorre    | chore              | undo_recovery | Undo dính không bị tự động tái áp dụng dấu
+telex | tesst     | test               | undo_recovery | tes + s (undo) + t -> test
+telex | toans     | toán               | undo_recovery | Bỏ dấu tự do muộn: toan + s -> toán
+telex | nguowif   | người              | undo_recovery | Bỏ dấu tự do: nguow + i + f -> người
+telex | bieens    | biến               | undo_recovery | Gõ biến
+telex | toanfs    | toán               | undo_recovery | Đổi dấu: toàn rồi s -> toán
+
+# ------------------------------------------------------------------------------
+# 4. BẢO VỆ TỪ TIẾNG ANH (english): Tự động phát hiện từ Anh và Auto-restore
+# ------------------------------------------------------------------------------
+telex | windows   | windows            | english | Không bị nuốt thành windơs
+telex | user      | user               | english | Không bị đổi thành usơ
+telex | facebook  | facebook           | english | Giữ nguyên từ Facebook
+telex | format    | format             | english | Không bị đổi thành fơmat
+telex | post      | post / pót         | english | Post (hợp lệ tiếng Anh, hoặc pót tiếng Việt khi gõ từ đơn)
+telex | clear     | clear              | english | Giữ nguyên clear
+telex | test      | test / tét         | english | Test (từ tiếng Anh, hoặc tét tiếng Việt khi gõ từ đơn)
+telex | start     | start              | english | Không bị biến thành stạt
+telex | data      | data               | english | Không bị biến thành dât / đa-ta lỗi
+telex | center    | center             | english | Giữ nguyên center
+telex | server    | server             | english | Giữ nguyên server
+telex | reset     | reset / rết        | english | Reset (từ tiếng Anh, hoặc rết tiếng Việt khi gõ từ đơn)
+telex | error     | error / eror       | english | Error
+telex | setup     | setup              | english | Giữ nguyên setup
+telex | game      | game               | english | Giữ nguyên game
+telex | admin     | admin              | english | Không bị biến thành admỉn
+
+# ------------------------------------------------------------------------------
+# 5. CORPUS TIẾNG VIỆT THỰC TẾ (corpus): Kiểm thử câu hoàn chỉnh với phím ngắt
+# ------------------------------------------------------------------------------
+telex | tooi laf nguowif vieetj nam                               | tôi là người việt nam                               | corpus | Câu chào mẫu
+telex | ddoanf keest laf suwsc manhj                              | đoàn kết là sức mạnh                              | corpus | Thành ngữ
+telex | hocj awn hocj nois hocj gois hocj mowr                    | học ăn học nói học gói học mở                    | corpus | Tục ngữ
+telex | chusc muwngf nawm mowis an khang thijnh vuowngj           | chúc mừng năm mới an khang thịnh vượng           | corpus | Lời chúc tết
+telex | khoong cos gif quis hown ddoocj laapj tuwj do             | không có gì quý hơn độc lập tự do / không có gì quí hơn độc lập tự do | corpus | Khẩu hiệu
+telex | bamboo mint key laf booj gox tieengs vieetj               | bamboo mint key là bộ gõ tiếng việt               | corpus | Tên sản phẩm
+telex | haf nooij muaf nafy vawngs nhuwnxg cown muwa              | hà nội mùa này vắng những cơn mưa              | corpus | Ca từ âm nhạc
+telex | coong ngheej thoong tin phats trieern nhanh chongs        | công nghệ thông tin phát triển nhanh chóng        | corpus | Báo chí
+telex | nguowif vieetj dungf hangf vieetj                         | người việt dùng hàng việt                         | corpus | Cuộc vận động
+telex | ddaats nuowsc hooji tuj tinh hoa vaf vawn hoas            | đất nước hội tụ tinh hoa và văn hóa / đất nước hội tụ tinh hoa và văn hoá | corpus | Văn hóa & truyền thống

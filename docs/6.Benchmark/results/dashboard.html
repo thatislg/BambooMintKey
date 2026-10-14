@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vietnamese IME Benchmark Dashboard - Tier 2 (Notepad)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg-primary: #0b0f19;
+      --bg-secondary: #111827;
+      --bg-card: #1f2937;
+      --bg-card-hover: #283548;
+      --border-color: #374151;
+      --text-primary: #f9fafb;
+      --text-secondary: #9ca3af;
+      --text-muted: #6b7280;
+      --bamboo: #10b981;
+      --bamboo-glow: rgba(16, 185, 129, 0.25);
+      --evkey: #3b82f6;
+      --unikey: #f59e0b;
+      --openkey: #8b5cf6;
+      --windows: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      padding-bottom: 60px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Header */
+    header {
+      background: linear-gradient(180deg, rgba(31, 41, 55, 0.8) 0%, rgba(11, 15, 25, 0) 100%);
+      border-bottom: 1px solid var(--border-color);
+      padding: 32px 0 24px 0;
+      margin-bottom: 32px;
+    }
+
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .title-area h1 {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .badge-tier {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      background: var(--bamboo-glow);
+      color: var(--bamboo);
+      border: 1px solid var(--bamboo);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .header-desc {
+      color: var(--text-secondary);
+      font-size: 14px;
+      margin-top: 6px;
+    }
+
+    .meta-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+      background: var(--bg-secondary);
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+    }
+
+    /* Stat Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 20px 24px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      border-color: #4b5563;
+    }
+
+    .stat-card.highlight {
+      border-color: var(--bamboo);
+      box-shadow: 0 0 20px var(--bamboo-glow);
+    }
+
+    .stat-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .stat-val {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+    }
+
+    .stat-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    .stat-val.bamboo-text {
+      color: var(--bamboo);
+    }
+
+    /* Tabs */
+    .tabs-nav {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 24px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-radius: 8px 8px 0 0;
+      position: relative;
+      transition: color 0.2s, background 0.2s;
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .tab-btn.active {
+      color: var(--bamboo);
+      background: var(--bg-secondary);
+    }
+
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -5px;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--bamboo);
+      border-radius: 3px;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Charts Section */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    @media (max-width: 768px) {
+      .charts-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .chart-box {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 24px;
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .chart-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .chart-container {
+      position: relative;
+      height: 340px;
+      width: 100%;
+    }
+
+    /* Tables */
+    .table-container {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: 32px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    th {
+      background: #1e293b;
+      padding: 14px 18px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    td {
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(55, 65, 81, 0.5);
+      color: var(--text-primary);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: var(--bg-card);
+    }
+
+    .rank-cell {
+      font-weight: 800;
+      font-size: 15px;
+      width: 48px;
+    }
+
+    .badge-arch {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+
+    .badge-tsf {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-hook {
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .text-emerald { color: #10b981; font-weight: 700; }
+    .text-rose { color: #f43f5e; font-weight: 700; }
+    .text-amber { color: #f59e0b; font-weight: 700; }
+
+    /* Filter & Interactive Errors */
+    .filter-pills {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .pill-btn {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      padding: 8px 16px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .pill-btn:hover {
+      border-color: #6b7280;
+      color: var(--text-primary);
+    }
+
+    .pill-btn.active {
+      background: var(--bamboo);
+      color: #0b0f19;
+      border-color: var(--bamboo);
+    }
+
+    .error-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 12px;
+      display: grid;
+      grid-template-columns: 80px 180px 220px 1fr;
+      align-items: center;
+      gap: 16px;
+      font-size: 14px;
+    }
+
+    @media (max-width: 900px) {
+      .error-card {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+    }
+
+    .error-code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 4px 8px;
+      border-radius: 6px;
+      display: inline-block;
+    }
+
+    .expected-text {
+      color: #34d399;
+      font-weight: 600;
+    }
+
+    .actual-text {
+      color: #f87171;
+      font-weight: 600;
+    }
+
+    .error-reason {
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    /* Callout & Recommendations */
+    .callout-box {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+
+    .callout-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--bamboo);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .callout-content {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .callout-content ul {
+      margin-left: 20px;
+      margin-top: 8px;
+    }
+
+    .callout-content li {
+      margin-bottom: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="container header-content">
+      <div class="title-area">
+        <h1>
+          <span>BambooMintKey Benchmark Dashboard</span>
+          <span class="badge-tier">Tier 2: Real App (Notepad)</span>
+        </h1>
+        <p class="header-desc">Đối chiếu 40 lượt chạy thực nghiệm trên 5 bộ gõ phổ biến: BambooMintKey, EVKey, UniKey, OpenKey, Windows Built-in Telex</p>
+      </div>
+      <div class="meta-tag">
+        Corpus: 583 Từ (495 VN | 88 EN) • Delay: 60ms &rarr; 5ms (200 keys/s)
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- Top KPI Cards -->
+    <section class="stats-grid">
+      <div class="stat-card highlight">
+        <div class="stat-label">Hạng Nhất Độ Chính Xác</div>
+        <div class="stat-val bamboo-text">98.80%</div>
+        <div class="stat-sub">BambooMintKey (576/583 từ đúng - chỉ sai 7 từ)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Độ Đúng Tiếng Việt (VN)</div>
+        <div class="stat-val">100.0%</div>
+        <div class="stat-sub">Cả 5 bộ gõ đều đạt 495/495 từ tiếng Việt</div>
+      </div>
+      <div class="stat-card highlight">
+        <div class="stat-label">Bảo Vệ Từ Tiếng Anh (EN)</div>
+        <div class="stat-val bamboo-text">92.05%</div>
+        <div class="stat-sub">BambooMintKey dẫn đầu (81/88 từ) &bull; UniKey: 90.91%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Tốc Độ Đỉnh Cao Nhất</div>
+        <div class="stat-val">244.6 WPM</div>
+        <div class="stat-sub">BambooMintKey tại mốc 5ms (200 keys/giây)</div>
+      </div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <nav class="tabs-nav">
+      <button class="tab-btn active" onclick="switchTab('tab-overview', this)">📊 Tổng Quan & Bảng Xếp Hạng</button>
+      <button class="tab-btn" onclick="switchTab('tab-charts', this)">📈 Biểu Đồ Trực Quan (Interactive Charts)</button>
+      <button class="tab-btn" onclick="switchTab('tab-errors', this)">🔍 Soi Lỗi Từng Bộ Gõ (Error Deep Dive)</button>
+      <button class="tab-btn" onclick="switchTab('tab-speeds', this)">⚡ Phân Tích WPM & Ngưỡng Bão Hòa</button>
+      <button class="tab-btn" onclick="switchTab('tab-roadmap', this)">🎯 Kế Hoạch Nâng Cấp BambooMintKey</button>
+    </nav>
+
+    <!-- TAB 1: OVERVIEW & LEADERBOARD -->
+    <section id="tab-overview" class="tab-content active">
+      <div class="callout-box">
+        <div class="callout-title">
+          <span>💡</span> KẾT LUẬN THEN CHỐT TỪ DỮ LIỆU THỰC NGHIỆM
+        </div>
+        <div class="callout-content">
+          <strong>1. Độ chính xác 100% deterministic:</strong> Dù tăng tốc độ bơm phím từ 16.7 keys/s (60ms) lên tới 200 keys/s (5ms), không hề phát sinh thêm bất kỳ lỗi rớt phím hay đảo phím nào ở cả 5 bộ gõ. Toàn bộ lỗi 100% là lỗi logic ngôn ngữ / từ điển tiếng Anh.<br>
+          <strong>2. BambooMintKey chiến thắng tuyệt đối:</strong> Đạt độ chính xác tổng thể cao nhất (98.80%), bảo vệ từ tiếng Anh tốt nhất (92.05%), và đạt tốc độ WPM cao nhất (244.6 WPM).<br>
+          <strong>3. Vấn đề của Windows Built-in Telex:</strong> Sai tới 28 từ tiếng Anh (chỉ đạt 68.18% độ đúng EN), dính dấu nặng nề các từ như <code>Windows,</code> &rarr; <code>Ưindows,</code>, <code>Discord</code> &rarr; <code>Dícord</code>, <code>system,</code> &rarr; <code>sýtem,</code>.
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th class="rank-cell">Hạng</th>
+              <th>Bộ Gõ (IME)</th>
+              <th>Kiến Trúc</th>
+              <th>Tổng Accuracy</th>
+              <th>Độ Đúng VN (495 từ)</th>
+              <th>Bảo Vệ EN (88 từ)</th>
+              <th>Số Từ Lỗi (VN / EN)</th>
+              <th>WPM Trung Bình</th>
+              <th>WPM Tối Đa</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="rank-cell">🥇 1</td>
+              <td><strong>BambooMintKey</strong></td>
+              <td><span class="badge-arch badge-tsf">TSF</span></td>
+              <td><span class="text-emerald">98.80%</span></td>
+              <td><span class="text-emerald">100.0%</span></td>
+              <td><span class="text-emerald">92.05%</span></td>
+              <td>0 / <strong>7</strong></td>
+              <td>188.59</td>
+              <td><strong>244.6</strong></td>
+            </tr>
+            <tr>
+              <td class="rank-cell">🥈 2</td>
+              <td><strong>EVKey</strong></td>
+              <td><span class="badge-arch badge-hook">Hook</span></td>
+              <td>98.63%</td>
+              <td>100.0%</td>
+              <td>90.91%</td>
+              <td>0 / 8</td>
+              <td>185.23</td>
+              <td>243.0</td>
+            </tr>
+            <tr>
+              <td class="rank-cell">🥉 3</td>
+              <td><strong>UniKey</strong></td>
+              <td><span class="badge-arch badge-hook">Hook</span></td>
+              <td>98.63%</td>
+              <td>100.0%</td>
+              <td>90.91%</td>
+              <td>0 / 8</td>
+              <td>182.69</td>
+              <td>233.8</td>
+            </tr>
+            <tr>
+              <td class="rank-cell">4</td>
+              <td><strong>OpenKey</strong></td>
+              <td><span class="badge-arch badge-hook">Hook</span></td>
+              <td>98.11%</td>
+              <td>100.0%</td>
+              <td>87.50%</td>
+              <td>0 / 11</td>
+              <td>181.86</td>
+              <td>236.8</td>
+            </tr>
+            <tr>
+              <td class="rank-cell">5</td>
+              <td><strong>Windows Built-in Telex</strong></td>
+              <td><span class="badge-arch badge-tsf">TSF</span></td>
+              <td><span class="text-rose">95.20%</span></td>
+              <td>100.0%</td>
+              <td><span class="text-rose">68.18%</span></td>
+              <td>0 / <span class="text-rose">28</span></td>
+              <td>188.13</td>
+              <td>236.8</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB 2: CHARTS -->
+    <section id="tab-charts" class="tab-content">
+      <div class="charts-grid">
+        <div class="chart-box">
+          <div class="chart-header">
+            <div class="chart-title">Độ Chính Xác Tổng Thể & Bảo Vệ Tiếng Anh (%)</div>
+          </div>
+          <div class="chart-container">
+            <canvas id="chartAccuracy"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-box">
+          <div class="chart-header">
+            <div class="chart-title">Tốc Độ Thực Tế (WPM) Theo Mức Bơm Phím (Keys/s)</div>
+          </div>
+          <div class="chart-container">
+            <canvas id="chartWpm"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-box">
+          <div class="chart-header">
+            <div class="chart-title">Số Lượng Từ Lỗi (Failed Words) Trên Tổng 583 Từ</div>
+          </div>
+          <div class="chart-container">
+            <canvas id="chartFailed"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-box">
+          <div class="chart-header">
+            <div class="chart-title">Đánh Giá Toàn Diện 5 Chiều (Radar Chart)</div>
+          </div>
+          <div class="chart-container">
+            <canvas id="chartRadar"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: ERROR DEEP DIVE -->
+    <section id="tab-errors" class="tab-content">
+      <div class="filter-pills">
+        <button class="pill-btn active" onclick="filterErrors('all', this)">Tất cả bộ gõ</button>
+        <button class="pill-btn" onclick="filterErrors('bamboo', this)">BambooMintKey (7 lỗi)</button>
+        <button class="pill-btn" onclick="filterErrors('unikey', this)">UniKey / EVKey (8 lỗi)</button>
+        <button class="pill-btn" onclick="filterErrors('openkey', this)">OpenKey (11 lỗi)</button>
+        <button class="pill-btn" onclick="filterErrors('windows', this)">Windows Telex (28 lỗi)</button>
+      </div>
+
+      <div id="error-list">
+        <!-- Rendered dynamically via JS -->
+      </div>
+    </section>
+
+    <!-- TAB 4: WPM & SATURATION -->
+    <section id="tab-speeds" class="tab-content">
+      <div class="callout-box">
+        <div class="callout-title">
+          <span>⚡</span> HIỆN TƯỢNG BÃO HÒA WPM (SATURATION WALL) TẠI 10ms - 5ms
+        </div>
+        <div class="callout-content">
+          Từ mốc 60ms (16.7 keys/s) đến 10ms (100 keys/s), WPM tăng vọt từ 107 lên ~242 WPM. Tuy nhiên khi đẩy lên 7ms (142.9 keys/s) và 5ms (200 keys/s), WPM chỉ tăng thêm +1.9 WPM.<br>
+          <strong>Nguyên nhân kỹ thuật:</strong> Giới hạn tần số repaint và xử lý Win32 Message Queue (con trỏ nhấp nháy, clipboard paste, edit control layout) của Notepad trên Windows 11 đạt ngưỡng tối đa ~240 WPM.
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Delay (ms)</th>
+              <th>Tốc độ bơm phím</th>
+              <th>BambooMintKey (TSF)</th>
+              <th>EVKey (Hook)</th>
+              <th>UniKey (Hook)</th>
+              <th>OpenKey (Hook)</th>
+              <th>Windows Built-in (TSF)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>60 ms</strong></td>
+              <td>16.7 keys/s</td>
+              <td><span class="text-emerald">108.1 WPM</span></td>
+              <td>107.3 WPM</td>
+              <td>107.0 WPM</td>
+              <td>106.9 WPM</td>
+              <td>107.0 WPM</td>
+            </tr>
+            <tr>
+              <td><strong>45 ms</strong></td>
+              <td>22.2 keys/s</td>
+              <td><span class="text-emerald">131.0 WPM</span></td>
+              <td>129.5 WPM</td>
+              <td>126.9 WPM</td>
+              <td>128.6 WPM</td>
+              <td>130.7 WPM</td>
+            </tr>
+            <tr>
+              <td><strong>30 ms</strong></td>
+              <td>33.3 keys/s</td>
+              <td>163.4 WPM</td>
+              <td>159.3 WPM</td>
+              <td>159.6 WPM</td>
+              <td>157.9 WPM</td>
+              <td><span class="text-emerald">167.3 WPM</span></td>
+            </tr>
+            <tr>
+              <td><strong>20 ms</strong></td>
+              <td>50.0 keys/s</td>
+              <td><span class="text-emerald">176.6 WPM</span></td>
+              <td>175.1 WPM</td>
+              <td>173.8 WPM</td>
+              <td>171.9 WPM</td>
+              <td>169.2 WPM</td>
+            </tr>
+            <tr>
+              <td><strong>15 ms</strong></td>
+              <td>66.7 keys/s</td>
+              <td>199.0 WPM</td>
+              <td>190.9 WPM</td>
+              <td>193.0 WPM</td>
+              <td>183.6 WPM</td>
+              <td><span class="text-emerald">221.6 WPM</span></td>
+            </tr>
+            <tr>
+              <td><strong>10 ms</strong></td>
+              <td>100.0 keys/s</td>
+              <td><span class="text-emerald">242.7 WPM</span></td>
+              <td>236.4 WPM</td>
+              <td>233.8 WPM</td>
+              <td>233.9 WPM</td>
+              <td>236.2 WPM</td>
+            </tr>
+            <tr>
+              <td><strong>7 ms</strong></td>
+              <td>142.9 keys/s</td>
+              <td><span class="text-emerald">243.3 WPM</span></td>
+              <td>240.3 WPM</td>
+              <td>233.8 WPM</td>
+              <td>236.8 WPM</td>
+              <td>236.2 WPM</td>
+            </tr>
+            <tr>
+              <td><strong>5 ms</strong></td>
+              <td>200.0 keys/s</td>
+              <td><span class="text-emerald">244.6 WPM (Đỉnh)</span></td>
+              <td>243.0 WPM</td>
+              <td>233.6 WPM</td>
+              <td>235.3 WPM</td>
+              <td>236.8 WPM</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB 5: ROADMAP -->
+    <section id="tab-roadmap" class="tab-content">
+      <div class="callout-box">
+        <div class="callout-title">
+          <span>🎯</span> KẾ HOẠCH NÂNG CẤP BAMBOOMINTKEY TỪ 98.80% LÊN 100% HOÀN HẢO
+        </div>
+        <div class="callout-content">
+          BambooMintKey chỉ còn vướng đúng <strong>7 từ lỗi</strong> trong toàn bộ bài test 583 từ. Dưới đây là phân tích kỹ thuật và giải pháp fix triệt để:
+          <br><br>
+          <strong>Nhóm 1: Khắc phục lỗi nuốt phụ âm lặp tiếng Anh (5 từ: <code>buffer,</code>, <code>"buffer",</code>, <code>issue,</code>, <code>offline,</code>, <code>Office,</code>)</strong>
+          <ul>
+            <li><strong>Nguyên nhân:</strong> Khi người dùng gõ <code>buffer,</code> (có <code>ff</code>) hoặc <code>issue,</code> (có <code>ss</code>), cơ chế chống lặp phím Telex hiểu nhầm là thao tác hủy dấu hoặc nuốt ký tự lặp, biến thành <code>bufer,</code>, <code>isue,</code>, <code>ofline,</code>, <code>Ofice,</code>.</li>
+            <li><strong>Giải pháp:</strong> Bổ sung quy tắc trong Trie Lexicon: Nếu một từ khớp với từ vựng tiếng Anh hợp lệ có phụ âm kép (<code>ff</code>, <code>ss</code>, <code>ll</code>, <code>tt</code>, <code>pp</code>) đứng trước dấu ngắt từ (dấu phẩy, dấu chấm, ngoặc kép), giữ nguyên phụ âm kép và không nuốt phím.</li>
+          </ul>
+          <br>
+          <strong>Nhóm 2: Khắc phục lỗi đuôi vần <code>st</code> cuối từ (2 từ: <code>test,</code> &rarr; <code>tét,</code>, <code>post,</code> &rarr; <code>pót,</code>)</strong>
+          <ul>
+            <li><strong>Nguyên nhân:</strong> Phím <code>s</code> vừa là phụ âm trong tổ hợp <code>st</code>, vừa là phím gõ dấu sắc trong Telex. Tiếng Việt không có đuôi <code>st</code>, nên engine tạm gán dấu sắc cho <code>te</code> thành <code>té</code> rồi thêm <code>t</code> thành <code>tét</code>.</li>
+            <li><strong>Giải pháp:</strong> Khi gặp tổ hợp kết thúc bằng <code>st</code> kèm phím ngắt từ/khoảng trắng, tự động kích hoạt luật khôi phục từ tiếng Anh (Auto-restore) để chuyển <code>tét</code> &rarr; <code>test</code> và <code>pót</code> &rarr; <code>post</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    function switchTab(tabId, btn) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      btn.classList.add('active');
+    }
+
+    // Chart.js Default Config
+    Chart.defaults.color = '#9ca3af';
+    Chart.defaults.font.family = "'Inter', sans-serif";
+
+    // Chart 1: Accuracy
+    new Chart(document.getElementById('chartAccuracy'), {
+      type: 'bar',
+      data: {
+        labels: ['BambooMintKey (TSF)', 'EVKey (Hook)', 'UniKey (Hook)', 'OpenKey (Hook)', 'Windows Telex (TSF)'],
+        datasets: [
+          {
+            label: 'Tổng Accuracy (%)',
+            data: [98.80, 98.63, 98.63, 98.11, 95.20],
+            backgroundColor: '#3b82f6',
+            borderRadius: 6
+          },
+          {
+            label: 'Bảo Vệ Tiếng Anh (%)',
+            data: [92.05, 90.91, 90.91, 87.50, 68.18],
+            backgroundColor: '#f43f5e',
+            borderRadius: 6
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top' }
+        },
+        scales: {
+          y: { min: 60, max: 102 }
+        }
+      }
+    });
+
+    // Chart 2: WPM
+    new Chart(document.getElementById('chartWpm'), {
+      type: 'line',
+      data: {
+        labels: ['16.7 (60ms)', '22.2 (45ms)', '33.3 (30ms)', '50 (20ms)', '66.7 (15ms)', '100 (10ms)', '142.9 (7ms)', '200 (5ms)'],
+        datasets: [
+          {
+            label: 'BambooMintKey',
+            data: [108.1, 131.0, 163.4, 176.6, 199.0, 242.7, 243.3, 244.6],
+            borderColor: '#10b981',
+            backgroundColor: '#10b981',
+            tension: 0.25,
+            borderWidth: 3
+          },
+          {
+            label: 'EVKey',
+            data: [107.3, 129.5, 159.3, 175.1, 190.9, 236.4, 240.3, 243.0],
+            borderColor: '#3b82f6',
+            backgroundColor: '#3b82f6',
+            tension: 0.25
+          },
+          {
+            label: 'UniKey',
+            data: [107.0, 126.9, 159.6, 173.8, 193.0, 233.8, 233.8, 233.6],
+            borderColor: '#f59e0b',
+            backgroundColor: '#f59e0b',
+            tension: 0.25
+          },
+          {
+            label: 'OpenKey',
+            data: [106.9, 128.6, 157.9, 171.9, 183.6, 233.9, 236.8, 235.3],
+            borderColor: '#8b5cf6',
+            backgroundColor: '#8b5cf6',
+            tension: 0.25
+          },
+          {
+            label: 'Windows Built-in',
+            data: [107.0, 130.7, 167.3, 169.2, 221.6, 236.2, 236.2, 236.8],
+            borderColor: '#ef4444',
+            backgroundColor: '#ef4444',
+            tension: 0.25
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top' }
+        },
+        scales: {
+          x: { title: { display: true, text: 'Tốc độ bắn phím (Keys/giây)' } },
+          y: { title: { display: true, text: 'WPM' }, min: 100 }
+        }
+      }
+    });
+
+    // Chart 3: Failed Words
+    new Chart(document.getElementById('chartFailed'), {
+      type: 'bar',
+      indexAxis: 'y',
+      data: {
+        labels: ['BambooMintKey', 'EVKey', 'UniKey', 'OpenKey', 'Windows Built-in'],
+        datasets: [{
+          label: 'Số từ bị lỗi',
+          data: [7, 8, 8, 11, 28],
+          backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444'],
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          x: { max: 32 }
+        }
+      }
+    });
+
+    // Chart 4: Radar
+    new Chart(document.getElementById('chartRadar'), {
+      type: 'radar',
+      data: {
+        labels: ['Tổng Accuracy', 'Độ đúng VN', 'Bảo vệ EN', 'Tốc độ Đỉnh WPM', 'Công nghệ TSF'],
+        datasets: [
+          {
+            label: 'BambooMintKey',
+            data: [98.8, 100, 92.05, 100, 100],
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.2)'
+          },
+          {
+            label: 'EVKey',
+            data: [98.63, 100, 90.91, 99.3, 60],
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.2)'
+          },
+          {
+            label: 'Windows Built-in Telex',
+            data: [95.2, 100, 68.18, 96.8, 100],
+            borderColor: '#ef4444',
+            backgroundColor: 'rgba(239, 68, 68, 0.2)'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          r: { min: 50, max: 100 }
+        }
+      }
+    });
+
+    // Detailed Error Dataset
+    const errorDetails = [
+      { id: 200, key: 'buffer,', exp: 'buffer,', bamboo: 'bufer,', unikey: 'bufer,', openkey: 'bufer,', win: 'bufer,', reason: 'Nuốt phụ âm lặp ff kèm dấu phẩy' },
+      { id: 206, key: 'test,', exp: 'test,', bamboo: 'tét,', unikey: 'tét,', openkey: 'tét,', win: 'tét,', reason: 'Phím s biến te thành tét' },
+      { id: 209, key: 'post,', exp: 'post,', bamboo: 'pót,', unikey: 'pót,', openkey: 'pót,', win: 'pót,', reason: 'Phím s biến po thành pót' },
+      { id: 212, key: 'loop;', exp: 'loop;', bamboo: 'loop;', unikey: 'lôp;', openkey: 'lôp;', win: 'lôp;', reason: 'Biến oo thành ô (BambooMintKey giữ đúng loop;)' },
+      { id: 229, key: '"buffer",', exp: '"buffer",', bamboo: '"bufer",', unikey: '"bufer",', openkey: '"bufer",', win: '"bufer",', reason: 'Nuốt phụ âm lặp ff trong dấu ngoặc kép' },
+      { id: 230, key: '"case"', exp: '"case"', bamboo: '"case"', unikey: '"case"', openkey: '"case|', win: '"cáe"', reason: 'OpenKey dính ký tự | - Windows dính dấu cáe' },
+      { id: 286, key: '(Auto-restore)', exp: '(Auto-restore)', bamboo: '(Auto-restore)', unikey: '(Auto-restore)', openkey: '(Auto-rétore)', win: '(Auto-rétore)', reason: 'Dính dấu s thành rétore ở OpenKey & Windows' },
+      { id: 309, key: 'issue,', exp: 'issue,', bamboo: 'isue,', unikey: 'isue,', openkey: 'isue,', win: 'isue,', reason: 'Nuốt phụ âm lặp ss thành isue' },
+      { id: 317, key: 'offline,', exp: 'offline,', bamboo: 'ofline,', unikey: 'ofline,', openkey: 'ofline,', win: 'ofline,', reason: 'Nuốt phụ âm lặp ff thành ofline' },
+      { id: 437, key: '(WPM).', exp: '(WPM).', bamboo: '(WPM).', unikey: '(WPM).', openkey: '(ƯPM).', win: '(ƯPM).', reason: 'Phím W viết hoa bị biến thành Ư ở OpenKey & Windows' },
+      { id: 493, key: 'Office,', exp: 'Office,', bamboo: 'Ofice,', unikey: 'Ofice,', openkey: 'Ofice,', win: 'Ofice,', reason: 'Nuốt phụ âm lặp ff ở chữ hoa' },
+      { id: 349, key: 'Windows,', exp: 'Windows,', bamboo: 'Windows,', unikey: 'Windows,', openkey: 'Windows,', win: 'Ưindows,', reason: 'Windows Telex dính lỗi W thành Ưindows' },
+      { id: 199, key: 'system,', exp: 'system,', bamboo: 'system,', unikey: 'system,', openkey: 'system,', win: 'sýtem,', reason: 'Windows Telex dính dấu sýtem' },
+      { id: 204, key: 'database,', exp: 'database,', bamboo: 'database,', unikey: 'database,', openkey: 'database,', win: 'dâtbase,', reason: 'Windows Telex dính aa thành dâtbase' },
+      { id: 495, key: 'Photoshop,', exp: 'Photoshop,', bamboo: 'Photoshop,', unikey: 'Photoshop,', openkey: 'Photoshop,', win: 'Phốthop,', reason: 'Windows Telex dính dấu Phốthop' }
+    ];
+
+    function filterErrors(type, btn) {
+      document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const container = document.getElementById('error-list');
+      container.innerHTML = '';
+
+      errorDetails.forEach(item => {
+        let isError = false;
+        let act = '';
+        if (type === 'all') {
+          isError = true;
+          act = `Bamboo: ${item.bamboo} | UniKey: ${item.unikey} | Win: ${item.win}`;
+        } else if (type === 'bamboo') {
+          if (item.bamboo !== item.exp) { isError = true; act = item.bamboo; }
+        } else if (type === 'unikey') {
+          if (item.unikey !== item.exp) { isError = true; act = item.unikey; }
+        } else if (type === 'openkey') {
+          if (item.openkey !== item.exp) { isError = true; act = item.openkey; }
+        } else if (type === 'windows') {
+          if (item.win !== item.exp) { isError = true; act = item.win; }
+        }
+
+        if (isError) {
+          const card = document.createElement('div');
+          card.className = 'error-card';
+          card.innerHTML = `
+            <div><span class="error-code">#${item.id}</span></div>
+            <div>Phím: <span class="error-code">${item.key}</span></div>
+            <div>Mong đợi: <span class="expected-text">${item.exp}</span><br>Thực tế: <span class="actual-text">${act}</span></div>
+            <div class="error-reason">${item.reason}</div>
+          `;
+          container.appendChild(card);
+        }
+      });
+    }
+
+    // Initial render
+    filterErrors('bamboo', document.querySelectorAll('.pill-btn')[1]);
+  </script>
+</body>
+</html>

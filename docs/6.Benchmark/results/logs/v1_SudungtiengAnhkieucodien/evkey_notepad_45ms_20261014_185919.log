@@ -1,0 +1,55 @@
+==========================================================================
+VIETNAMESE IME BENCHMARK - KẾT QUẢ KIỂM THỬ CHI TIẾT
+==========================================================================
+Thời điểm chạy    : 2026-10-14 18:59:19
+Bộ gõ kiểm thử    : EVKey (Kiến trúc: Hook)
+Ứng dụng kiểm thử : notepad
+Tốc độ phím gõ    : 45 ms/phím (~22.2 phím/giây)
+Tệp kịch bản      : passage_500.cases
+Thời gian gõ      : 271.53 giây
+Tốc độ tương đương: 132.1 WPM
+
+--------------------------------------------------------------------------
+TỔNG HỢP KẾT QUẢ ĐỘ CHÍNH XÁC (ACCURACY)
+--------------------------------------------------------------------------
+Tổng số từ kiểm thử : 598 từ
+Tổng số từ chính xác: 550 từ
+Tổng số từ sai/hỏng : 48 từ
+Độ đúng chung (All) : 91.97 %
+
+* Tiếng Việt (VN)   : 508 từ | Đúng: 499 | Sai: 9 | Độ đúng: 98.23 %
+* Tiếng Anh  (EN)   : 90 từ | Đúng: 51 | Sai: 39 | Độ đúng: 56.67 %
+
+--------------------------------------------------------------------------
+DANH SÁCH CÁC TỪ BỊ LỖI (ERRORS)
+--------------------------------------------------------------------------
+[Tiếng Anh] Từ #143 (phím 'browwsseerr'): mong đợi='browser', thực tế='browwsseerr'
+[Tiếng Anh] Từ #145 (phím 'networrk,'): mong đợi='network,', thực tế='networrk,'
+[Tiếng Anh] Từ #150 (phím '[Shift+d]isscorrd'): mong đợi='Discord', thực tế='Discorrd'
+[Tiếng Anh] Từ #152 (phím '[Shift+t]eamss.'): mong đợi='Teams.', thực tế='Teamss.'
+[Tiếng Anh] Từ #188 (phím '([Shift+s]marrt'): mong đợi='(Smart', thực tế='(Smarrt'
+[Tiếng Anh] Từ #189 (phím '[Shift+e]nglissh'): mong đợi='English', thực tế='Englissh'
+[Tiếng Anh] Từ #198 (phím 'processs,'): mong đợi='process,', thực tế='processs,'
+[Tiếng Anh] Từ #200 (phím 'buffferr,'): mong đợi='buffer,', thực tế='bufferr,'
+[Tiếng Anh] Từ #201 (phím 'sofftwarre,'): mong đợi='software,', thực tế='softwarre,'
+[Tiếng Anh] Từ #202 (phím 'harrdwarre,'): mong đợi='hardware,', thực tế='hardwarre,'
+[Tiếng Anh] Từ #203 (phím 'frameworrk,'): mong đợi='framework,', thực tế='frameworrk,'
+[Tiếng Anh] Từ #204 (phím 'databasse,'): mong đợi='database,', thực tế='databasse,'
+[Tiếng Anh] Từ #205 (phím 'serrverr,'): mong đợi='server,', thực tế='serverr,'
+[Tiếng Anh] Từ #208 (phím 'fasst,'): mong đợi='fast,', thực tế='fasst,'
+[Tiếng Anh] Từ #210 (phím 'freee,'): mong đợi='free,', thực tế='freee,'
+[Tiếng Anh] Từ #224 (phím '[Shift+']processs[Shift+']'): mong đợi='"process"', thực tế='"processs"'
+[Tiếng Việt] Từ #229 (phím '[Shift+']proces[Shift+']'): mong đợi='"procés"', thực tế='"proces"'
+[Tiếng Anh] Từ #237 (phím '[Shift+']buffferr[Shift+']'): mong đợi='"buffer"', thực tế='"bufferr"'
+[Tiếng Việt] Từ #240 (phím '[Shift+']buffer[Shift+']'): mong đợi='"buffer"', thực tế='"bufer"'
+[Tiếng Anh] Từ #253 (phím '[Shift+']freee[Shift+']'): mong đợi='"free"', thực tế='"freee"'
+[Tiếng Việt] Từ #273 (phím 'xoas'): mong đợi='xóa', thực tế='xoá'
+[Tiếng Anh] Từ #301 (phím '([Shift+a]uto-resstorre)'): mong đợi='(Auto-restore)', thực tế='(Auto-restorre)'
+[Tiếng Việt] Từ #307 (phím 'khoas'): mong đợi='khóa', thực tế='khoá'
+[Tiếng Anh] Từ #310 (phím 'classs,'): mong đợi='class,', thực tế='classs,'
+[Tiếng Anh] Từ #311 (phím 'returrn,'): mong đợi='return,', thực tế='returrn,'
+
+--------------------------------------------------------------------------
+VĂN BẢN THỰC TẾ THU ĐƯỢC TỪ ỨNG DỤNG (CLIPBOARD OUTPUT)
+--------------------------------------------------------------------------
+Tiếng Việt là một ngôn ngữ giàu đẹp, với hệ thống thanh điệu phong phú và các cụm nguyên âm đa dạng. Trải qua hơn ba mươi năm phát triển của công nghệ thông tin tại Việt Nam, bài toán nhập liệu tiếng Việt trên máy tính luôn là một thách thức kỹ thuật đầy thú vị. Từ những ngày đầu của "VietKey" hay "UniKey" cho đến các bộ gõ hiện đại chạy trên đa nền tảng, các thế hệ lập trình viên đã không ngừng tìm kiếm giải pháp tối ưu nhất nhằm mang lại tốc độ gõ mượt mà và độ chính xác tuyệt đối trong môi trường làm việc ngày nay. Người dùng không chỉ soạn thảo văn bản đơn thuần, mà còn lập trình trên các công cụ như VS Code, soạn code trên terminal, làm việc trên browwsseerr và networrk, trao đổi trên Slack, Discorrd hay Teamss. Khi làm việc, họ thường xuyên phải gõ xen kẽ giữa tiếng Việt và các từ vựng tiếng Anh (Mixed language typing). Nếu bộ gõ không có khả năng nhận diện ngữ cảnh thông minh (Smarrt Englissh spell-check), các từ tiếng Anh thông dụng như: processs, system, bufferr, softwarre, hardwarre, frameworrk, databasse, serverr, test, case, fasst, post, freee, và loop; sẽ rất dễ bị dính dấu sai lệch. Chẳng hạn, từ "processs" sẽ bị biến thành "proces" do phím s là dấu sắc; từ "bufferr" bị thành "bufer" do er chuyển thành ơ; từ "case" bị thành "case" và từ "freee" bị biến thành "free". Người dùng sẽ vô cùng khó chịu nếu phải liên tục bấm phím Backspace để xoá đi gõ lại, hoặc phải bật tắt thủ công giữa hai chế độ V và E. Do đó, tính năng tự động phục hồi từ tiếng Anh (Auto-restorre) khi soạn thảo các từ khoá như: function, classs, returrn, string, syntaxx, contexxt, indexx, commit, branch, merge, push, pull, requesst, releasse, debug, issue, hotfixx, build, deploy, hook, interrface, default, online, offline, và forrmat; chính là thước đo đẩng cấp của một bộ gõ tiếng Việt hiện đại. Sự phân mảnh của các giao thức nhập liệu như: Text Servicess Frameworrk (TSF) trên Windowwss, Input Method Kit trên macOS, hay Fcitxx và IBuss trên Linuxx; đòi hỏi một kiến trúc bộ gõ phải được thiết kế khoa học và tách bạch rõ ràng giữa thuật toán xử lý ngôn ngữ và tầng giao tiếp hệ điều hành. Khi một từ được người dùng gõ vào, hệ thống phải xử lý ngay lập tức trong vài phần triệu giây để tránh hiện tượng trễ phím hoặc nuốt phím khi người dùng gõ với tốc độ cao trên một trăm từ mỗi phút (WPM). Dồng thời, các dự án mã nguồn mở hiện đại như BambooomintKey đang tiếp tục khẳng định vị thế tiên phong bằng việc áp dụng thuật toán cây tienf tố (Trie), mô hình ngữ nghĩa và kiến trúc TSF thuần tuỷ, giúp tương thích hoàn hảo với các ứng dụng khó tính nhất như Microssofft Office, Adobe Photosshop, các game đồ hoạ khủng, và các trình duyệt Chrome, Edge, Firreffoxx. Khát vọng làm chủ công nghệ và nâng tầm sản phẩm phần mềm quốc nội luôn là ngọn lửa thôi thúc các thế hệ kỹ sư không ngừng đổi mới, sáng tạo. Chúng ta tin tưởng rằng, với tinh thần cởi mở, chia sẻ và cùng nhau hoàn thiện, bộ gõ tiếng Việt sẽ ngày càng hoàn mỹ, đáp ứng mọi yêu cầu khắt khe nhất của thời đại công nghệ số hiện đại hôm nay. 
