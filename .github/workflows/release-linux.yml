@@ -47,7 +47,7 @@ jobs:
           files: |
             delivery/linux/*.deb
             delivery/linux/*.tar.gz
-          body_path: delivery/commit-message/1.1.5.md
+          body_path: delivery/commit-message/1.2.0.md
           draft: true
           prerelease: false
         env:
@@ -94,7 +94,7 @@ jobs:
         with:
           files: |
             delivery/linux/*.rpm
-          body_path: delivery/commit-message/1.1.5.md
+          body_path: delivery/commit-message/1.2.0.md
           draft: true
           prerelease: false
         env:
