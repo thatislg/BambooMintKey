@@ -68,7 +68,6 @@ Quản lý tập trung tại `Directory.Build.props`:
 
 - **Inno Setup:** Nhận tham số `/DMyAppVersion=1.0.1` từ `build-installer.ps1`.
 - **UI:** Đọc động qua `FileVersionInfo.GetVersionInfo(Environment.ProcessPath)`.
-- **WinGet:** Tự động cập nhật qua `scripts/update-winget-manifest.ps1`.
 
 ---
 

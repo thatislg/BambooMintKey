@@ -186,6 +186,12 @@ Tải và cài đặt trực tiếp từ Microsoft Store:
 	<img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200"/>
 </a>
 
+Hoặc cài nhanh qua winget (từ Microsoft Store):
+
+```powershell
+winget install --source msstore XPDP9V267NTQ42
+```
+
 Hoặc tải bộ cài đặt độc lập `BambooMintKey-Setup.exe` từ [GitHub Releases](https://github.com/thatislg/BambooMintKey/releases).
 
 ---
@@ -292,7 +298,7 @@ Chi tiết kiến trúc hệ thống toàn diện có sơ đồ xem tại [Tài 
 | `tests/BambooMintKey.Core.Tests` | Unit tests F# cho Telex engine. |
 | `tests/BambooMintKey.Fcitx5.Tests` | Unit tests C++ cho Fcitx5 addon. |
 | `scripts/` | Script phân loại theo nền tảng: `linux/` (cài đặt, gỡ bỏ, đóng gói DEB/RPM/Flatpak), `windows/` (build AOT, TIP, installer), `tools/` (từ điển, icon), `tests/` (test C-ABI). |
-| `manifests/` | File manifest phân phối: `flatpak/` (Flathub extension cho Steam Deck) và `l/LMO-LAB/` (WinGet). |
+| `manifests/` | File manifest phân phối: `flatpak/` (Flathub extension cho Steam Deck). |
 | `delivery/` | Thư mục chứa gói thành phẩm build: `installer/` (Windows Setup), `linux/` (DEB, RPM), `flatpak/` (Flatpak bundle). |
 | `docs/` | Tài liệu kiến trúc, hướng dẫn build và phân tích kỹ thuật. |
 | `docs/3.Issue/` | Template và báo cáo phân tích/xử lý sự cố kỹ thuật. |

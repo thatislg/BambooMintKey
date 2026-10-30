@@ -2,8 +2,6 @@
 
 Thư mục này chứa toàn bộ định nghĩa manifest để phát hành bộ gõ **BambooMintKey** dưới dạng **Flatpak Extension** cho Fcitx 5 trên **Flathub**, phục vụ trực tiếp cho người dùng **Steam Deck (SteamOS)** và mọi hệ thống Linux sử dụng Fcitx5 Flatpak.
 
-Thư mục này đóng vai trò tương tự như thư mục `manifests/l/LMO-LAB/` (dành cho WinGet).
-
 ---
 
 ## 1. Cấu trúc tệp tin

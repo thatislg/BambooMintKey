@@ -341,8 +341,7 @@ scripts/
 │   ├── test-register.ps1       # Đăng ký COM Server & TSF Profile (Admin)
 │   ├── enable-tip.ps1          # Kích hoạt TIP cho người dùng hiện tại
 │   ├── unregister-tip.ps1      # Hủy đăng ký TIP sạch sẽ
-│   ├── build-installer.ps1     # Đóng gói Inno Setup thành BambooMintKey-Setup.exe
-│   └── update-winget-manifest.ps1 # Cập nhật hash và version cho WinGet manifest
+│   └── build-installer.ps1     # Đóng gói Inno Setup thành BambooMintKey-Setup.exe
 ├── linux/                      # Tự động hóa nền tảng Linux & Flatpak
 │   ├── install_linux.sh        # Build và cài đặt toàn bộ addon + core + UI vào /usr
 │   ├── uninstall_linux.sh      # Gỡ sạch toàn bộ cài đặt khỏi hệ thống
@@ -371,7 +370,7 @@ scripts/
 | | Taskbar Icon V/E động & Context Menu | ✅ Hoàn tất | GDI+ dynamic render, đồng bộ TSF Compartment |
 | | Shared Memory & Inter-process Event | ✅ Hoàn tất | Low-Integrity / Sandbox-safe SDDL |
 | | Avalonia Settings GUI (`BambooMintKey.UI.exe`) | ✅ Hoàn tất | Single-Instance Mutex 2 lớp |
-| | Bộ cài đặt Inno Setup & WinGet Package | ✅ Hoàn tất | Xuất bản Microsoft Store & GitHub Releases |
+| | Bộ cài đặt Inno Setup | ✅ Hoàn tất | Xuất bản Microsoft Store & GitHub Releases |
 | **Linux Native** | C-ABI NativeAOT (`BambooMintKeyCore.so`) | ✅ Hoàn tất | Portable SONAME, $ORIGIN rpath |
 | | C++ Fcitx5 Addon (`libbamboomintkey.so`) | ✅ Hoàn tất | Preedit, Commit, Hotkey `` ` ``, D-Bus, inotify |
 | | Giao diện cài đặt Linux (`BambooMintKey.UI.Linux`) | ✅ Hoàn tất | Avalonia F# 6 tab, XDG config |

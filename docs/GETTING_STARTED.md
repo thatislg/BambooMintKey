@@ -67,8 +67,7 @@ BambooMintKey/
 │   ├── tools/                      # Script công cụ (sinh từ điển MIT, tải corpus Wikipedia, sinh icon)
 │   └── tests/                      # Kịch bản kiểm thử tự động (kiểm tra C-ABI qua Python ctypes)
 ├── manifests/
-│   ├── flatpak/                    # Manifest Flatpak cho Flathub & Steam Deck (YAML, Metainfo XML)
-│   └── l/LMO-LAB/BambooMintKey/    # Manifest phân phối qua WinGet (Windows Package Manager)
+│   └── flatpak/                    # Manifest Flatpak cho Flathub & Steam Deck (YAML, Metainfo XML)
 ├── delivery/                       # Thư mục chứa gói thành phẩm (installer, DEB, RPM, Flatpak)
 └── docs/                           # Tài liệu kiến trúc, hướng dẫn build và phân tích kỹ thuật
 ```
@@ -86,7 +85,6 @@ Toàn bộ script hỗ trợ đã được tái cấu trúc thành 4 thư mục 
 | | `enable-tip.ps1` | Kích hoạt TIP cho người dùng hiện tại và khởi động lại `ctfmon` |
 | | `unregister-tip.ps1` | Hủy đăng ký TIP sạch sẽ khỏi Windows Registry |
 | | `build-installer.ps1` | Tự động hóa build và đóng gói Inno Setup `BambooMintKey-Setup.exe` |
-| | `update-winget-manifest.ps1` | Cập nhật checksum SHA256 và phiên bản cho WinGet manifest |
 | | `debug-cocreate.ps1` | Kiểm tra gọi `CoCreateInstance` CLSID trên Windows |
 | | `check-dll.ps1` | Kiểm tra PE headers, exports và dependencies của DLL |
 | **`scripts/linux/`** | `install_linux.sh` | Build toàn diện và cài đặt addon + core + UI vào `/usr` |
