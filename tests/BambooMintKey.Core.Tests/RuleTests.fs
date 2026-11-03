@@ -154,3 +154,26 @@ module RuleTests =
         let result = typeWord input EngineConfig.Default
         Assert.Equal(expected, result)
 
+    // =========================================================================
+    // Ngoại lệ cụm "uo" + phụ âm cuối: giữ nguyên khi viết không dấu (duong/DUONG),
+    // chỉ biến đổi thành ươ hoặc uô khi người dùng gõ tường minh w hoặc oo
+    // =========================================================================
+
+    [<Theory>]
+    [<InlineData("duong", "duong")>]
+    [<InlineData("DUONG", "DUONG")>]
+    [<InlineData("Duong", "Duong")>]
+    [<InlineData("truong", "truong")>]
+    [<InlineData("TRUONG", "TRUONG")>]
+    [<InlineData("phuong", "phuong")>]
+    [<InlineData("huong", "huong")>]
+    [<InlineData("cuong", "cuong")>]
+    [<InlineData("luong", "luong")>]
+    [<InlineData("duowng", "dương")>]
+    [<InlineData("DUOWNG", "DƯƠNG")>]
+    [<InlineData("Duowng", "Dương")>]
+    [<InlineData("buoong", "buông")>]
+    [<InlineData("BUOONG", "BUÔNG")>]
+    let ``Unaccented uo with final consonant stays literal unless w or oo is typed`` (input: string, expected: string) =
+        let result = typeWord input EngineConfig.Default
+        Assert.Equal(expected, result)

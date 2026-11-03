@@ -30,7 +30,7 @@ module ToneRules =
         | "yeu" -> "yêu"
         | "uoi" -> "uôi"
         | "ieu" -> "iêu"
-        | "uo" when hasFinal -> "uô"
+        // Không tự ép "uo" + final -> "uô" vì nhập nhằng với "ươ" và tên không dấu (vd: duong/DUONG, truong, phuong)
         | "ye" when hasFinal -> "yê"
         | "uâ" when not hasFinal ->
             if vowels.Length >= 2 && Char.IsUpper vowels[0] && Char.IsUpper vowels[1] then "UA"
