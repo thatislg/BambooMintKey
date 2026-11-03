@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
@@ -9,7 +9,7 @@
 
   <Identity
     Name="e845bd9e-0d79-41df-8940-4b8ea7062590"
-    Publisher="CN=NTQJ-"
+    Publisher="CN=LMO-LAB"
     Version="1.2.1.0" />
 
   <Properties>
