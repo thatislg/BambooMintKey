@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
@@ -41,9 +41,7 @@
         <uap:SplashScreen Image="Images\SplashScreen.png" />
       </uap:VisualElements>
       <Extensions>
-        <desktop:Extension Category="windows.startupTask"
-          Executable="$targetnametoken$.exe"
-          EntryPoint="$targetentrypoint$">
+        <desktop:Extension Category="windows.startupTask">
           <desktop:StartupTask
             TaskId="BambooMintKeyStartup"
             Enabled="true"
