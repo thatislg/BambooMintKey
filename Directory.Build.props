@@ -8,6 +8,7 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     
     <!-- Thông tin bản quyền & Metadata -->

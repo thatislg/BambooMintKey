@@ -55,7 +55,7 @@
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <DefaultLanguage>en-US</DefaultLanguage>
     <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
-    <NoWarn>$(NoWarn);NU1702</NoWarn>
+    <NoWarn>$(NoWarn);NU1701;NU1702</NoWarn>
     <EntryPointProjectUniqueName>..\src\BambooMintKey.UI\BambooMintKey.UI.fsproj</EntryPointProjectUniqueName>
     <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
     <PackageCertificateKeyFile>BambooMintKey.Package_TemporaryKey.pfx</PackageCertificateKeyFile>
@@ -106,13 +106,13 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <None Include="BambooMintKey.Package_TemporaryKey.pfx" />
-    <Content Include="Images\SplashScreen.scale-200.png" />
-    <Content Include="Images\LockScreenLogo.scale-200.png" />
-    <Content Include="Images\Square150x150Logo.scale-200.png" />
-    <Content Include="Images\Square44x44Logo.scale-200.png" />
-    <Content Include="Images\Square44x44Logo.targetsize-24_altform-unplated.png" />
-    <Content Include="Images\StoreLogo.png" />
-    <Content Include="Images\Wide310x150Logo.scale-200.png" />
+    <Content Include="Images\*.png" />
+
+
+
+
+
+
   </ItemGroup>
   <Import Project="$(WapProjPath)\Microsoft.DesktopBridge.targets" />
   <ItemGroup>
@@ -121,6 +121,10 @@
   <ItemGroup>
     <ProjectReference Include="..\src\BambooMintKey.UI\BambooMintKey.UI.fsproj" />
   </ItemGroup>
+  <Target Name="EnsureWapPublishAssets" BeforeTargets="BeforeBuild">
+    <Exec Command="dotnet restore &quot;$(MSBuildThisFileDirectory)..\BambooMintKey.slnx&quot; -r win-x64" Condition="!Exists('$(MSBuildThisFileDirectory)..\src\BambooMintKey.Core\obj\project.assets.json')" />
+    <Exec Command="dotnet restore &quot;$(MSBuildThisFileDirectory)..\src\BambooMintKey.UI\BambooMintKey.UI.fsproj&quot; -p:BaseIntermediateOutputPath=obj\wappublish\win-x64\ -r win-x64" Condition="!Exists('$(MSBuildThisFileDirectory)..\src\BambooMintKey.UI\obj\wappublish\win-x64\project.assets.json')" />
+  </Target>
   <!-- Tự động publish NativeAOT BambooMintKey.dll nếu chưa có trong publish\win-x64 -->
   <Target Name="PublishNativeBridgeAot" BeforeTargets="BeforeBuild">
     <Exec Command="dotnet publish &quot;$(MSBuildThisFileDirectory)..\src\BambooMintKey.NativeBridge\BambooMintKey.NativeBridge.csproj&quot; -c Release -r win-x64 --self-contained -o &quot;$(MSBuildThisFileDirectory)..\publish\win-x64&quot; -p:NativeLib=Shared -p:PublishAot=true" Condition="!Exists('$(MSBuildThisFileDirectory)..\publish\win-x64\BambooMintKey.dll')" />
