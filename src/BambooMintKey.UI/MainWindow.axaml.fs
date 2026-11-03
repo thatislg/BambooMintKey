@@ -4,6 +4,7 @@ namespace BambooMintKey.UI
 open System
 open System.Diagnostics
 open System.Reflection
+open Microsoft.Win32
 open Avalonia
 open Avalonia.Controls
 open Avalonia.Markup.Xaml
@@ -51,6 +52,12 @@ type MainWindow (args: string[]) as this =
         this.BindControls()
         this.LoadSettings()
         this.HandleCommandLineArgs()
+
+        // Đảm bảo không bao giờ chặn hệ thống Windows Shutdown/Logoff
+        try
+            AppDomain.CurrentDomain.ProcessExit.Add(fun _ -> allowClose <- true)
+        with _ -> ()
+
         this.Closing.Add(fun e ->
             if not allowClose then
                 e.Cancel <- true
@@ -262,6 +269,12 @@ type MainWindow (args: string[]) as this =
 
     member this.ReloadSettings() =
         this.LoadSettings()
+
+    member this.BringToFront() =
+        this.WindowState <- WindowState.Normal
+        this.Show()
+        this.Activate()
+        this.Focus() |> ignore
 
     member this.ForceClose() =
         allowClose <- true
