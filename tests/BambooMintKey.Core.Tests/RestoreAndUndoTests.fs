@@ -93,5 +93,21 @@ module RestoreAndUndoTests =
         Assert.Equal("vi", backState4.TransformedText)
         
         // Xóa "i" -> còn "v"
+        // Xóa "i" -> còn "v"
         let backState5, _ = TelexEngine.processKey backState4 KeyInput.Backspace config
         Assert.Equal("v", backState5.TransformedText)
+
+    // 5. Issue 027: Khi AllowRepeatKeyUndo = false, gõ lặp phím dấu (Tẻ + rrr) không được tích tụ phím ẩn làm kẹt Backspace
+    [<Fact>]
+    let ``5. Repeated tone keys when AllowRepeatKeyUndo is disabled should not block single Backspace`` () =
+        let config = { EngineConfig.Default with AllowRepeatKeyUndo = false }
+        let mutable state = WordState.Empty
+        for c in "Terrr" do
+            let newState, _ = TelexEngine.processKey state (KeyInput.Char c) config
+            state <- newState
+
+        Assert.Equal("Tẻ", state.TransformedText)
+
+        // Chỉ cần 1 lần Backspace là phải xóa ngay dấu hỏi ('r') để trở về "Te"
+        let afterBack, _ = TelexEngine.processKey state KeyInput.Backspace config
+        Assert.Equal("Te", afterBack.TransformedText)

@@ -198,6 +198,11 @@ module TelexEngine =
             }
             (newState, EngineAction.UpdateComposition formatted)
 
+        elif not config.AllowRepeatKeyUndo && isToneKey && state.Syllable.IsSome && state.Syllable.Value.Tone <> Tone.None && ToneRules.keyToTone c = Some state.Syllable.Value.Tone && isConsecutiveRepeat then
+            // Khi tắt AllowRepeatKeyUndo: gõ lặp liền kề cùng phím dấu thanh hiện tại không tích tụ phím ẩn vào RawKeys,
+            // giúp bấm Backspace 1 lần luôn xóa được ngay thay vì bị kẹt ở dấu cũ (Issue 027).
+            (state, EngineAction.UpdateComposition state.TransformedText)
+
         elif isUndoModifier then
             // Lặp phím modifier -> hủy biến đổi. Ưu tiên hoàn dấu trước: lặp liền kề luôn rút về 1 ký tự thô (ddd -> dd).
             let resultKeys =

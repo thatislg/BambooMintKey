@@ -151,7 +151,7 @@ public static unsafe class SharedMemoryManager
                         if (isCreator)
                         {
                             _pShared[0] = 1; // 1 = IsVietnameseMode On (V)
-                            *(uint*)(_pShared + 8) = 1; // StateSequence ban đầu
+                            InitializeDefaultConfig(_pShared); // Khởi tạo đầy đủ cấu hình mặc định chuẩn (Issue 027)
                         }
 
                         // Luôn nạp và đồng bộ cấu hình người dùng từ file config.json nếu có
@@ -184,6 +184,79 @@ public static unsafe class SharedMemoryManager
                     LocalFree(pSd);
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Khởi tạo đầy đủ các giá trị mặc định chuẩn của Engine cho vùng nhớ dùng chung.
+    /// Đảm bảo kể cả trong môi trường AppContainer (như Windows Search Bar / SearchHost.exe)
+    /// khi không đọc được config.json hoặc tạo vùng nhớ riêng vẫn có đầy đủ tính năng chuẩn (Issue 027).
+    /// </summary>
+    private static void InitializeDefaultConfig(byte* pShared)
+    {
+        pShared[0] = 1;  // 1 = IsVietnameseMode On (V)
+        pShared[1] = 0;  // 0 = ToneStyle Modern
+        pShared[3] = 1;  // 1 = AllowRepeatKeyUndo On
+        pShared[4] = 0;  // 0 = AllowLeadingWAsU Off
+        pShared[5] = 0;  // 0 = InputMethod Telex
+        pShared[6] = 0;  // 0 = Charset Unicode
+        pShared[7] = 0;  // 0 = ToggleHotkey Default Preset
+        *(uint*)(pShared + 8) = 1;      // StateSequence ban đầu
+        *(uint*)(pShared + 12) = 0xC0;  // HotkeyVKey (`/~)
+        *(uint*)(pShared + 16) = 0x0001;// HotkeyModifiers
+        pShared[20] = 1; // 1 = AllowFreeTonePlacement On
+        pShared[21] = 0; // 0 = EnablePreedit Off
+        pShared[22] = 1; // 1 = EnableVietnameseDictionary On
+        pShared[23] = 1; // 1 = EnableEnglishBacktracking On
+    }
+
+    /// <summary>
+    /// Cấp quyền ReadAndExecute cho ALL APPLICATION PACKAGES (S-1-15-2-1) và
+    /// ALL RESTRICTED APPLICATION PACKAGES (S-1-15-2-2) trên thư mục và file cấu hình,
+    /// giúp các tiến trình AppContainer (Windows Search Bar, UWP Apps) đọc được config.json.
+    /// </summary>
+    private static void GrantAppContainerReadAccess(string dirPath, string filePath)
+    {
+        try
+        {
+            string[] appContainerSids = ["S-1-15-2-1", "S-1-15-2-2"];
+            if (Directory.Exists(dirPath))
+            {
+                var dirInfo = new DirectoryInfo(dirPath);
+                var dirSecurity = dirInfo.GetAccessControl();
+                foreach (var sidStr in appContainerSids)
+                {
+                    var sid = new System.Security.Principal.SecurityIdentifier(sidStr);
+                    var rule = new System.Security.AccessControl.FileSystemAccessRule(
+                        sid,
+                        System.Security.AccessControl.FileSystemRights.ReadAndExecute,
+                        System.Security.AccessControl.InheritanceFlags.ContainerInherit | System.Security.AccessControl.InheritanceFlags.ObjectInherit,
+                        System.Security.AccessControl.PropagationFlags.None,
+                        System.Security.AccessControl.AccessControlType.Allow);
+                    dirSecurity.AddAccessRule(rule);
+                }
+                dirInfo.SetAccessControl(dirSecurity);
+            }
+
+            if (File.Exists(filePath))
+            {
+                var fileInfo = new FileInfo(filePath);
+                var fileSecurity = fileInfo.GetAccessControl();
+                foreach (var sidStr in appContainerSids)
+                {
+                    var sid = new System.Security.Principal.SecurityIdentifier(sidStr);
+                    var rule = new System.Security.AccessControl.FileSystemAccessRule(
+                        sid,
+                        System.Security.AccessControl.FileSystemRights.ReadAndExecute,
+                        System.Security.AccessControl.AccessControlType.Allow);
+                    fileSecurity.AddAccessRule(rule);
+                }
+                fileInfo.SetAccessControl(fileSecurity);
+            }
+        }
+        catch
+        {
+            // Bỏ qua nếu đang chạy bên trong AppContainer không có quyền WriteDAC
         }
     }
 
@@ -221,9 +294,12 @@ public static unsafe class SharedMemoryManager
                 }
                 """;
                 File.WriteAllText(path, defaultJson);
+                GrantAppContainerReadAccess(dir, path);
+                InitializeDefaultConfig(pShared);
                 return;
             }
 
+            GrantAppContainerReadAccess(Path.GetDirectoryName(path)!, path);
             string json = File.ReadAllText(path);
 
             uint ParseUint(string key, uint defaultVal)
@@ -392,6 +468,7 @@ public static unsafe class SharedMemoryManager
             string tmp = path + ".tmp." + Guid.NewGuid().ToString("N");
             File.WriteAllText(tmp, json);
             File.Move(tmp, path, true);
+            GrantAppContainerReadAccess(dir, path);
         }
         catch (Exception ex)
         {
