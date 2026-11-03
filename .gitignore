@@ -48,3 +48,17 @@ viwiki-latest-pages-articles.xml.bz2
 viwiki-latest-pages-articles.xml
 
 .fake
+
+
+## MSIX Packaging Certificates & Output Packages
+*.pfx
+*.cer
+*.appx
+*.msix
+*.appxbundle
+*.msixbundle
+*.appxupload
+*.msixupload
+AppPackages/
+BundleArtifacts/
+Package.StoreAssociation.xml
