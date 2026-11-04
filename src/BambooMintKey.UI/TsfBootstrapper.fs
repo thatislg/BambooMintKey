@@ -51,8 +51,8 @@ module TsfBootstrapper =
             else
                 let srcFi = FileInfo(sourceDllPath)
                 let tgtFi = FileInfo(targetDll)
-                // Nếu kích thước file khác nhau -> phiên bản đã được cập nhật, cần đăng ký lại
-                if srcFi.Length <> tgtFi.Length then false
+                // Nếu kích thước file khác nhau hoặc file nguồn mới hơn -> phiên bản đã cập nhật, cần nạp lại
+                if srcFi.Length <> tgtFi.Length || srcFi.LastWriteTimeUtc > tgtFi.LastWriteTimeUtc.AddSeconds(2.0) then false
                 else
                     // 1. Kiểm tra COM InprocServer32
                     let inprocKeyPath = sprintf @"CLSID\%s\InprocServer32" TextServiceClsid
@@ -132,11 +132,21 @@ module TsfBootstrapper =
 
                     grantDirectoryPermissions targetDir
 
-                    // Sao chép file DLL ra C:\ProgramData\BambooMintKey\
+                    // Sao chép file DLL ra C:\ProgramData\BambooMintKey\ (hỗ trợ rename-and-replace nếu đang bị locked)
                     try
                         File.Copy(sourceDll, targetDll, true)
-                    with ex ->
-                        Debug.WriteLine(sprintf "TsfBootstrapper File.Copy warning: %s" ex.Message)
+                    with _ ->
+                        try
+                            let oldDll = Path.Combine(targetDir, sprintf "BambooMintKey.dll.old.%s" (Guid.NewGuid().ToString("N").Substring(0, 8)))
+                            if File.Exists(targetDll) then
+                                File.Move(targetDll, oldDll)
+                            File.Copy(sourceDll, targetDll, true)
+                            try
+                                Directory.GetFiles(targetDir, "BambooMintKey.dll.old.*")
+                                |> Array.iter (fun f -> try File.Delete(f) with _ -> ())
+                            with _ -> ()
+                        with ex ->
+                            Debug.WriteLine(sprintf "TsfBootstrapper File.Copy warning: %s" ex.Message)
 
                     // Thực thi regsvr32
                     let ok = registerWithRegsvr32 targetDll

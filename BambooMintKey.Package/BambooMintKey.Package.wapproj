@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Condition="'$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '15.0'">
     <VisualStudioVersion>15.0</VisualStudioVersion>
@@ -123,6 +123,6 @@
   </Target>
   <!-- Tự động publish NativeAOT BambooMintKey.dll nếu chưa có trong publish\win-x64 -->
   <Target Name="PublishNativeBridgeAot" BeforeTargets="BeforeBuild">
-    <Exec Command="dotnet publish &quot;$(MSBuildThisFileDirectory)..\src\BambooMintKey.NativeBridge\BambooMintKey.NativeBridge.csproj&quot; -c Release -r win-x64 --self-contained -o &quot;$(MSBuildThisFileDirectory)..\publish\win-x64&quot; -p:NativeLib=Shared -p:PublishAot=true" Condition="!Exists('$(MSBuildThisFileDirectory)..\publish\win-x64\BambooMintKey.dll')" />
+    <Exec Command="powershell.exe -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\scripts\windows\build-native.ps1&quot; -Configuration Release -Runtime win-x64" />
   </Target>
 </Project>

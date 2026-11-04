@@ -30,11 +30,10 @@ Khi phát hành bộ gõ qua **Microsoft Store** hoặc gói **MSIX**, kiến tr
 - Nếu chỉ khai báo `<com:ComServer>` trong `Package.appxmanifest`, Windows chỉ nhận biết CLSID COM trong phạm vi gói chứ **Text Services Framework chưa hề biết sự tồn tại của Profile tiếng Việt (`0x042A`)**.
 - **Hệ quả:** Ứng dụng cài đặt thành công nhưng **hoàn toàn không xuất hiện** trong Language Bar hoặc danh sách bàn phím hệ thống của Windows Settings.
 
-### 1.3. Lỗi treo ứng dụng (UI Hang / Event 1002) & Ẩn Taskbar Tray
+### 1.3. Lỗi `hInstance` Win32 & Veto Shutdown
 Khi cài đặt thử nghiệm phiên bản MSIX ban đầu, xuất hiện các hiện tượng:
 1. **Lỗi `hInstance` Win32:** Trong `TrayIconManager.fs`, biến `wc.hInstance` nhận giá trị từ `Process.GetCurrentProcess().Handle` (là Process Kernel Handle) thay vì `GetModuleHandleW(null)` (HMODULE / Instance Handle). Điều này khiến `RegisterClassExW` thất bại, Message Window không nhận được sự kiện chuột từ khay hệ thống.
-2. **Ẩn nhầm Tray Icon:** Logic `isBambooMintKeyActive()` tự động ẩn Tray Icon khi cửa sổ hiện tại không gõ tiếng Việt. Khi bộ gõ chưa kích hoạt, icon bị ẩn hoàn toàn; kết hợp với việc đóng cửa sổ chính chỉ gọi `Hide()`, ứng dụng rơi vào trạng thái "vô hình" (không có cửa sổ, không có Tray Icon, không thể tương tác).
-3. **Veto Shutdown:** Sự kiện `Closing` chặn thoát (`e.Cancel <- true`) khi chưa cấp cờ `allowClose`, khiến Windows ghi nhận sự kiện lỗi `Event 1002 Application Hang`.
+2. **Veto Shutdown:** Sự kiện `Closing` chặn thoát (`e.Cancel <- true`) khi chưa cấp cờ `allowClose`, khiến Windows ghi nhận sự kiện lỗi `Event 1002 Application Hang`.
 
 ---
 
@@ -99,13 +98,14 @@ flowchart TD
 
 Nhằm mang lại trải nghiệm quen thuộc, tin cậy và không bao giờ bị treo, các thành phần giao diện đã được tái thiết kế:
 
-### 3.1. Tray Icon luôn luôn thường trực ([`TrayIconManager.fs`](file:///d:/Kojin/BambooMintKey/src/BambooMintKey.UI/TrayIconManager.fs))
-- **Không tự ẩn:** Khác với macOS nơi InputMethodKit quản lý menu bàn phím, trên Windows, ứng dụng gõ tiếng Việt (như UniKey/EVKey) phải luôn duy trì icon trên Notification Area để làm điểm neo điều khiển.
+### 3.1. Tray Icon hiển thị động theo trạng thái Input Method ([`TrayIconManager.fs`](file:///d:/Kojin/BambooMintKey/src/BambooMintKey.UI/TrayIconManager.fs))
+- **Hiển thị động theo chuẩn IME:** Khác với các phần mềm hook phím Win32 cũ (như UniKey hay EVKey), BambooMintKey là một Text Services Framework (TSF) Input Method chuẩn hệ thống. Tray Icon [V] / [E] tự động xuất hiện khi cửa sổ làm việc hiện tại kích hoạt bộ gõ tiếng Việt của BambooMintKey (Profile `0x042A`) và tự động ẩn khi chuyển sang layout khác hoặc tắt bộ gõ (tương đương kiến trúc Status Bar trên macOS).
 - **Tương tác chuột:**
   - **Click chuột trái:** Đảo nhanh chế độ giữa **[ V ]** (Tiếng Việt) và **[ E ]** (Tiếng Anh). Icon và Tooltip cập nhật thời gian thực.
   - **Nhấp đúp chuột trái (`WM_LBUTTONDBLCLK`):** Mở Bảng điều khiển & Cài đặt (`MainWindow`).
-  - **Click chuột phải:** Mở Context Menu chuẩn Win32 (hỗ trợ chuyển kiểu gõ Telex/VNI/Simple, bảng mã Unicode/TCVN3, kiểu bỏ dấu, và nút **"Thoát BambooMintKey"**).
-- **Phục hồi sự cố Explorer:** Bắt thông điệp Win32 `TaskbarCreated`, tự động đăng ký lại icon khi thanh Taskbar của Windows khởi động lại.
+  - **Click chuột phải:** Mở Context Menu chuẩn Win32 (hỗ trợ chuyển kiểu gõ Telex/VNI/Simple, bảng mã Unicode/TCVN3, kiểu bỏ dấu, mở Bảng điều khiển và Thông tin).
+  - **Không có nút "Thoát":** Do vòng đời của Input Method được quản lý bởi Windows Language Profile, người dùng kích hoạt hoặc tắt bộ gõ thông qua phím chuyển bộ gõ của hệ thống (`Win + Space` / `Alt + Shift`), ứng dụng không sử dụng nút "Thoát" truyền thống.
+- **Phục hồi sự cố Explorer:** Bắt thông điệp Win32 `TaskbarCreated`, tự động đăng ký lại icon khi thanh Taskbar của Windows khởi động lại (nếu bộ gõ đang active).
 
 ### 3.2. Cơ chế Single-Instance với Event đồng bộ ([`App.axaml.fs`](file:///d:/Kojin/BambooMintKey/src/BambooMintKey.UI/App.axaml.fs))
 - Sử dụng Named Mutex `Local\BambooMintKey_UI_Process_Mutex_v1` để nhận biết tiến trình đang chạy.
@@ -114,7 +114,7 @@ Nhằm mang lại trải nghiệm quen thuộc, tin cậy và không bao giờ b
 
 ### 3.3. Bảo vệ tắt máy & đóng cửa sổ ([`MainWindow.axaml.fs`](file:///d:/Kojin/BambooMintKey/src/BambooMintKey.UI/MainWindow.axaml.fs))
 - Đăng ký sự kiện `AppDomain.CurrentDomain.ProcessExit`: Tự động đặt cờ `allowClose <- true` khi hệ thống yêu cầu tắt ứng dụng, ngăn chặn hoàn toàn việc veto shutdown gây lỗi Event 1002.
-- Hàm `ForceClose()` cho phép thoát dứt điểm khi người dùng chọn "Thoát" từ menu khay hệ thống.
+- Cửa sổ chính đóng lại sẽ thu về chế độ nền, không làm gián đoạn tiến trình phục vụ TSF.
 
 ---
 
@@ -174,5 +174,5 @@ Tất cả các cơ chế liên quan đến Windows (TSF, COM InprocServer, `ica
 Giải pháp **Self-Deploying Bootstrapper (Hướng A)** đã tháo gỡ hoàn toàn bài toán phân phối bộ gõ TSF trên Windows thông qua định dạng hiện đại MSIX:
 1. **Tuân thủ Store:** Đóng gói nguyên bản MSIX, sẵn sàng phân phối và tự động cập nhật qua Microsoft Store.
 2. **Khắc phục Sandbox:** Tự động triển khai COM DLL ra `C:\ProgramData\BambooMintKey` với DACL mở rộng cho toàn bộ tiến trình và AppContainer UWP.
-3. **Trải nghiệm mượt mà:** Khởi động 0ms khi đã nạp, Tray Icon thường trực, điều khiển trực quan, hoàn toàn tương thích và không ảnh hưởng tới các phiên bản macOS và Linux.
+3. **Trải nghiệm mượt mà:** Khởi động 0ms khi đã nạp, Tray Icon kích hoạt động chuẩn theo trạng thái Input Method, điều khiển trực quan, hoàn toàn tương thích và không ảnh hưởng tới các phiên bản macOS và Linux.
 

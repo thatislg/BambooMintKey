@@ -319,12 +319,12 @@ module TrayIconGdi =
         hIcon
 
 /// <summary>
-/// Quản trị viên System Tray Icon độc lập cho Windows.
-/// Luôn hiển thị biểu tượng [V] / [E] trên khay hệ thống khi ứng dụng chạy.
-/// Hỗ trợ click chuột trái đảo chế độ, nhấp đúp mở cài đặt, click phải mở Context Menu đầy đủ.
+/// Quản trị viên System Tray Icon độc lập cho Windows (kiến trúc tương đương BambooMintKey.Mac.StatusBar).
+/// Tự động hiển thị biểu tượng [V] / [E] khi chọn BambooMintKey (TSF 0x042A) và tự ẩn khi chuyển sang IME khác.
+/// Hỗ trợ click chuột trái đảo chế độ, nhấp đúp mở cài đặt, click phải mở Context Menu điều khiển.
 /// </summary>
 [<AllowNullLiteral>]
-type TrayIconManager(onOpenSettings: unit -> unit, onOpenAbout: unit -> unit, onExit: unit -> unit) =
+type TrayIconManager(onOpenSettings: unit -> unit, onOpenAbout: unit -> unit) =
 
     let mutable hMsgWnd: IntPtr = IntPtr.Zero
     let mutable nid = TrayWin32.NOTIFYICONDATAW()
@@ -336,6 +336,7 @@ type TrayIconManager(onOpenSettings: unit -> unit, onOpenAbout: unit -> unit, on
     let mutable visibilityTimer: DispatcherTimer = null
     let mutable wndProcDelegate: TrayWin32.WNDPROC = null
     let mutable msgTaskbarCreated = 0u
+    let mutable lastKnownActive = false
 
     let menuCmdToggleVn = 101u
     let menuCmdMethodTelex = 201u
@@ -352,7 +353,49 @@ type TrayIconManager(onOpenSettings: unit -> unit, onOpenAbout: unit -> unit, on
     let menuCmdEnglishBacktrack = 504u
     let menuCmdOpenSettings = 601u
     let menuCmdOpenAbout = 602u
-    let menuCmdExit = 999u
+
+    let isBambooMintKeyActive () : bool =
+        try
+            let hwnd = TrayWin32.GetForegroundWindow()
+            if hwnd <> IntPtr.Zero then
+                let mutable pid = 0u
+                let threadId = TrayWin32.GetWindowThreadProcessId(hwnd, &pid)
+                let currentPid = uint32 (Process.GetCurrentProcess().Id)
+
+                // 1. Nếu cửa sổ tiền cảnh là của chính BambooMintKey UI -> giữ nguyên trạng thái
+                if pid = currentPid then
+                    lastKnownActive
+                else
+                    // 2. Kiểm tra xem có phải là Taskbar / Shell (đang click chuột vào Tray Icon)
+                    let sb = System.Text.StringBuilder(256)
+                    let len = TrayWin32.GetClassNameW(hwnd, sb, sb.Capacity)
+                    let className = if len > 0 then sb.ToString() else ""
+                    if className = "Shell_TrayWnd" || className = "Shell_SecondaryTrayWnd" || className = "Windows.UI.Core.CoreWindow" then
+                        lastKnownActive
+                    else
+                        // 3. Lấy Language Layout của ứng dụng tiền cảnh
+                        let hkl = TrayWin32.GetKeyboardLayout(threadId)
+                        let langId = (uint16 (hkl.ToInt64())) &&& 0xFFFFus
+                        if langId <> 0us then
+                            // 0x042A = Vietnamese language ID.
+                            // Nếu Language Bar đang chọn Vietnamese -> BambooMintKey -> Chắc chắn SHOW (true)
+                            // Nếu chọn bộ gõ khác (0x0411 Google Japanese, 0x0409 US English,...) -> Chắc chắn HIDE (false)
+                            let isActive = (langId = 0x042Aus)
+                            lastKnownActive <- isActive
+                            isActive
+                        else
+                            // Fallback khi không lấy được HKL (ví dụ cửa sổ đặc biệt)
+                            let active = ConfigStore.getIsActive()
+                            lastKnownActive <- active
+                            active
+            else
+                let active = ConfigStore.getIsActive()
+                lastKnownActive <- active
+                active
+        with _ ->
+            let active = ConfigStore.getIsActive()
+            lastKnownActive <- active
+            active
 
     let showNativeContextMenu () =
         let mutable pt = TrayWin32.POINT()
@@ -493,8 +536,6 @@ type TrayIconManager(onOpenSettings: unit -> unit, onOpenAbout: unit -> unit, on
                 // Điều hướng
                 TrayWin32.AppendMenuW(hMenu, TrayWin32.MF_STRING, UIntPtr(uint64 menuCmdOpenSettings), "Bảng điều khiển & Cài đặt...") |> ignore
                 TrayWin32.AppendMenuW(hMenu, TrayWin32.MF_STRING, UIntPtr(uint64 menuCmdOpenAbout), "Thông tin BambooMintKey...") |> ignore
-                TrayWin32.AppendMenuW(hMenu, TrayWin32.MF_SEPARATOR, UIntPtr.Zero, String.Empty) |> ignore
-                TrayWin32.AppendMenuW(hMenu, TrayWin32.MF_STRING, UIntPtr(uint64 menuCmdExit), "Thoát BambooMintKey") |> ignore
 
                 // Đưa hMsgWnd lên làm Foreground Window theo đúng chuẩn Microsoft KB135788 để nhận sự kiện click-away
                 if hMsgWnd <> IntPtr.Zero then
@@ -551,8 +592,6 @@ type TrayIconManager(onOpenSettings: unit -> unit, onOpenAbout: unit -> unit, on
                         Dispatcher.UIThread.Post(Action(onOpenSettings))
                     | c when c = menuCmdOpenAbout ->
                         Dispatcher.UIThread.Post(Action(onOpenAbout))
-                    | c when c = menuCmdExit ->
-                        Dispatcher.UIThread.Post(Action(onExit))
                     | _ -> ()
             finally
                 isMenuOpen <- false
@@ -601,23 +640,26 @@ type TrayIconManager(onOpenSettings: unit -> unit, onOpenAbout: unit -> unit, on
             else
                 TrayWin32.DefWindowProcW(hWnd, msg, wParam, lParam)
         elif msg = msgTaskbarCreated && msgTaskbarCreated <> 0u then
-            // Khi Explorer restart, tạo lại icon ngay lập tức
+            // Khi Explorer restart, tạo lại icon nếu đang active
             isIconAdded <- false
-            showTrayIcon()
+            if lastKnownActive then
+                showTrayIcon()
             IntPtr.Zero
         else
             TrayWin32.DefWindowProcW(hWnd, msg, wParam, lParam)
 
     let checkVisibilityAndState () =
-        // Trên Windows, khay hệ thống (System Tray) luôn luôn hiển thị khi BambooMintKey đang chạy
-        if not isIconAdded then
-            showTrayIcon()
+        let active = isBambooMintKeyActive()
         let isVn = ConfigStore.getIsVietnameseMode()
-        if isVn <> currentModeVn then
-            updateTrayIconImage isVn
 
-    new(onOpenSettings: unit -> unit, onOpenAbout: unit -> unit) =
-        TrayIconManager(onOpenSettings, onOpenAbout, fun () -> ())
+        if active then
+            if not isIconAdded then
+                showTrayIcon()
+            if isVn <> currentModeVn then
+                updateTrayIconImage isVn
+        else
+            if isIconAdded then
+                hideTrayIcon()
 
     member this.Start() =
         msgTaskbarCreated <- TrayWin32.RegisterWindowMessageW("TaskbarCreated")
@@ -649,8 +691,8 @@ type TrayIconManager(onOpenSettings: unit -> unit, onOpenAbout: unit -> unit, on
         nid.hIcon <- if currentModeVn then hIconV else hIconE
         nid.szTip <- if currentModeVn then "BambooMintKey: Tiếng Việt (V)" else "BambooMintKey: English (E)"
 
-        // 3. Hiển thị Tray Icon ngay lập tức
-        showTrayIcon()
+        // 3. Khởi tạo trạng thái ban đầu theo ứng dụng tiền cảnh (chỉ hiện khi active)
+        checkVisibilityAndState()
 
         // 4. Timer định kỳ 100ms kiểm tra đồng bộ trạng thái V/E
         visibilityTimer <- DispatcherTimer(TimeSpan.FromMilliseconds(100.0), DispatcherPriority.Background, EventHandler(fun _ _ -> checkVisibilityAndState()))

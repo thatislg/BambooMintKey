@@ -42,12 +42,6 @@ type App() =
                 mainWindow.ReloadSettings()
                 mainWindow.BringToFront()
 
-            let onExit () =
-                if trayManager <> null then
-                    trayManager.Stop()
-                mainWindow.ForceClose()
-                desktop.Shutdown(0)
-
             if not createdNew then
                 // Đã có một phiên bản BambooMintKey đang chạy trong cùng user session
                 // Phát tín hiệu để phiên bản trước mở Bảng điều khiển và thoát tiến trình trùng lặp
@@ -75,8 +69,8 @@ type App() =
                 listenThread.Name <- "BambooMintKey_SingleInstanceListener"
                 listenThread.Start()
 
-                // 3. Khởi chạy Tray Icon luôn luôn hiển thị trên Taskbar
-                trayManager <- TrayIconManager(openSettings, openAbout, onExit)
+                // 3. Khởi chạy Tray Icon (hiển thị động khi TSF Input Method active)
+                trayManager <- TrayIconManager(openSettings, openAbout)
                 trayManager.Start()
 
                 let isTrayMode =

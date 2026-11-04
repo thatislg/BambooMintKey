@@ -276,10 +276,6 @@ type MainWindow (args: string[]) as this =
         this.Activate()
         this.Focus() |> ignore
 
-    member this.ForceClose() =
-        allowClose <- true
-        this.Close()
-
     member private this.SaveAndClose() =
         let cfg = ConfigStore.loadConfig()
 
