@@ -1,9 +1,12 @@
 #nowarn "3261"
+#nowarn "3265"
+#nowarn "9"
 namespace BambooMintKey.UI
 
 open System
 open System.Diagnostics
 open System.Reflection
+open System.Runtime.InteropServices
 open Microsoft.Win32
 open Avalonia
 open Avalonia.Controls
@@ -11,6 +14,49 @@ open Avalonia.Markup.Xaml
 open Avalonia.Interactivity
 open Avalonia.Input
 open Avalonia.Threading
+
+module private AppModel =
+    [<Struct; StructLayout(LayoutKind.Sequential)>]
+    type PACKAGE_VERSION =
+        struct
+            val mutable Revision: uint16
+            val mutable Build: uint16
+            val mutable Minor: uint16
+            val mutable Major: uint16
+        end
+
+    [<Struct; StructLayout(LayoutKind.Sequential)>]
+    type PACKAGE_ID =
+        struct
+            val mutable reserved: uint32
+            val mutable processorArchitecture: uint32
+            val mutable version: PACKAGE_VERSION
+            val mutable name: IntPtr
+            val mutable publisher: IntPtr
+            val mutable resourceId: IntPtr
+            val mutable publisherId: IntPtr
+        end
+
+    [<DllImport("kernel32.dll", SetLastError = true)>]
+    extern int GetCurrentPackageId(uint32& bufferLength, IntPtr buffer)
+
+    /// Lấy phiên bản trực tiếp từ gói MSIX (Package.appxmanifest) nếu đang chạy dưới Desktop Bridge
+    let tryGetPackageVersion () : string option =
+        try
+            let mutable bufferLength = 0u
+            let rc = GetCurrentPackageId(&bufferLength, IntPtr.Zero)
+            if rc = 122 && bufferLength > 0u then
+                let buffer = Marshal.AllocHGlobal(int bufferLength)
+                try
+                    let rc2 = GetCurrentPackageId(&bufferLength, buffer)
+                    if rc2 = 0 then
+                        let pkgId = Marshal.PtrToStructure<PACKAGE_ID>(buffer)
+                        Some (sprintf "%d.%d.%d" pkgId.version.Major pkgId.version.Minor pkgId.version.Build)
+                    else None
+                finally
+                    Marshal.FreeHGlobal(buffer)
+            else None
+        with _ -> None
 
 type MainWindow (args: string[]) as this = 
     inherit Window ()
@@ -94,23 +140,25 @@ type MainWindow (args: string[]) as this =
 
         let txtVersionInfo = this.FindControl<TextBlock>("TxtVersionInfo")
         let currentVersionStr =
-            try
-                let procPath = Environment.ProcessPath
-                if not (String.IsNullOrEmpty(procPath)) then
-                    let fvi = FileVersionInfo.GetVersionInfo(procPath)
-                    if not (String.IsNullOrEmpty(fvi.ProductVersion)) then
-                        let cleanVer = fvi.ProductVersion.Split('+').[0].Trim()
-                        cleanVer
-                    elif not (String.IsNullOrEmpty(fvi.FileVersion)) then
-                        let parts = fvi.FileVersion.Split('.')
-                        if parts.Length >= 3 then sprintf "%s.%s.%s" parts.[0] parts.[1] parts.[2] else fvi.FileVersion
+            match AppModel.tryGetPackageVersion() with
+            | Some pkgVer -> pkgVer
+            | None ->
+                try
+                    let procPath = Environment.ProcessPath
+                    if not (String.IsNullOrEmpty(procPath)) then
+                        let fvi = FileVersionInfo.GetVersionInfo(procPath)
+                        if not (String.IsNullOrEmpty(fvi.ProductVersion)) then
+                            fvi.ProductVersion.Split('+').[0].Trim()
+                        elif not (String.IsNullOrEmpty(fvi.FileVersion)) then
+                            let parts = fvi.FileVersion.Split('.')
+                            if parts.Length >= 3 then sprintf "%s.%s.%s" parts.[0] parts.[1] parts.[2] else fvi.FileVersion
+                        else
+                            let ver = Assembly.GetExecutingAssembly().GetName().Version
+                            if ver <> null then sprintf "%d.%d.%d" ver.Major ver.Minor (max 0 ver.Build) else "1.0.0"
                     else
                         let ver = Assembly.GetExecutingAssembly().GetName().Version
-                        if ver <> null then sprintf "%d.%d.%d" ver.Major ver.Minor (max 0 ver.Build) else "1.2.2"
-                else
-                    let ver = Assembly.GetExecutingAssembly().GetName().Version
-                    if ver <> null then sprintf "%d.%d.%d" ver.Major ver.Minor (max 0 ver.Build) else "1.2.2"
-            with _ -> "1.2.2"
+                        if ver <> null then sprintf "%d.%d.%d" ver.Major ver.Minor (max 0 ver.Build) else "1.0.0"
+                with _ -> "1.0.0"
 
         if txtVersionInfo <> null then
             txtVersionInfo.Text <- sprintf "Phiên bản %s (NativeAOT & Pure F# Core)" currentVersionStr
