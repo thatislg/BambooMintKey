@@ -106,11 +106,11 @@ type MainWindow (args: string[]) as this =
                         if parts.Length >= 3 then sprintf "%s.%s.%s" parts.[0] parts.[1] parts.[2] else fvi.FileVersion
                     else
                         let ver = Assembly.GetExecutingAssembly().GetName().Version
-                        if ver <> null then sprintf "%d.%d.%d" ver.Major ver.Minor (max 0 ver.Build) else "1.2.1"
+                        if ver <> null then sprintf "%d.%d.%d" ver.Major ver.Minor (max 0 ver.Build) else "1.2.2"
                 else
                     let ver = Assembly.GetExecutingAssembly().GetName().Version
-                    if ver <> null then sprintf "%d.%d.%d" ver.Major ver.Minor (max 0 ver.Build) else "1.2.1"
-            with _ -> "1.2.1"
+                    if ver <> null then sprintf "%d.%d.%d" ver.Major ver.Minor (max 0 ver.Build) else "1.2.2"
+            with _ -> "1.2.2"
 
         if txtVersionInfo <> null then
             txtVersionInfo.Text <- sprintf "Phiên bản %s (NativeAOT & Pure F# Core)" currentVersionStr

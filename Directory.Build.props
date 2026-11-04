@@ -1,4 +1,4 @@
-<!--
+﻿<!--
   BambooMintKey - Vietnamese Telex Input Method Editor for Windows
   Copyright (c) 2026 Dương Gia Long and LMO contributors
   SPDX-License-Identifier: MIT
@@ -18,11 +18,11 @@
     <Copyright>Copyright © 2026</Copyright>
 
     <!-- Quản lý phiên bản tập trung (Single Source of Truth) -->
-    <VersionPrefix>1.2.1</VersionPrefix>
-    <Version>1.2.1</Version>
-    <AssemblyVersion>1.2.1.0</AssemblyVersion>
-    <FileVersion>1.2.1.0</FileVersion>
-    <InformationalVersion>1.2.1</InformationalVersion>
+    <VersionPrefix>1.2.2</VersionPrefix>
+    <Version>1.2.2</Version>
+    <AssemblyVersion>1.2.2.0</AssemblyVersion>
+    <FileVersion>1.2.2.0</FileVersion>
+    <InformationalVersion>1.2.2</InformationalVersion>
   </PropertyGroup>
 
   <!--
