@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
@@ -8,13 +8,13 @@
   IgnorableNamespaces="uap rescap desktop">
 
   <Identity
-    Name="e845bd9e-0d79-41df-8940-4b8ea7062590"
-    Publisher="CN=LMO-LAB"
+    Name="LMO-LAB.BambooMintKey"
+    Publisher="CN=26176BF7-32C3-4FEF-BB1E-2318CA3696D1"
     Version="1.2.1.0" />
 
   <Properties>
     <DisplayName>BambooMintKey</DisplayName>
-    <PublisherDisplayName>NTQJ-</PublisherDisplayName>
+    <PublisherDisplayName>LMO-LAB</PublisherDisplayName>
     <Logo>Images\StoreLogo.png</Logo>
   </Properties>
 
