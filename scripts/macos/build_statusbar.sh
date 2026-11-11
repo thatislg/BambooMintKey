@@ -21,7 +21,9 @@ echo "==> Biên dịch BambooMintKey.Mac.StatusBar (Swift) cho $ARCH ..."
 rm -rf "$OUT_DIR"
 mkdir -p "$MACOS_DIR"
 
+mkdir -p /tmp/clang-cache
 swiftc \
+    -module-cache-path "${SWIFT_MODULE_CACHE_PATH:-/tmp/clang-cache}" \
     -O \
     -framework AppKit \
     -framework Cocoa \

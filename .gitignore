@@ -48,6 +48,8 @@ viwiki-latest-pages-articles.xml.bz2
 viwiki-latest-pages-articles.xml
 
 .fake
+.local/
+
 
 
 ## MSIX Packaging Certificates & Output Packages

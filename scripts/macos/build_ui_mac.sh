@@ -26,6 +26,9 @@ APP_DIR="$PUBLISH_DIR/BambooMintKey.app"
 MACOS_DIR="$APP_DIR/Contents/MacOS"
 BIN="BambooMintKey.UI.Mac"
 
+export DOTNET_CLI_HOME="${DOTNET_CLI_HOME:-/tmp/dotnet}"
+export DOTNET_CLI_TELEMETRY_OPTOUT=1
+
 echo "==> Publish BambooMintKey.UI.Mac (self-contained) cho $ARCH ..."
 rm -rf "$PUBLISH_DIR"
 mkdir -p "$MACOS_DIR"
@@ -44,10 +47,15 @@ cp "$SRC_DIR/Info.plist" "$APP_DIR/Contents/Info.plist"
 # Ký ad-hoc (cần thiết trên Apple Silicon).
 codesign --force --deep --sign - "$APP_DIR"
 
-# Cài vào ~/Applications để nút "Cài đặt…" tìm thấy.
-mkdir -p "$HOME/Applications"
-rm -rf "$HOME/Applications/BambooMintKey.app"
-cp -R "$APP_DIR" "$HOME/Applications/BambooMintKey.app"
+# Cài vào ~/Applications để nút "Cài đặt…" tìm thấy (nếu có thư mục cá nhân ghi được).
+if [ -n "${HOME:-}" ] && [ -d "$HOME" ]; then
+    mkdir -p "$HOME/Applications" 2>/dev/null || true
+    if [ -w "$HOME/Applications" ]; then
+        rm -rf "$HOME/Applications/BambooMintKey.app" 2>/dev/null || true
+        cp -R "$APP_DIR" "$HOME/Applications/BambooMintKey.app" 2>/dev/null || true
+        echo "==> Đã đồng bộ vào: $HOME/Applications/BambooMintKey.app"
+    fi
+fi
 
-echo "==> Hoàn tất: $HOME/Applications/BambooMintKey.app"
-echo "    File thực thi: $HOME/Applications/BambooMintKey.app/Contents/MacOS/$BIN"
+echo "==> Hoàn tất: $APP_DIR"
+echo "    File thực thi: $MACOS_DIR/$BIN"

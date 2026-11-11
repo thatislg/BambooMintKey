@@ -10,6 +10,9 @@
 #   scripts/macos/package_macos.sh [arch]     # arm64 (mặc định) | x86_64
 set -euo pipefail
 
+export DOTNET_CLI_HOME="${DOTNET_CLI_HOME:-/tmp/dotnet}"
+export DOTNET_CLI_TELEMETRY_OPTOUT=1
+
 ARCH="${1:-$(uname -m)}"
 case "$ARCH" in
     arm64) RID="osx-arm64" ;;
@@ -22,8 +25,11 @@ OUT_DELIVERY="$ROOT/delivery/macos"
 STAGE_DIR="$ROOT/build/package-macos-$ARCH"
 PACKAGE_NAME="BambooMintKey-macos-$ARCH"
 
-# Version lấy động: env VERSION (CI truyền từ git tag) hoặc tự đọc git tag.
+# Version lấy động: env VERSION (CI truyền) -> Directory.Build.props -> git tag -> fallback.
 APP_VERSION="${VERSION:-}"
+if [ -z "$APP_VERSION" ] && [ -f "$ROOT/Directory.Build.props" ]; then
+    APP_VERSION="$(grep -oE '<VersionPrefix>[0-9.]+</VersionPrefix>' "$ROOT/Directory.Build.props" | head -n 1 | sed -E 's/<\/?VersionPrefix>//g' || true)"
+fi
 if [ -z "$APP_VERSION" ]; then
     APP_VERSION="$(git -C "$ROOT" describe --tags --abbrev=0 2>/dev/null || true)"
 fi
@@ -32,7 +38,7 @@ APP_VERSION="${APP_VERSION#windows-}"
 APP_VERSION="${APP_VERSION#linux-}"
 APP_VERSION="${APP_VERSION#v}"
 if [ -z "$APP_VERSION" ]; then
-    APP_VERSION="1.2.0"
+    APP_VERSION="1.2.3"
 fi
 
 echo "=================================================="
