@@ -10,7 +10,10 @@
 #   scripts/macos/package_macos.sh [arch]     # arm64 (mặc định) | x86_64
 set -euo pipefail
 
-export DOTNET_CLI_HOME="${DOTNET_CLI_HOME:-/tmp/dotnet}"
+if [ -z "${HOME:-}" ] || [ ! -d "$HOME" ]; then
+    export HOME="/tmp"
+    export DOTNET_CLI_HOME="/tmp/dotnet"
+fi
 export DOTNET_CLI_TELEMETRY_OPTOUT=1
 
 ARCH="${1:-$(uname -m)}"

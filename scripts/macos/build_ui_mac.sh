@@ -26,7 +26,10 @@ APP_DIR="$PUBLISH_DIR/BambooMintKey.app"
 MACOS_DIR="$APP_DIR/Contents/MacOS"
 BIN="BambooMintKey.UI.Mac"
 
-export DOTNET_CLI_HOME="${DOTNET_CLI_HOME:-/tmp/dotnet}"
+if [ -z "${HOME:-}" ] || [ ! -d "$HOME" ]; then
+    export HOME="/tmp"
+    export DOTNET_CLI_HOME="/tmp/dotnet"
+fi
 export DOTNET_CLI_TELEMETRY_OPTOUT=1
 
 echo "==> Publish BambooMintKey.UI.Mac (self-contained) cho $ARCH ..."
