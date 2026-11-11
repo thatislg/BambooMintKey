@@ -9,22 +9,30 @@ namespace BambooMintKey.NativeBridge.TSF;
 
 /// <summary>
 /// Cấu trúc VARIANT Win32 dùng cho ITfCompartment::SetValue/GetValue.
+/// Dùng 2 trường IntPtr ở phần payload để khớp chính xác kích thước ABI của Windows SDK:
+/// 16 bytes trên x86 (8-byte header + 8-byte union) và 24 bytes trên x64 (8-byte header + 16-byte union).
 /// </summary>
-[StructLayout(LayoutKind.Explicit, Size = 24)]
+[StructLayout(LayoutKind.Sequential)]
 public struct Variant
 {
-    [FieldOffset(0)]
     public ushort vt;
-    [FieldOffset(2)]
     public ushort wReserved1;
-    [FieldOffset(4)]
     public ushort wReserved2;
-    [FieldOffset(6)]
     public ushort wReserved3;
-    [FieldOffset(8)]
-    public int lVal;
-    [FieldOffset(8)]
-    public IntPtr byref;
+    private IntPtr _data1;
+    private IntPtr _data2;
+
+    public int lVal
+    {
+        readonly get => (int)_data1;
+        set => _data1 = (IntPtr)value;
+    }
+
+    public IntPtr byref
+    {
+        readonly get => _data1;
+        set => _data1 = value;
+    }
 }
 
 /// <summary>VTable cho ITfCompartmentMgr (msctf.h)</summary>

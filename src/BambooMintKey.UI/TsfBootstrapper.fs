@@ -31,7 +31,10 @@ module TsfBootstrapper =
     let getTargetDllPath () =
         Path.Combine(getTargetDirectory(), "BambooMintKey.dll")
 
-    /// Tìm kiếm file BambooMintKey.dll nguồn từ gói MSIX hoặc thư mục ứng dụng
+    let getTargetDll32Path () =
+        Path.Combine(getTargetDirectory(), "BambooMintKey32.dll")
+
+    /// Tìm kiếm file BambooMintKey.dll (64-bit) nguồn từ gói MSIX hoặc thư mục ứng dụng
     let findSourceDll () : string option =
         let baseDir = AppContext.BaseDirectory
         let candidates = [
@@ -43,30 +46,57 @@ module TsfBootstrapper =
         ]
         candidates |> List.tryFind File.Exists
 
-    /// Kiểm tra xem BambooMintKey.dll đã được đăng ký chuẩn trong Registry chưa
-    let isAlreadyRegistered (sourceDllPath: string) : bool =
+    /// Tìm kiếm file BambooMintKey32.dll (32-bit WOW64 cho Zalo PC và các ứng dụng x86)
+    let findSourceDll32 () : string option =
+        let baseDir = AppContext.BaseDirectory
+        let candidates = [
+            Path.Combine(baseDir, "BambooMintKey32.dll")
+            Path.Combine(baseDir, "..", "BambooMintKey32.dll")
+            Path.Combine(baseDir, @"..\publish\win-x86\BambooMintKey32.dll")
+            Path.Combine(baseDir, @"..\..\publish\win-x86\BambooMintKey32.dll")
+            Path.Combine(baseDir, @"..\..\..\publish\win-x86\BambooMintKey32.dll")
+        ]
+        candidates |> List.tryFind File.Exists
+
+    let private isFileUpToDate (sourcePath: string) (targetPath: string) : bool =
+        if not (File.Exists(targetPath)) then false
+        else
+            let srcFi = FileInfo(sourcePath)
+            let tgtFi = FileInfo(targetPath)
+            srcFi.Length = tgtFi.Length && srcFi.LastWriteTimeUtc <= tgtFi.LastWriteTimeUtc.AddSeconds(2.0)
+
+    let private isInprocRegistered (view: RegistryView) (expectedDllPath: string) : bool =
+        use hklm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view)
+        let inprocKeyPath = sprintf @"SOFTWARE\Classes\CLSID\%s\InprocServer32" TextServiceClsid
+        use clsidKey = hklm.OpenSubKey(inprocKeyPath, false)
+        if clsidKey = null then false
+        else
+            let registeredPath = clsidKey.GetValue(null) :?> string
+            not (String.IsNullOrWhiteSpace(registeredPath)) &&
+            registeredPath.Equals(expectedDllPath, StringComparison.OrdinalIgnoreCase)
+
+    /// Kiểm tra xem BambooMintKey.dll (cả x64 và x86 nếu có) đã được đăng ký chuẩn trong Registry chưa
+    let isAlreadyRegistered (sourceDllPath: string) (sourceDll32Opt: string option) : bool =
         try
             let targetDll = getTargetDllPath()
-            if not (File.Exists(targetDll)) then false
+            if not (isFileUpToDate sourceDllPath targetDll) then false
+            elif not (isInprocRegistered RegistryView.Registry64 targetDll) then false
             else
-                let srcFi = FileInfo(sourceDllPath)
-                let tgtFi = FileInfo(targetDll)
-                // Nếu kích thước file khác nhau hoặc file nguồn mới hơn -> phiên bản đã cập nhật, cần nạp lại
-                if srcFi.Length <> tgtFi.Length || srcFi.LastWriteTimeUtc > tgtFi.LastWriteTimeUtc.AddSeconds(2.0) then false
+                // Kiểm tra bản 32-bit (WOW6432Node) nếu gói cài có kèm BambooMintKey32.dll
+                let x86Ok =
+                    match sourceDll32Opt with
+                    | None -> true
+                    | Some src32 ->
+                        let targetDll32 = getTargetDll32Path()
+                        isFileUpToDate src32 targetDll32 &&
+                        isInprocRegistered RegistryView.Registry32 targetDll32
+
+                if not x86Ok then false
                 else
-                    // 1. Kiểm tra COM InprocServer32
-                    let inprocKeyPath = sprintf @"CLSID\%s\InprocServer32" TextServiceClsid
-                    use clsidKey = Registry.ClassesRoot.OpenSubKey(inprocKeyPath, false)
-                    if clsidKey = null then false
-                    else
-                        let registeredPath = clsidKey.GetValue(null) :?> string
-                        if String.IsNullOrWhiteSpace(registeredPath) ||
-                           not (registeredPath.Equals(targetDll, StringComparison.OrdinalIgnoreCase)) then false
-                        else
-                            // 2. Kiểm tra TSF Language Profile cho tiếng Việt (0x042A)
-                            let tipKeyPath = sprintf @"SOFTWARE\Microsoft\CTF\TIP\%s\LanguageProfile\%s\%s" TextServiceClsid LangIdHex ProfileGuid
-                            use tipKey = Registry.LocalMachine.OpenSubKey(tipKeyPath, false)
-                            tipKey <> null
+                    // Kiểm tra TSF Language Profile cho tiếng Việt (0x042A)
+                    let tipKeyPath = sprintf @"SOFTWARE\Microsoft\CTF\TIP\%s\LanguageProfile\%s\%s" TextServiceClsid LangIdHex ProfileGuid
+                    use tipKey = Registry.LocalMachine.OpenSubKey(tipKeyPath, false)
+                    tipKey <> null
         with _ -> false
 
     /// Cấp quyền Read & Execute cho ALL APPLICATION PACKAGES và Users
@@ -112,15 +142,35 @@ module TsfBootstrapper =
             Debug.WriteLine(sprintf "TsfBootstrapper: regsvr32 failed: %s" ex.Message)
             false
 
-    /// Thực hiện chu trình kiểm tra và tự động triển khai TSF DLL
+    /// Sao chép DLL ra thư mục đích (hỗ trợ rename-and-replace nếu đang bị ứng dụng khác nạp giữ lock)
+    let private copyDllSafe (sourcePath: string) (targetPath: string) =
+        try
+            File.Copy(sourcePath, targetPath, true)
+        with _ ->
+            try
+                let targetDir = Path.GetDirectoryName(targetPath)
+                let baseName = Path.GetFileName(targetPath)
+                let oldDll = Path.Combine(targetDir, sprintf "%s.old.%s" baseName (Guid.NewGuid().ToString("N").Substring(0, 8)))
+                if File.Exists(targetPath) then
+                    File.Move(targetPath, oldDll)
+                File.Copy(sourcePath, targetPath, true)
+                try
+                    Directory.GetFiles(targetDir, sprintf "%s.old.*" baseName)
+                    |> Array.iter (fun f -> try File.Delete(f) with _ -> ())
+                with _ -> ()
+            with ex ->
+                Debug.WriteLine(sprintf "TsfBootstrapper File.Copy warning (%s): %s" targetPath ex.Message)
+
+    /// Thực hiện chu trình kiểm tra và tự động triển khai TSF DLL (x64 + x86 WOW64)
     let ensureRegistered () : bool =
         match findSourceDll () with
         | None ->
             Debug.WriteLine("TsfBootstrapper: source BambooMintKey.dll not found in package.")
             false
         | Some sourceDll ->
-            if isAlreadyRegistered sourceDll then
-                Debug.WriteLine("TsfBootstrapper: BambooMintKey.dll is already properly registered in TSF.")
+            let sourceDll32Opt = findSourceDll32 ()
+            if isAlreadyRegistered sourceDll sourceDll32Opt then
+                Debug.WriteLine("TsfBootstrapper: BambooMintKey (x64/x86) is already properly registered in TSF.")
                 true
             else
                 try
@@ -132,23 +182,15 @@ module TsfBootstrapper =
 
                     grantDirectoryPermissions targetDir
 
-                    // Sao chép file DLL ra C:\ProgramData\BambooMintKey\ (hỗ trợ rename-and-replace nếu đang bị locked)
-                    try
-                        File.Copy(sourceDll, targetDll, true)
-                    with _ ->
-                        try
-                            let oldDll = Path.Combine(targetDir, sprintf "BambooMintKey.dll.old.%s" (Guid.NewGuid().ToString("N").Substring(0, 8)))
-                            if File.Exists(targetDll) then
-                                File.Move(targetDll, oldDll)
-                            File.Copy(sourceDll, targetDll, true)
-                            try
-                                Directory.GetFiles(targetDir, "BambooMintKey.dll.old.*")
-                                |> Array.iter (fun f -> try File.Delete(f) with _ -> ())
-                            with _ -> ()
-                        with ex ->
-                            Debug.WriteLine(sprintf "TsfBootstrapper File.Copy warning: %s" ex.Message)
+                    // 1. Sao chép bản 64-bit và 32-bit (nếu có) ra C:\ProgramData\BambooMintKey\
+                    copyDllSafe sourceDll targetDll
+                    match sourceDll32Opt with
+                    | Some sourceDll32 ->
+                        let targetDll32 = getTargetDll32Path()
+                        copyDllSafe sourceDll32 targetDll32
+                    | None -> ()
 
-                    // Thực thi regsvr32
+                    // 2. Thực thi regsvr32 (1 lần UAC duy nhất: DllRegisterServer x64 sẽ tự gọi SysWOW64\regsvr32 cho BambooMintKey32.dll)
                     let ok = registerWithRegsvr32 targetDll
                     if ok then
                         notifyCtfmon()

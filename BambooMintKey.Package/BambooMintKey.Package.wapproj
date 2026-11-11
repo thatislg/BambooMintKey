@@ -106,6 +106,10 @@
       <Link>BambooMintKey.dll</Link>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="..\publish\win-x86\BambooMintKey32.dll">
+      <Link>BambooMintKey32.dll</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <None Include="Package.StoreAssociation.xml" />
     <None Include="BambooMintKey.Package_TemporaryKey.pfx" />
     <Content Include="Images\*.png" />
@@ -118,15 +122,15 @@
     <ProjectReference Include="..\src\BambooMintKey.UI\BambooMintKey.UI.fsproj" />
   </ItemGroup>
   <Target Name="EnsureWapPublishAssets" BeforeTargets="BeforeBuild">
-    <Exec Command="dotnet restore &quot;$(MSBuildThisFileDirectory)..\BambooMintKey.slnx&quot; -r win-x64" Condition="!Exists('$(MSBuildThisFileDirectory)..\src\BambooMintKey.Core\obj\project.assets.json')" />
+    <Exec Command="dotnet restore &quot;$(MSBuildThisFileDirectory)..\BambooMintKey.slnx&quot;" Condition="!Exists('$(MSBuildThisFileDirectory)..\src\BambooMintKey.Core\obj\project.assets.json')" />
     <Exec Command="dotnet restore &quot;$(MSBuildThisFileDirectory)..\src\BambooMintKey.UI\BambooMintKey.UI.fsproj&quot; -p:BaseIntermediateOutputPath=obj\wappublish\win-x64\ -r win-x64" Condition="!Exists('$(MSBuildThisFileDirectory)..\src\BambooMintKey.UI\obj\wappublish\win-x64\project.assets.json')" />
   </Target>
   <!-- Tự động publish NativeAOT BambooMintKey.dll nếu chưa có trong publish\win-x64 -->
   <!-- Tự động đồng bộ phiên bản từ Package.appxmanifest sang Directory.Build.props khi build -->
-  <Target Name="SyncVersionFromAppxManifest" BeforeTargets="BeforeBuild;PublishNativeBridgeAot">
-    <Exec Command="powershell.exe -ExecutionPolicy Bypass -Command &quot;$m = [xml](Get-Content '$(MSBuildThisFileDirectory)Package.appxmanifest'); $v = $m.Package.Identity.Version; if ($v) { $p = $v.Split('.'); $v3 = \&quot;$($p[0]).$($p[1]).$($p[2])\&quot;; $f = '$(MSBuildThisFileDirectory)..\Directory.Build.props'; if (Test-Path $f) { $t = [System.IO.File]::ReadAllText($f); $t = [System.Text.RegularExpressions.Regex]::Replace($t, '&lt;VersionPrefix&gt;.*?&lt;/VersionPrefix&gt;', \&quot;&lt;VersionPrefix&gt;$v3&lt;/VersionPrefix&gt;\&quot;); $t = [System.Text.RegularExpressions.Regex]::Replace($t, '&lt;Version&gt;.*?&lt;/Version&gt;', \&quot;&lt;Version&gt;$v3&lt;/Version&gt;\&quot;); $t = [System.Text.RegularExpressions.Regex]::Replace($t, '&lt;AssemblyVersion&gt;.*?&lt;/AssemblyVersion&gt;', \&quot;&lt;AssemblyVersion&gt;$v&lt;/AssemblyVersion&gt;\&quot;); $t = [System.Text.RegularExpressions.Regex]::Replace($t, '&lt;FileVersion&gt;.*?&lt;/FileVersion&gt;', \&quot;&lt;FileVersion&gt;$v&lt;/FileVersion&gt;\&quot;); $t = [System.Text.RegularExpressions.Regex]::Replace($t, '&lt;InformationalVersion&gt;.*?&lt;/InformationalVersion&gt;', \&quot;&lt;InformationalVersion&gt;$v3&lt;/InformationalVersion&gt;\&quot;); [System.IO.File]::WriteAllText($f, $t, [System.Text.Encoding]::UTF8); } }&quot;" />
+  <Target Name="SyncVersionFromAppxManifest" BeforeTargets="PrepareForBuild;ResolveProjectReferences;BeforeBuild;PublishNativeBridgeAot">
+    <Exec Command="powershell.exe -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\scripts\windows\sync-version.ps1&quot;" />
   </Target>
   <Target Name="PublishNativeBridgeAot" BeforeTargets="BeforeBuild">
-    <Exec Command="powershell.exe -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\scripts\windows\build-native.ps1&quot; -Configuration Release -Runtime win-x64" />
+    <Exec Command="powershell.exe -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\scripts\windows\build-native.ps1&quot; -Configuration Release -Runtime win-x64 -IncludeX86" />
   </Target>
 </Project>

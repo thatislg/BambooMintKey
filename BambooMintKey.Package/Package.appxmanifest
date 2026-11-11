@@ -10,7 +10,7 @@
   <Identity
     Name="LMO-LAB.BambooMintKey"
     Publisher="CN=26176BF7-32C3-4FEF-BB1E-2318CA3696D1"
-    Version="1.2.2.0" />
+    Version="1.2.3.0" />
 
   <Properties>
     <DisplayName>BambooMintKey</DisplayName>

@@ -71,6 +71,21 @@ public static class NativeMethods
     public const uint ClsCtxAll = 0x17; // 23 decimal
 
     // =========================================================================
+    // user32 P/Invokes
+    // =========================================================================
+
+    /// <summary>KLF_ACTIVATE - Kích hoạt keyboard layout ngay khi nạp.</summary>
+    public const uint KlfActivate = 0x00000001;
+
+    /// <summary>KLF_SUBSTITUTE_OK - Cho phép layout bị thay thế bởi một TSF TIP.</summary>
+    public const uint KlfSubstituteOk = 0x00000002;
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern IntPtr LoadKeyboardLayoutW(
+        string pwszKLID,
+        uint Flags);
+
+    // =========================================================================
     // Helper lấy đường dẫn DLL hiện tại
     // =========================================================================
 

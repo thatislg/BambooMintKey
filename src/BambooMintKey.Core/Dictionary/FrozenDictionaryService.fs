@@ -21,20 +21,17 @@ type FrozenDictionaryService() =
     /// Nạp một Embedded Resource dạng text (mỗi dòng một từ, lowercase NFC) thành FrozenSet.
     static let loadFrozenSet (resourceName: string) : FrozenSet<string> =
         let asm = Assembly.GetExecutingAssembly()
-        use stream = asm.GetManifestResourceStream(resourceName)
-        if isNull stream then
-            failwithf "Embedded resource '%s' not found" resourceName
-        use reader = new StreamReader(stream)
-        let words =
-            seq {
-                let mutable line = reader.ReadLine()
-                while not (isNull line) do
-                    let w = line.Trim()
-                    if not (String.IsNullOrEmpty w) then
-                        yield w
-                    line <- reader.ReadLine()
-            }
-        words.ToFrozenSet(StringComparer.OrdinalIgnoreCase)
+        match asm.GetManifestResourceStream(resourceName) with
+        | null -> failwithf "Embedded resource '%s' not found" resourceName
+        | stream ->
+            use reader = new StreamReader(stream)
+            let words =
+                reader.ReadToEnd().Split(
+                    [| '\r'; '\n' |],
+                    StringSplitOptions.RemoveEmptyEntries)
+                |> Array.map (fun l -> l.Trim())
+                |> Array.filter (fun w -> not (String.IsNullOrEmpty w))
+            words.ToFrozenSet(StringComparer.OrdinalIgnoreCase)
 
     // Lazy nạp 2 bộ từ điển nền (chỉ nạp lần đầu tiên truy cập, thời gian < 5ms).
     let vietSyllables = lazy (loadFrozenSet (resourcePrefix + "vietnamese-syllables-mit.dict"))

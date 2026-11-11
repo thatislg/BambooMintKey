@@ -185,7 +185,26 @@ public static unsafe class TsfRegistration
             hr = vtable->EnableLanguageProfileByDefault(
                 pProfiles, &clsid, Constants.LangIdVietnamese, &profileGuid, 1);
             Log($"EnableLanguageProfileByDefault HR=0x{hr:X8}");
-            return hr;
+            if (!HResult.Succeeded(hr)) return hr;
+
+            // Gắn TIP vào keyboard layout tiếng Việt (HKL 0000042A) để các ứng
+            // dụng nhân Chromium/CEF (Zalo, ...) và Windows nhận diện BambooMintKey
+            // như một keyboard layout thật. Thiếu bước này, TIP chỉ là text service
+            // "trôi nổi": không hiện trong trình chuyển bộ gõ của Zalo và dễ bị
+            // reset về English sau thời gian idle.
+            IntPtr hkl = NativeMethods.LoadKeyboardLayoutW(
+                "0000042A", NativeMethods.KlfActivate | NativeMethods.KlfSubstituteOk);
+            Log($"LoadKeyboardLayout(0000042A) hkl={(nint)hkl}");
+            if (hkl != IntPtr.Zero)
+            {
+                hr = vtable->SubstituteKeyboardLayout(
+                    pProfiles, &clsid, Constants.LangIdVietnamese, &profileGuid, hkl);
+                Log($"SubstituteKeyboardLayout HR=0x{hr:X8}");
+                return hr;
+            }
+
+            Log("SubstituteKeyboardLayout skipped: LoadKeyboardLayout returned HKL=0");
+            return HResult.Ok;
         }
         finally
         {
