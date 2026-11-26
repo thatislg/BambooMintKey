@@ -40,7 +40,9 @@ mkdir -p "$MACOS_DIR"
 # Dylib đã có install_name @rpath/BambooMintKeyCore.dylib (do NativeAOT đặt),
 # nên chỉ cần thêm -rpath @loader_path để dyld tìm thấy thư viện cạnh file
 # thực thi trong bundle (không phụ thuộc đường dẫn tuyệt đối).
+mkdir -p /tmp/clang-cache
 swiftc \
+    -module-cache-path "${SWIFT_MODULE_CACHE_PATH:-/tmp/clang-cache}" \
     -O \
     -framework InputMethodKit \
     -framework AppKit \

@@ -28,6 +28,9 @@ jobs:
             **/*.fsproj
             **/*.csproj
 
+      - name: Ensure NuGet Cache Directory Exists
+        run: mkdir -p ~/.nuget/packages
+
       - name: Build and Package macOS
         env:
           VERSION: ${{ github.ref_name }}
@@ -52,7 +55,7 @@ jobs:
             delivery/macos/*.pkg
             delivery/macos/*.zip
             delivery/macos/*.tar.gz
-          body_path: delivery/commit-message/1.2.0.md
+          body_path: delivery/commit-message/1.2.3.md
           draft: true
           prerelease: false
         env:
