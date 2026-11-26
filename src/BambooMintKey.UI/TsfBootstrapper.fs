@@ -93,17 +93,23 @@ module TsfBootstrapper =
 
                 if not x86Ok then false
                 else
-                    // Kiểm tra TSF Language Profile cho tiếng Việt (0x042A)
+                    // Kiểm tra TSF Language Profile cho tiếng Việt (0x042A) và các capability chống reset ENG (Issue 029)
                     let tipKeyPath = sprintf @"SOFTWARE\Microsoft\CTF\TIP\%s\LanguageProfile\%s\%s" TextServiceClsid LangIdHex ProfileGuid
                     use tipKey = Registry.LocalMachine.OpenSubKey(tipKeyPath, false)
-                    tipKey <> null
+                    if tipKey = null then false
+                    else
+                        let secureCatPath = sprintf @"SOFTWARE\Microsoft\CTF\TIP\%s\Category\Category\{49D2F9CE-1F5E-11D7-A6D3-00065B84435C}" TextServiceClsid
+                        let comlessCatPath = sprintf @"SOFTWARE\Microsoft\CTF\TIP\%s\Category\Category\{364215D9-75BC-11D7-A6EF-00065B84435C}" TextServiceClsid
+                        use secureKey = Registry.LocalMachine.OpenSubKey(secureCatPath, false)
+                        use comlessKey = Registry.LocalMachine.OpenSubKey(comlessCatPath, false)
+                        secureKey <> null && comlessKey <> null
         with _ -> false
 
-    /// Cấp quyền Read & Execute cho ALL APPLICATION PACKAGES và Users
+    /// Cấp quyền Read & Execute cho ALL APPLICATION PACKAGES, ALL RESTRICTED APPLICATION PACKAGES (LPAC) và Everyone
     let private grantDirectoryPermissions (dirPath: string) =
         try
-            // Sử dụng icacls với SID *S-1-15-2-1 (ALL APPLICATION PACKAGES) và *S-1-1-0 (Everyone)
-            let psi = ProcessStartInfo("icacls.exe", sprintf "\"%s\" /grant \"*S-1-15-2-1:(OI)(CI)RX\" \"*S-1-1-0:(OI)(CI)RX\" /T /Q" dirPath)
+            // Sử dụng icacls với SID *S-1-15-2-1 (ALL APPLICATION PACKAGES), *S-1-15-2-2 (LPAC) và *S-1-1-0 (Everyone)
+            let psi = ProcessStartInfo("icacls.exe", sprintf "\"%s\" /grant \"*S-1-15-2-1:(OI)(CI)RX\" \"*S-1-15-2-2:(OI)(CI)RX\" \"*S-1-1-0:(OI)(CI)RX\" /T /Q" dirPath)
             psi.CreateNoWindow <- true
             psi.UseShellExecute <- false
             use proc = Process.Start(psi)

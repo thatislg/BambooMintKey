@@ -37,11 +37,13 @@ public static unsafe class Exports
 
     /// <summary>
     /// DLL entry point: Cho phép Windows kiểm tra xem DLL có thể unload hay chưa.
+    /// .NET NativeAOT DLL không hỗ trợ unload qua FreeLibrary; luôn trả về S_FALSE
+    /// để CoFreeUnusedLibraries (chạy định kỳ khi idle) không bao giờ gỡ module khỏi tiến trình.
     /// </summary>
     [UnmanagedCallersOnly(EntryPoint = "DllCanUnloadNow", CallConvs = [typeof(CallConvStdcall)])]
     public static int DllCanUnloadNow()
     {
-        return ComServerState.CanUnload ? HResult.Ok : HResult.False;
+        return HResult.False;
     }
 
     [UnmanagedCallersOnly(EntryPoint = "DllRegisterServer", CallConvs = [typeof(CallConvStdcall)])]

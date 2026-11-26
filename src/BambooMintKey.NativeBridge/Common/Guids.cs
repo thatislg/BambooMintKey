@@ -54,6 +54,12 @@ public static class Guids
     /// <summary>GUID_TFCAT_TIPCAP_UIELEMENTENABLED - Khai báo hỗ trợ UIElements.</summary>
     public static readonly Guid GuidTfCatTipCapUiElementEnabled = new("49D2F9CF-1F5E-11D7-A6D3-00065B84435C");
 
+    /// <summary>GUID_TFCAT_TIPCAP_SECUREMODE - Khai báo hỗ trợ chế độ bảo mật (Lock Screen, UAC, ô mật khẩu) để TSF không fallback về ENG.</summary>
+    public static readonly Guid GuidTfCatTipCapSecureMode = new("49D2F9CE-1F5E-11D7-A6D3-00065B84435C");
+
+    /// <summary>GUID_TFCAT_TIPCAP_COMLESS - Khai báo hỗ trợ kích hoạt không cần CoInitialize (TF_TMAE_COMLESS) trên các thread hệ thống/shell.</summary>
+    public static readonly Guid GuidTfCatTipCapComless = new("364215D9-75BC-11D7-A6EF-00065B84435C");
+
     // =========================================================================
     // COM Standard Interface GUIDs
     // =========================================================================

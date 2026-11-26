@@ -84,6 +84,14 @@ public static unsafe class KeyEventSinkImpl
         if (pfEaten == null) return HResult.Pointer;
         *pfEaten = 0;
 
+        var servicePtr = thisPtr - (sizeof(IntPtr) * 2);
+        var service = BambooMintKeyTextService.GetTarget(servicePtr);
+        if (service != null)
+        {
+            if (service.IsSecureMode) return HResult.Ok;
+            service.SyncCompartmentIfStaleOnStaThread();
+        }
+
         // 1. Nếu đang ở chế độ tiếng Anh (E / Closed) -> Pass-through ngay lập tức, không nuốt phím
         if (!BridgeStateManager.IsVietnameseMode)
         {
@@ -137,6 +145,10 @@ public static unsafe class KeyEventSinkImpl
         uint vkCode = (uint)wParam;
         var servicePtr = thisPtr - (sizeof(IntPtr) * 2);
         var service = BambooMintKeyTextService.GetTarget(servicePtr);
+        if (service != null && service.IsSecureMode)
+        {
+            return HResult.Ok;
+        }
 
         // 1. Phím tắt hệ thống có modifier (Ctrl/Alt/Win)
         if (KeyInputTranslator.IsModifierModifierPressed())
@@ -238,6 +250,10 @@ public static unsafe class KeyEventSinkImpl
         if (rguid != null && *rguid == Guids.GuidPreservedKeyToggle)
         {
             var target = BambooMintKeyTextService.GetTarget(thisPtr - (sizeof(IntPtr) * 2));
+            if (target != null && target.IsSecureMode)
+            {
+                return HResult.Ok;
+            }
             if (target != null && target.ThreadMgr != IntPtr.Zero)
             {
                 bool newMode = GlobalVEState.ToggleVietnameseMode(

@@ -61,82 +61,45 @@ public unsafe class BambooMintKeyTextService
     private uint _keyEventSinkCookie;
     private uint _compartmentEventSinkCookie;
     private bool _isActivated;
+    private bool _isSecureMode;
+    private uint _lastSyncedSequence;
     [ThreadStatic] public static bool IsInternalCompartmentSync;
     private bool _hasFocus;
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern uint WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
-
-    private Thread? _stateWatcherThread;
-    private volatile bool _isWatcherActive;
-
-    private void StartStateWatcher()
-    {
-        StopStateWatcher();
-        _isWatcherActive = true;
-        IntPtr pThreadMgr = _pThreadMgr;
-        uint clientId = _clientId;
-
-        _stateWatcherThread = new Thread(() =>
-        {
-            IntPtr hEvent = SharedMemoryManager.EventHandle;
-            while (_isWatcherActive)
-            {
-                if (hEvent != IntPtr.Zero)
-                {
-                    uint res = WaitForSingleObject(hEvent, 500);
-                    if (!_isWatcherActive) break;
-                    if (res == 0 /* WAIT_OBJECT_0 */)
-                    {
-                        IntPtr curMgr = _pThreadMgr;
-                        uint curClient = _clientId;
-                        if (curMgr != IntPtr.Zero && curClient != TsfFlags.TfInvalidClientId && _isActivated)
-                        {
-                            DebugLog.Write("StateWatcher: Sự kiện cấu hình thay đổi đã được kích hoạt!");
-                            KeyEventSinkHelper.UpdatePreservedKeys(curMgr, curClient);
-                            try
-                            {
-                                IsInternalCompartmentSync = true;
-                                bool currentGlobalMode = SharedMemoryManager.IsVietnameseMode;
-                                TsfCompartmentHelper.SetOpenClose(curMgr, curClient, currentGlobalMode);
-                                TsfCompartmentHelper.SetConversionMode(curMgr, curClient, currentGlobalMode);
-                            }
-                            finally
-                            {
-                                IsInternalCompartmentSync = false;
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    Thread.Sleep(500);
-                    hEvent = SharedMemoryManager.EventHandle;
-                }
-            }
-        })
-        {
-            IsBackground = true,
-            Name = "BambooMintKey_StateWatcher"
-        };
-        _stateWatcherThread.Start();
-    }
-
-    private void StopStateWatcher()
-    {
-        _isWatcherActive = false;
-        var thread = _stateWatcherThread;
-        _stateWatcherThread = null;
-        if (thread != null && thread.IsAlive && thread != Thread.CurrentThread)
-        {
-            try { thread.Join(600); } catch { }
-        }
-    }
 
     // Properties cho các component khác truy cập
     public IntPtr ThreadMgr => _pThreadMgr;
     public uint ClientId => _clientId;
     public bool IsActivated => _isActivated;
+    public bool IsSecureMode => _isSecureMode;
+
+    /// <summary>
+    /// Đồng bộ TSF Compartment từ SharedMemory ngay trên STA UI thread nếu phát hiện
+    /// trạng thái V/E đã đổi từ tiến trình khác (vd click Tray Icon).
+    /// Tránh hoàn toàn việc gọi COM STA ITfThreadMgr từ background thread (Issue 029).
+    /// </summary>
+    public void SyncCompartmentIfStaleOnStaThread()
+    {
+        if (!_isActivated || _isSecureMode || _pThreadMgr == IntPtr.Zero || _clientId == TsfFlags.TfInvalidClientId)
+        {
+            return;
+        }
+
+        uint seq = SharedMemoryManager.StateSequence;
+        if (seq == _lastSyncedSequence) return;
+        _lastSyncedSequence = seq;
+
+        try
+        {
+            IsInternalCompartmentSync = true;
+            bool currentGlobalMode = SharedMemoryManager.IsVietnameseMode;
+            TsfCompartmentHelper.SetOpenClose(_pThreadMgr, _clientId, currentGlobalMode);
+            TsfCompartmentHelper.SetConversionMode(_pThreadMgr, _clientId, currentGlobalMode);
+        }
+        finally
+        {
+            IsInternalCompartmentSync = false;
+        }
+    }
 
     public static IntPtr CreateNativeInstance()
     {
@@ -421,6 +384,7 @@ public unsafe class BambooMintKeyTextService
         target._pThreadMgr = pThreadMgr;
         target._clientId = tfClientId;
         target._isActivated = true;
+        target._isSecureMode = (dwFlags & TsfFlags.TfTmaeSecuremode) != 0;
 
         // 1. Tăng RefCount cho ITfThreadMgr
         NativeCom.AddRef(pThreadMgr);
@@ -437,20 +401,34 @@ public unsafe class BambooMintKeyTextService
             pThreadMgr, tfClientId, keySinkPtr);
         DebugLog.Write($"Advise KeyEventSink cookie={target._keyEventSinkCookie}");
 
-        // 3.1. Đăng ký Preserved Keys cho phím tắt chuyển chế độ V/E
-        KeyEventSinkHelper.RegisterPreservedKeys(pThreadMgr, tfClientId);
+        // 3.1. Đăng ký Preserved Keys cho phím tắt chuyển chế độ V/E (bỏ qua trong Secure Mode)
+        if (!target._isSecureMode)
+        {
+            KeyEventSinkHelper.RegisterPreservedKeys(pThreadMgr, tfClientId);
+        }
 
         // 4. Khởi tạo / Đồng bộ Engine State
         BridgeStateManager.InitializeEngine();
 
         target._hasFocus = true;
-        SharedMemoryManager.IsBambooMintKeyActive = true;
 
-        // 5. Đồng bộ trạng thái ban đầu vào Open/Close Compartment và ConversionMode
-        bool initialMode = SharedMemoryManager.IsVietnameseMode;
-        BridgeStateManager.IsVietnameseMode = initialMode;
-        TsfCompartmentHelper.SetOpenClose(pThreadMgr, tfClientId, initialMode);
-        TsfCompartmentHelper.SetConversionMode(pThreadMgr, tfClientId, initialMode);
+        // 5. Đồng bộ trạng thái ban đầu vào Open/Close Compartment và ConversionMode (chỉ trên STA thread hiện tại)
+        if (!target._isSecureMode)
+        {
+            SharedMemoryManager.IsBambooMintKeyActive = true;
+            target._lastSyncedSequence = SharedMemoryManager.StateSequence;
+            bool initialMode = SharedMemoryManager.IsVietnameseMode;
+            try
+            {
+                IsInternalCompartmentSync = true;
+                TsfCompartmentHelper.SetOpenClose(pThreadMgr, tfClientId, initialMode);
+                TsfCompartmentHelper.SetConversionMode(pThreadMgr, tfClientId, initialMode);
+            }
+            finally
+            {
+                IsInternalCompartmentSync = false;
+            }
+        }
 
         // 5.1. Đăng ký ITfCompartmentEventSink lắng nghe thay đổi của GUID_COMPARTMENT_KEYBOARD_OPENCLOSE
         var compSinkPtr = thisPtr + (sizeof(IntPtr) * 4);
@@ -461,13 +439,13 @@ public unsafe class BambooMintKeyTextService
             DebugLog.Write($"Advise CompartmentEventSink cookie={target._compartmentEventSinkCookie}");
         }
 
-        // 6. Khởi động luồng lắng nghe cập nhật cấu hình theo thời gian thực
-        target.StartStateWatcher();
+        // 6. Tự động kiểm tra và khởi chạy BambooMintKey.UI (không khởi chạy UI trong Secure Mode: Lock Screen / UAC / Password)
+        if (!target._isSecureMode)
+        {
+            TrayUiLauncher.EnsureRunning();
+        }
 
-        // 7. Tự động kiểm tra và khởi chạy BambooMintKey.UI (Watchdog / Auto-Respawn tương tự macOS StatusBarLauncher)
-        TrayUiLauncher.EnsureRunning();
-
-        DebugLog.Write("ActivateExImpl completed");
+        DebugLog.Write($"ActivateExImpl completed (secureMode={target._isSecureMode})");
 
         return HResult.Ok;
     }
@@ -497,10 +475,10 @@ public unsafe class BambooMintKeyTextService
         var target = GetTarget(thisPtr);
         if (!target._isActivated) return HResult.Ok;
 
-        SharedMemoryManager.IsBambooMintKeyActive = false;
-
-        // Dừng luồng lắng nghe cấu hình
-        target.StopStateWatcher();
+        if (!target._isSecureMode)
+        {
+            SharedMemoryManager.IsBambooMintKeyActive = false;
+        }
 
         // Gỡ CompartmentEventSink
         if (target._compartmentEventSinkCookie != 0)
@@ -541,6 +519,7 @@ public unsafe class BambooMintKeyTextService
 
         target._clientId = TsfFlags.TfInvalidClientId;
         target._isActivated = false;
+        target._isSecureMode = false;
         return HResult.Ok;
     }
     #endregion
@@ -569,21 +548,25 @@ public unsafe class BambooMintKeyTextService
         // Chỉ khi thực sự có focus vào ô nhập liệu (pdimFocus != IntPtr.Zero) mới đồng bộ trạng thái vào Thread Compartment
         if (target._hasFocus && target._pThreadMgr != IntPtr.Zero && target._isActivated)
         {
-            SharedMemoryManager.IsBambooMintKeyActive = true;
-            TrayUiLauncher.EnsureRunning();
-            try
+            if (!target._isSecureMode)
             {
-                IsInternalCompartmentSync = true;
-                bool currentGlobalMode = SharedMemoryManager.IsVietnameseMode;
-                TsfCompartmentHelper.SetOpenClose(target._pThreadMgr, target._clientId, currentGlobalMode);
-                TsfCompartmentHelper.SetConversionMode(target._pThreadMgr, target._clientId, currentGlobalMode);
-            }
-            finally
-            {
-                IsInternalCompartmentSync = false;
+                SharedMemoryManager.IsBambooMintKeyActive = true;
+                TrayUiLauncher.EnsureRunning();
+                target._lastSyncedSequence = SharedMemoryManager.StateSequence;
+                try
+                {
+                    IsInternalCompartmentSync = true;
+                    bool currentGlobalMode = SharedMemoryManager.IsVietnameseMode;
+                    TsfCompartmentHelper.SetOpenClose(target._pThreadMgr, target._clientId, currentGlobalMode);
+                    TsfCompartmentHelper.SetConversionMode(target._pThreadMgr, target._clientId, currentGlobalMode);
+                }
+                finally
+                {
+                    IsInternalCompartmentSync = false;
+                }
             }
         }
-        else if (!target._hasFocus)
+        else if (!target._hasFocus && !target._isSecureMode)
         {
             SharedMemoryManager.IsBambooMintKeyActive = false;
         }

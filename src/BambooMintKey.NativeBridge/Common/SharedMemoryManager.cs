@@ -18,7 +18,7 @@ public static unsafe class SharedMemoryManager
     private const string EventName = @"Local\BambooMintKey_StateChangedEvent_v1";
     private const string MutexName = @"Local\BambooMintKey_VE_State_Mutex_v1";
     // Universal SDDL cho phép Everyone (WD), ALL APPLICATION PACKAGES/AppContainer (AC) và Low Integrity (LW)
-    private const string UniversalSddl = "D:(A;;GA;;;WD)(A;;GA;;;AC)S:(ML;;NW;;;LW)";
+    private const string UniversalSddl = "D:(A;;GA;;;WD)(A;;GA;;;AC)(A;;GA;;;S-1-15-2-2)S:(ML;;NW;;;LW)";
     private const uint PageReadWrite = 0x04;
     private const uint FileMapWrite = 0x02;
     private const int SharedSize = 64;

@@ -98,7 +98,9 @@ public static unsafe class TsfRegistration
         Guids.GuidTfCatTipCapImmersiveSupport,
         Guids.GuidTfCatTipCapSystraySupport,
         Guids.GuidTfCatTipCapInputModeCompartment,
-        Guids.GuidTfCatTipCapUiElementEnabled
+        Guids.GuidTfCatTipCapUiElementEnabled,
+        Guids.GuidTfCatTipCapSecureMode,
+        Guids.GuidTfCatTipCapComless
     ];
 
     private static void Log(string msg)
