@@ -38,10 +38,12 @@ type LetterCase =
 // Phân loại phím đầu vào được gửi từ TSF Native Bridge
 [<RequireQualifiedAccess>]
 type KeyInput =
-    | Char of char          // Ký tự bảng chữ cái (a-z, A-Z)
+    | Char of char          // Ký tự bảng chữ cái (a-z, A-Z) hoặc chữ số khi ở chế độ ký hiệu
     | Backspace             // Phím xóa lùi
     | WordBreak of char     // Ký tự ngắt từ: Space, Enter, Tab, Dấu câu (. , ; : ! ?...)
     | NonCharacter          // Các phím chức năng không làm thay đổi từ (Mũi tên, Home, End...)
+    | Tab of isShift: bool  // Phím Tab / Shift+Tab (xoay ứng viên trong Symbol mode)
+    | Escape                // Phím Esc (hủy Symbol mode trả về chuỗi thô)
 
 // Cấu trúc phân tích âm tiết của một từ tiếng Việt
 type Syllable = {
@@ -68,6 +70,10 @@ type WordState = {
     // (gõ lặp phím). Khi bật, các phím gõ tiếp theo được giữ nguyên thô, KHÔNG tái áp dụng bỏ dấu tự do
     // lên phím dấu đã bị hủy (vd chorr + e -> chore, tesst -> test).
     IsEnglishCommitted: bool
+    // Trạng thái chế độ gõ ký hiệu / icon (Phase 13)
+    SymbolState: SymbolModeState
+    // Cho phép kích hoạt "::" khi gặp ':' ở đầu từ (sau khoảng trắng, đầu dòng, ngoặc mở...)
+    CanStartSymbolTrigger: bool
 }
 with
     // Trạng thái rỗng khởi tạo ban đầu
@@ -78,6 +84,8 @@ with
         Case = LetterCase.Lower
         IsInvalidVietnamese = false
         IsEnglishCommitted = false
+        SymbolState = SymbolModeState.Idle
+        CanStartSymbolTrigger = true
     }
 
 // Lệnh kết quả trả về từ Engine cho lớp TSF NativeBridge thực thi

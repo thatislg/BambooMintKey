@@ -4,6 +4,7 @@
 namespace BambooMintKey.Core.Engine
 
 open System
+open BambooMintKey.Core.Domain
 open BambooMintKey.Core.Domain.EngineConfig
 open BambooMintKey.Core.Domain.Types
 open BambooMintKey.Core.Domain.UnicodeTables
@@ -19,13 +20,16 @@ module TelexEngine =
     /// thuộc về nội dung từ. Khi gặp Enter, chuỗi commit KHÔNG được dính ký tự xuống dòng.
     let private isLineBreakChar (c: char) : bool = c = '\n' || c = '\r'
 
+    let private emptyWithBoundary (canStart: bool) : WordState =
+        { WordState.Empty with CanStartSymbolTrigger = canStart }
+
     /// Tạo action Commit cho phím ngắt từ: giữ nguyên ký tự ngắt (Space, dấu câu...),
     /// riêng Enter (\n/\r) thì loại bỏ để tránh tên file/văn bản dính mã xuống dòng.
     let private commitWordBreak (state: WordState) (breakChar: char) : WordState * EngineAction =
         let finalWord =
             if isLineBreakChar breakChar then state.TransformedText
             else state.TransformedText + string breakChar
-        (WordState.Empty, EngineAction.Commit finalWord)
+        (emptyWithBoundary (SymbolEngine.isTriggerBoundaryChar breakChar), EngineAction.Commit finalWord)
 
     /// Kiểm tra dấu thanh có bị ép từ hỏi/huyền/ngã (r/f/x) thành sắc do âm tắc cuối (t/c/p/ch) hay không.
     /// Dùng để ưu tiên backtrack tiếng Anh (vd "sort" -> giữ "sort" thay vì ép thành "sót").
@@ -72,6 +76,8 @@ module TelexEngine =
                 Case = case
                 IsInvalidVietnamese = backtrack
                 IsEnglishCommitted = false
+                SymbolState = SymbolModeState.Idle
+                CanStartSymbolTrigger = false
             }
             (newState, EngineAction.UpdateComposition formatted)
         | None ->
@@ -83,6 +89,8 @@ module TelexEngine =
                 Case = case
                 IsInvalidVietnamese = true
                 IsEnglishCommitted = false
+                SymbolState = SymbolModeState.Idle
+                CanStartSymbolTrigger = false
             }
             (newState, EngineAction.UpdateComposition fallbackText)
 
@@ -195,6 +203,8 @@ module TelexEngine =
                 Case = detectedCase
                 IsInvalidVietnamese = true
                 IsEnglishCommitted = true
+                SymbolState = SymbolModeState.Idle
+                CanStartSymbolTrigger = false
             }
             (newState, EngineAction.UpdateComposition formatted)
 
@@ -234,6 +244,8 @@ module TelexEngine =
                 Case = detectedCase
                 IsInvalidVietnamese = true
                 IsEnglishCommitted = true
+                SymbolState = SymbolModeState.Idle
+                CanStartSymbolTrigger = false
             }
             (newState, EngineAction.UpdateComposition formatted)
 
@@ -253,6 +265,8 @@ module TelexEngine =
                 Case = detectedCase
                 IsInvalidVietnamese = false
                 IsEnglishCommitted = false
+                SymbolState = SymbolModeState.Idle
+                CanStartSymbolTrigger = false
             }
             (newState, EngineAction.UpdateComposition formatted)
 
@@ -268,6 +282,8 @@ module TelexEngine =
                 Case = detectedCase
                 IsInvalidVietnamese = true
                 IsEnglishCommitted = true
+                SymbolState = SymbolModeState.Idle
+                CanStartSymbolTrigger = false
             }
             (newState, EngineAction.UpdateComposition fallbackText)
 
@@ -366,6 +382,8 @@ module TelexEngine =
                     Case = LetterCase.Lower
                     IsInvalidVietnamese = true
                     IsEnglishCommitted = false
+                    SymbolState = SymbolModeState.Idle
+                    CanStartSymbolTrigger = false
                 }
                 (newState, EngineAction.PassThrough)
             | KeyInput.Backspace ->
@@ -380,12 +398,22 @@ module TelexEngine =
                         Case = LetterCase.Lower
                         IsInvalidVietnamese = true
                         IsEnglishCommitted = false
+                        SymbolState = SymbolModeState.Idle
+                        CanStartSymbolTrigger = false
                     }
                     (newState, EngineAction.PassThrough)
             | KeyInput.WordBreak breakChar ->
                 commitWordBreak state breakChar
+            | KeyInput.Tab _ ->
+                if state.RawKeys.IsEmpty then (emptyWithBoundary true, EngineAction.PassThrough)
+                else commitWordBreak state '\t'
+            | KeyInput.Escape
             | KeyInput.NonCharacter ->
                 (state, EngineAction.PassThrough)
+        elif config.EnableSymbolShortcode && state.SymbolState <> SymbolModeState.Idle then
+            SymbolEngine.processKey state input
+        elif config.EnableSymbolShortcode && state.RawKeys.IsEmpty && state.CanStartSymbolTrigger && input = KeyInput.WordBreak ':' then
+            SymbolEngine.enterPendingColon ()
         else
             match input with
             | KeyInput.Char c ->
@@ -407,9 +435,16 @@ module TelexEngine =
 
             | KeyInput.WordBreak breakChar ->
                 if state.RawKeys.IsEmpty then
-                    (WordState.Empty, EngineAction.PassThrough)
+                    (emptyWithBoundary (SymbolEngine.isTriggerBoundaryChar breakChar), EngineAction.PassThrough)
                 else
                     commitWordBreak state breakChar
 
+            | KeyInput.Tab _ ->
+                if state.RawKeys.IsEmpty then
+                    (emptyWithBoundary true, EngineAction.PassThrough)
+                else
+                    commitWordBreak state '\t'
+
+            | KeyInput.Escape
             | KeyInput.NonCharacter ->
                 (state, EngineAction.PassThrough)

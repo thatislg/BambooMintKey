@@ -22,8 +22,14 @@ public static class KeyInputTranslator
     /// <summary>VK_BACK (0x08) - Phím Backspace.</summary>
     public const uint VkBack = 0x08;
 
+    /// <summary>VK_TAB (0x09) - Phím Tab.</summary>
+    public const uint VkTab = 0x09;
+
     /// <summary>VK_RETURN (0x0D) - Phím Enter.</summary>
     public const uint VkReturn = 0x0D;
+
+    /// <summary>VK_ESCAPE (0x1B) - Phím Esc.</summary>
+    public const uint VkEscape = 0x1B;
 
     /// <summary>VK_SPACE (0x20) - Phím Space.</summary>
     public const uint VkSpace = 0x20;
@@ -155,6 +161,12 @@ public static class KeyInputTranslator
     public static bool IsPureModifierKey(uint vkCode)
     {
         return vkCode == VkShift || vkCode == VkLShift || vkCode == VkRShift || vkCode == VkCapital;
+    }
+
+    /// <summary>Kiểm tra phím Shift hiện có đang được nhấn giữ hay không (dùng cho Shift+Tab).</summary>
+    public static bool IsShiftPressed()
+    {
+        return (GetAsyncKeyState((int)VkShift) & 0x8000) != 0;
     }
 }
 

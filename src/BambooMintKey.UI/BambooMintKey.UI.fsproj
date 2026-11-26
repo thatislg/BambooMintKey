@@ -19,18 +19,18 @@
     <Compile Include="Program.fs" />
   </ItemGroup>
 
-  <ItemGroup Condition="Exists('..\..\publish\win-x64\BambooMintKey.dll')">
+  <ItemGroup Condition="'$(SkipNativeDllCopy)' != 'true' and Exists('..\..\publish\win-x64\BambooMintKey.dll')">
     <Content Include="..\..\publish\win-x64\BambooMintKey.dll">
       <Link>BambooMintKey.dll</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
   </ItemGroup>
 
-  <ItemGroup Condition="Exists('..\..\publish\win-x86\BambooMintKey32.dll')">
+  <ItemGroup Condition="'$(SkipNativeDllCopy)' != 'true' and Exists('..\..\publish\win-x86\BambooMintKey32.dll')">
     <Content Include="..\..\publish\win-x86\BambooMintKey32.dll">
       <Link>BambooMintKey32.dll</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
   </ItemGroup>

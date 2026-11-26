@@ -11,18 +11,21 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Domain\SymbolTypes.fs" />
     <Compile Include="Domain\Types.fs" />
     <Compile Include="Domain\EngineConfig.fs" />
     <Compile Include="Domain\UnicodeTables.fs" />
     <Compile Include="Domain\HotkeyFormatter.fs" />
     <Compile Include="Domain\IDictionaryService.fs" />
     <Compile Include="Dictionary\FrozenDictionaryService.fs" />
+    <Compile Include="Dictionary\SymbolDictionary.fs" />
     <Compile Include="Engine\ModifierRules.fs" />
     <Compile Include="Engine\SyllableParser.fs" />
     <Compile Include="Engine\ToneRules.fs" />
     <Compile Include="Engine\WordBuffer.fs" />
     <Compile Include="Engine\EnglishProtection.fs" />
     <Compile Include="Engine\FreeTonePlacement.fs" />
+    <Compile Include="Engine\SymbolEngine.fs" />
     <Compile Include="Engine\TelexEngine.fs" />
     <Compile Include="Interop\NativeApi.fs" />
   </ItemGroup>
@@ -38,6 +41,8 @@
                       LogicalName="BambooMintKey.Core.Resources.vietnamese-syllables-mit.dict" />
     <EmbeddedResource Include="..\..\dicts\english-20k.dict"
                       LogicalName="BambooMintKey.Core.Resources.english-20k.dict" />
+    <EmbeddedResource Include="..\..\dicts\symbols-vi.json"
+                      LogicalName="BambooMintKey.Core.Resources.symbols-vi.json" />
   </ItemGroup>
 
 </Project>

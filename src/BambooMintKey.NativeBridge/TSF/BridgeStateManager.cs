@@ -53,7 +53,8 @@ public static class BridgeStateManager
                     toneStyle,
                     freeTone,
                     enableDict,
-                    enableBacktrack
+                    enableBacktrack,
+                    true
                 );
             }
             return _currentConfig;
@@ -88,10 +89,35 @@ public static class BridgeStateManager
         _currentState = Types.WordState.Empty;
     }
 
+    /// <summary>Kiểm tra engine có đang ở trong chế độ gõ ký hiệu (Symbol mode) hay không.</summary>
+    public static bool IsSymbolModeActive => !_currentState.SymbolState.IsIdle;
+
+    /// <summary>Kiểm tra vị trí con trỏ hiện tại có hợp lệ để kích hoạt "::" hay không.</summary>
+    public static bool CanStartSymbolTrigger => _currentState.CanStartSymbolTrigger;
+
     /// <summary>Reset state về empty (dùng khi chuyển focus hoặc composition kết thúc).</summary>
-    public static void ResetState()
+    public static void ResetState(bool preserveTriggerBoundary = false)
     {
-        _currentState = Types.WordState.Empty;
+        bool canStart = !preserveTriggerBoundary || _currentState.CanStartSymbolTrigger;
+        _currentState = SymbolEngine.withTriggerBoundary(canStart, Types.WordState.Empty);
+    }
+
+    /// <summary>Cập nhật ranh giới từ khi một ký tự không bị bộ gõ nuốt đi qua (vd số, dấu câu, khoảng trắng).</summary>
+    public static void NotifyNonEatenChar(char c)
+    {
+        if (!IsSymbolModeActive && _currentState.RawKeys.IsEmpty)
+        {
+            _currentState = SymbolEngine.withTriggerBoundary(SymbolEngine.isTriggerBoundaryChar(c), _currentState);
+        }
+    }
+
+    /// <summary>Đặt lại cờ ranh giới từ về true (khi người dùng di chuyển con trỏ bằng phím điều hướng).</summary>
+    public static void ResetTriggerBoundary()
+    {
+        if (!IsSymbolModeActive && _currentState.RawKeys.IsEmpty)
+        {
+            _currentState = SymbolEngine.withTriggerBoundary(true, _currentState);
+        }
     }
 
     // =========================================================================
@@ -120,6 +146,33 @@ public static class BridgeStateManager
     public static (Types.WordState NewState, Types.EngineAction Action) ProcessWordBreak(char breakChar)
     {
         var input = Types.KeyInput.NewWordBreak(breakChar);
+        var result = TelexEngine.processKey(_currentState, input, Config);
+        _currentState = result.Item1;
+        return (result.Item1, result.Item2);
+    }
+
+    /// <summary>Xử lý phím Tab / Shift+Tab (xoay ứng viên trong Symbol mode).</summary>
+    public static (Types.WordState NewState, Types.EngineAction Action) ProcessTab(bool isShift)
+    {
+        var input = Types.KeyInput.NewTab(isShift);
+        var result = TelexEngine.processKey(_currentState, input, Config);
+        _currentState = result.Item1;
+        return (result.Item1, result.Item2);
+    }
+
+    /// <summary>Xử lý phím Escape (hủy Symbol mode trả về chuỗi thô).</summary>
+    public static (Types.WordState NewState, Types.EngineAction Action) ProcessEscape()
+    {
+        var input = Types.KeyInput.Escape;
+        var result = TelexEngine.processKey(_currentState, input, Config);
+        _currentState = result.Item1;
+        return (result.Item1, result.Item2);
+    }
+
+    /// <summary>Xử lý phím điều hướng/không in được khi đang có phiên Symbol mode.</summary>
+    public static (Types.WordState NewState, Types.EngineAction Action) ProcessNonCharacter()
+    {
+        var input = Types.KeyInput.NonCharacter;
         var result = TelexEngine.processKey(_currentState, input, Config);
         _currentState = result.Item1;
         return (result.Item1, result.Item2);

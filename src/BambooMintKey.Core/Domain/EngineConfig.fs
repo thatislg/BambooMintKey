@@ -21,6 +21,8 @@ type EngineConfig = {
     EnableVietnameseDictionary: bool
     // Bật/tắt tự động hoàn tác từ tiếng Anh On-the-fly (English Backtracking). Mặc định: true.
     EnableEnglishBacktracking: bool
+    // Bật/tắt chế độ gõ ký hiệu & icon bằng chuỗi kích hoạt "::" (Phase 13). Mặc định: true.
+    EnableSymbolShortcode: bool
 }
 with
     // Cấu hình mặc định của BambooMintKey
@@ -32,4 +34,5 @@ with
         AllowFreeTonePlacement = true
         EnableVietnameseDictionary = true
         EnableEnglishBacktracking = true
+        EnableSymbolShortcode = true
     }

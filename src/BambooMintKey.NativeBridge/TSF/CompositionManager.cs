@@ -119,7 +119,7 @@ public static unsafe class CompositionManager
         {
             var commitAction = (Types.EngineAction.Commit)action;
             RequestEdit(service, pContext, EditActionType.CommitText, commitAction.committedText);
-            BridgeStateManager.ResetState();
+            BridgeStateManager.ResetState(preserveTriggerBoundary: true);
         }
         else // PassThrough
         {

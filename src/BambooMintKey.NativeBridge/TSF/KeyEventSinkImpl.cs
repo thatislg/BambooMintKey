@@ -84,45 +84,63 @@ public static unsafe class KeyEventSinkImpl
         if (pfEaten == null) return HResult.Pointer;
         *pfEaten = 0;
 
-        var servicePtr = thisPtr - (sizeof(IntPtr) * 2);
-        var service = BambooMintKeyTextService.GetTarget(servicePtr);
-        if (service != null)
+        try
         {
-            if (service.IsSecureMode) return HResult.Ok;
-            service.SyncCompartmentIfStaleOnStaThread();
-        }
+            var servicePtr = thisPtr - (sizeof(IntPtr) * 2);
+            var service = BambooMintKeyTextService.GetTarget(servicePtr);
+            if (service != null)
+            {
+                if (service.IsSecureMode) return HResult.Ok;
+                service.SyncCompartmentIfStaleOnStaThread();
+            }
 
-        // 1. Nếu đang ở chế độ tiếng Anh (E / Closed) -> Pass-through ngay lập tức, không nuốt phím
-        if (!BridgeStateManager.IsVietnameseMode)
-        {
-            return HResult.Ok;
-        }
+            // 1. Nếu đang ở chế độ tiếng Anh (E / Closed) -> Pass-through ngay lập tức, không nuốt phím
+            if (!BridgeStateManager.IsVietnameseMode)
+            {
+                return HResult.Ok;
+            }
 
-        // 2. Không can thiệp nếu người dùng đang bấm tổ hợp phím tắt (Ctrl/Alt/Win)
-        if (KeyInputTranslator.IsModifierModifierPressed())
-        {
-            return HResult.Ok;
-        }
+            // 2. Không can thiệp nếu người dùng đang bấm tổ hợp phím tắt (Ctrl/Alt/Win)
+            if (KeyInputTranslator.IsModifierModifierPressed())
+            {
+                return HResult.Ok;
+            }
 
-        uint vkCode = (uint)wParam;
+            uint vkCode = (uint)wParam;
+            bool hasComp = CompositionManager.HasActiveComposition();
+            bool inSymbol = BridgeStateManager.IsSymbolModeActive;
 
-        // 3. Can thiệp nếu là Backspace khi đang có phiên Composition
-        if (vkCode == KeyInputTranslator.VkBack && CompositionManager.HasActiveComposition())
-        {
-            *pfEaten = 1;
-            return HResult.Ok;
-        }
-
-        // 4. Chuyển đổi mã phím sang ký tự để kiểm tra
-        var inputChar = KeyInputTranslator.ConvertVirtualKeyToChar(wParam, lParam);
-        if (inputChar.HasValue)
-        {
-            char c = inputChar.Value;
-            // Nếu là ký tự bảng chữ cái hoặc đang có composition
-            if (char.IsLetter(c) || CompositionManager.HasActiveComposition())
+            // 3. Can thiệp nếu là Backspace khi đang có phiên Composition
+            if (vkCode == KeyInputTranslator.VkBack && hasComp)
             {
                 *pfEaten = 1;
+                return HResult.Ok;
             }
+
+            // 3b. Khi đang ở Symbol mode: nuốt Esc và Tab (kể cả Shift+Tab)
+            if (inSymbol && (vkCode == KeyInputTranslator.VkEscape || vkCode == KeyInputTranslator.VkTab))
+            {
+                *pfEaten = 1;
+                return HResult.Ok;
+            }
+
+            // 4. Chuyển đổi mã phím sang ký tự để kiểm tra
+            var inputChar = KeyInputTranslator.ConvertVirtualKeyToChar(wParam, lParam);
+            if (inputChar.HasValue)
+            {
+                char c = inputChar.Value;
+                // Nếu là ký tự bảng chữ cái, đang có composition, hoặc ':' hợp lệ ở đầu từ (kích hoạt "::")
+                if (char.IsLetter(c) || hasComp ||
+                    (c == ':' && BridgeStateManager.CanStartSymbolTrigger && BridgeStateManager.Config.EnableSymbolShortcode))
+                {
+                    *pfEaten = 1;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            *pfEaten = 0;
+            DebugLog.WriteAndFlush($"OnTestKeyDown exception: {ex.GetType().Name}: {ex.Message}");
         }
 
         return HResult.Ok;
@@ -142,6 +160,21 @@ public static unsafe class KeyEventSinkImpl
         if (pfEaten == null) return HResult.Pointer;
         *pfEaten = 0;
 
+        try
+        {
+            return OnKeyDownCore(thisPtr, pic, wParam, lParam, pfEaten);
+        }
+        catch (Exception ex)
+        {
+            *pfEaten = 0;
+            BridgeStateManager.ResetState();
+            DebugLog.WriteAndFlush($"OnKeyDown exception: {ex.GetType().Name}: {ex.Message}");
+            return HResult.Ok;
+        }
+    }
+
+    private static int OnKeyDownCore(IntPtr thisPtr, IntPtr pic, UIntPtr wParam, IntPtr lParam, int* pfEaten)
+    {
         uint vkCode = (uint)wParam;
         var servicePtr = thisPtr - (sizeof(IntPtr) * 2);
         var service = BambooMintKeyTextService.GetTarget(servicePtr);
@@ -157,9 +190,17 @@ public static unsafe class KeyEventSinkImpl
             // Chốt từ dở dang để giải phóng composition, tránh treo trạng thái (Issue 020)
             if (CompositionManager.HasActiveComposition() && service != null)
             {
-                var curText = BridgeStateManager.CurrentState.TransformedText;
-                CompositionManager.HandleEngineAction(service, pic, Types.EngineAction.NewCommit(curText), curText);
-                DebugLog.Write($"OnKeyDown Modifier pressed with active composition -> committed '{curText}'");
+                if (BridgeStateManager.IsSymbolModeActive)
+                {
+                    var (newState, action) = BridgeStateManager.ProcessNonCharacter();
+                    CompositionManager.HandleEngineAction(service, pic, action, newState.TransformedText);
+                }
+                else
+                {
+                    var curText = BridgeStateManager.CurrentState.TransformedText;
+                    CompositionManager.HandleEngineAction(service, pic, Types.EngineAction.NewCommit(curText), curText);
+                }
+                DebugLog.Write("OnKeyDown Modifier pressed with active composition -> committed");
             }
             return HResult.Ok;
         }
@@ -188,6 +229,28 @@ public static unsafe class KeyEventSinkImpl
             return HResult.Ok;
         }
 
+        // 3b. Phím Escape & Tab khi đang ở Symbol mode (xử lý trước ConvertVirtualKeyToChar)
+        if (BridgeStateManager.IsSymbolModeActive && service != null)
+        {
+            if (vkCode == KeyInputTranslator.VkEscape)
+            {
+                var (newState, action) = BridgeStateManager.ProcessEscape();
+                CompositionManager.HandleEngineAction(service, pic, action, newState.TransformedText);
+                *pfEaten = 1;
+                DebugLog.Write("OnKeyDown Symbol Escape handled");
+                return HResult.Ok;
+            }
+            if (vkCode == KeyInputTranslator.VkTab)
+            {
+                bool isShift = KeyInputTranslator.IsShiftPressed();
+                var (newState, action) = BridgeStateManager.ProcessTab(isShift);
+                CompositionManager.HandleEngineAction(service, pic, action, newState.TransformedText);
+                *pfEaten = 1;
+                DebugLog.Write($"OnKeyDown Symbol Tab (shift={isShift}) handled, text={newState.TransformedText}");
+                return HResult.Ok;
+            }
+        }
+
         // 4. Trường hợp 2: Phím Ký tự bình thường / Phím Ngắt
         var inputChar = KeyInputTranslator.ConvertVirtualKeyToChar(wParam, lParam);
         if (!inputChar.HasValue)
@@ -202,9 +265,21 @@ public static unsafe class KeyEventSinkImpl
             // Chốt từ dở dang trước khi nhả phím cho ứng dụng (Issue 021)
             if (CompositionManager.HasActiveComposition() && service != null)
             {
-                var curText = BridgeStateManager.CurrentState.TransformedText;
-                CompositionManager.HandleEngineAction(service, pic, Types.EngineAction.NewCommit(curText), curText);
-                DebugLog.Write($"OnKeyDown Nav/Non-printable vkCode=0x{vkCode:X2} with active composition -> committed '{curText}'");
+                if (BridgeStateManager.IsSymbolModeActive)
+                {
+                    var (newState, action) = BridgeStateManager.ProcessNonCharacter();
+                    CompositionManager.HandleEngineAction(service, pic, action, newState.TransformedText);
+                }
+                else
+                {
+                    var curText = BridgeStateManager.CurrentState.TransformedText;
+                    CompositionManager.HandleEngineAction(service, pic, Types.EngineAction.NewCommit(curText), curText);
+                }
+                DebugLog.Write($"OnKeyDown Nav/Non-printable vkCode=0x{vkCode:X2} with active composition -> committed");
+            }
+            else
+            {
+                BridgeStateManager.ResetTriggerBoundary();
             }
             return HResult.Ok;
         }
@@ -213,20 +288,29 @@ public static unsafe class KeyEventSinkImpl
 
         if (KeyInputTranslator.IsWordBreakChar(c))
         {
-            if (CompositionManager.HasActiveComposition())
+            bool canStartColon = c == ':' && BridgeStateManager.CanStartSymbolTrigger && BridgeStateManager.Config.EnableSymbolShortcode;
+            if ((CompositionManager.HasActiveComposition() || canStartColon) && service != null)
             {
                 var (newState, action) = BridgeStateManager.ProcessWordBreak(c);
                 CompositionManager.HandleEngineAction(service, pic, action, newState.TransformedText);
                 *pfEaten = 1;
                 DebugLog.Write($"OnKeyDown WordBreak handled, text={newState.TransformedText}");
             }
+            else
+            {
+                BridgeStateManager.NotifyNonEatenChar(c);
+            }
         }
-        else
+        else if ((char.IsLetter(c) || CompositionManager.HasActiveComposition()) && service != null)
         {
             var (newState, action) = BridgeStateManager.ProcessKey(c);
             CompositionManager.HandleEngineAction(service, pic, action, newState.TransformedText);
             *pfEaten = 1;
             DebugLog.Write($"OnKeyDown ProcessKey char={c}, text={newState.TransformedText}");
+        }
+        else
+        {
+            BridgeStateManager.NotifyNonEatenChar(c);
         }
 
         return HResult.Ok;

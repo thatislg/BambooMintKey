@@ -10,6 +10,7 @@ open System.ComponentModel
 open System.Diagnostics
 open System.IO
 open System.Security.AccessControl
+open System.Security.Cryptography
 open System.Security.Principal
 open Microsoft.Win32
 
@@ -34,36 +35,41 @@ module TsfBootstrapper =
     let getTargetDll32Path () =
         Path.Combine(getTargetDirectory(), "BambooMintKey32.dll")
 
-    /// Tìm kiếm file BambooMintKey.dll (64-bit) nguồn từ gói MSIX hoặc thư mục ứng dụng
+    /// Tìm kiếm file BambooMintKey.dll (64-bit) CHỈ trong thư mục build/gói cài đặt hiện tại
+    /// (không dò ngược ra thư mục publish\ trên máy để tránh nạp nhầm bản cũ):
+    /// 1. Thư mục gốc gói MSIX ("..\BambooMintKey.dll")
+    /// 2. Ngay cạnh BambooMintKey.UI.exe (bản cài đặt truyền thống / chạy trực tiếp từ output build)
     let findSourceDll () : string option =
         let baseDir = AppContext.BaseDirectory
         let candidates = [
-            Path.Combine(baseDir, "BambooMintKey.dll")
             Path.Combine(baseDir, "..", "BambooMintKey.dll")
-            Path.Combine(baseDir, @"..\publish\win-x64\BambooMintKey.dll")
-            Path.Combine(baseDir, @"..\..\publish\win-x64\BambooMintKey.dll")
-            Path.Combine(baseDir, @"..\..\..\publish\win-x64\BambooMintKey.dll")
+            Path.Combine(baseDir, "BambooMintKey.dll")
         ]
         candidates |> List.tryFind File.Exists
 
-    /// Tìm kiếm file BambooMintKey32.dll (32-bit WOW64 cho Zalo PC và các ứng dụng x86)
+    /// Tìm kiếm file BambooMintKey32.dll (32-bit WOW64) CHỈ trong thư mục build/gói cài đặt hiện tại
     let findSourceDll32 () : string option =
         let baseDir = AppContext.BaseDirectory
         let candidates = [
-            Path.Combine(baseDir, "BambooMintKey32.dll")
             Path.Combine(baseDir, "..", "BambooMintKey32.dll")
-            Path.Combine(baseDir, @"..\publish\win-x86\BambooMintKey32.dll")
-            Path.Combine(baseDir, @"..\..\publish\win-x86\BambooMintKey32.dll")
-            Path.Combine(baseDir, @"..\..\..\publish\win-x86\BambooMintKey32.dll")
+            Path.Combine(baseDir, "BambooMintKey32.dll")
         ]
         candidates |> List.tryFind File.Exists
+
+    let private computeSha256 (filePath: string) : byte array =
+        use stream = File.OpenRead(filePath)
+        SHA256.HashData(stream)
 
     let private isFileUpToDate (sourcePath: string) (targetPath: string) : bool =
         if not (File.Exists(targetPath)) then false
         else
             let srcFi = FileInfo(sourcePath)
             let tgtFi = FileInfo(targetPath)
-            srcFi.Length = tgtFi.Length && srcFi.LastWriteTimeUtc <= tgtFi.LastWriteTimeUtc.AddSeconds(2.0)
+            if srcFi.Length <> tgtFi.Length then false
+            else
+                let srcHash = computeSha256 sourcePath
+                let tgtHash = computeSha256 targetPath
+                srcHash.AsSpan().SequenceEqual(tgtHash.AsSpan())
 
     let private isInprocRegistered (view: RegistryView) (expectedDllPath: string) : bool =
         use hklm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view)

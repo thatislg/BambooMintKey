@@ -85,7 +85,8 @@ public sealed unsafe class EngineContext
             tone,
             allowFreeTone,
             enableVietnameseDictionary,
-            enableEnglishBacktracking);
+            enableEnglishBacktracking,
+            Config.EnableSymbolShortcode);
     }
 
     /// <summary>Ghi chuỗi <paramref name="text"/> dưới dạng UTF-8 vào bộ đệm preedit và cập nhật độ dài.</summary>

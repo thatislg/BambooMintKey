@@ -37,22 +37,17 @@ module Program =
 
     let private activateExistingInstance () =
         try
-            let currentId = Process.GetCurrentProcess().Id
-            let existing = Process.GetProcessesByName("BambooMintKey.UI")
-            let mutable activated = false
-            for proc in existing do
-                if not activated && proc.Id <> currentId && not proc.HasExited then
-                    let mutable handle = proc.MainWindowHandle
-                    if handle = IntPtr.Zero then
-                        handle <- NativeWin32.FindWindowW(null, "BambooMintKey — Bảng Điều Khiển Cài Đặt")
-                    if handle <> IntPtr.Zero then
-                        NativeWin32.ShowWindow(handle, NativeWin32.SW_RESTORE) |> ignore
-                        NativeWin32.SetForegroundWindow(handle) |> ignore
-                        activated <- true
-            if not activated then
+            // Phát tín hiệu qua EventWaitHandle để tiến trình Avalonia đang chạy
+            // tự gọi mainWindow.BringToFront() trên UI thread (KHÔNG gọi Win32 ShowWindow
+            // trực tiếp lên HWND đang bị Avalonia Hide(), vì sẽ gây cửa sổ xám không render được).
+            let mutable showEvent: EventWaitHandle = null
+            if EventWaitHandle.TryOpenExisting(@"Local\BambooMintKey_ShowMainWindow_Event_v1", &showEvent) then
+                use ev = showEvent
+                ev.Set() |> ignore
+            else
+                // Fallback chỉ đưa cửa sổ đang hiện sẵn lên foreground (không ép ShowWindow)
                 let handle = NativeWin32.FindWindowW(null, "BambooMintKey — Bảng Điều Khiển Cài Đặt")
                 if handle <> IntPtr.Zero then
-                    NativeWin32.ShowWindow(handle, NativeWin32.SW_RESTORE) |> ignore
                     NativeWin32.SetForegroundWindow(handle) |> ignore
         with _ -> ()
 
