@@ -74,6 +74,10 @@ public static unsafe class KeyEventSinkImpl
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int OnSetFocus(IntPtr thisPtr, int fForeground)
     {
+        if (fForeground == 0)
+        {
+            CandidatePopupWindow.Hide();
+        }
         DebugLog.Write($"KeyEventSink OnSetFocus fForeground={fForeground}");
         return HResult.Ok;
     }
@@ -117,8 +121,13 @@ public static unsafe class KeyEventSinkImpl
                 return HResult.Ok;
             }
 
-            // 3b. Khi đang ở Symbol mode: nuốt Esc và Tab (kể cả Shift+Tab)
-            if (inSymbol && (vkCode == KeyInputTranslator.VkEscape || vkCode == KeyInputTranslator.VkTab))
+            // 3b. Khi đang ở Symbol mode: nuốt Esc, Tab (kể cả Shift+Tab) và 4 phím mũi tên
+            if (inSymbol && (vkCode == KeyInputTranslator.VkEscape ||
+                             vkCode == KeyInputTranslator.VkTab ||
+                             vkCode == KeyInputTranslator.VkUp ||
+                             vkCode == KeyInputTranslator.VkDown ||
+                             vkCode == KeyInputTranslator.VkLeft ||
+                             vkCode == KeyInputTranslator.VkRight))
             {
                 *pfEaten = 1;
                 return HResult.Ok;
@@ -167,6 +176,7 @@ public static unsafe class KeyEventSinkImpl
         catch (Exception ex)
         {
             *pfEaten = 0;
+            CandidatePopupWindow.Hide();
             BridgeStateManager.ResetState();
             DebugLog.WriteAndFlush($"OnKeyDown exception: {ex.GetType().Name}: {ex.Message}");
             return HResult.Ok;
@@ -208,6 +218,7 @@ public static unsafe class KeyEventSinkImpl
         // 2. Nếu đang ở chế độ tiếng Anh (E) -> Bỏ qua hoàn toàn, không nuốt phím, không gõ dấu
         if (!BridgeStateManager.IsVietnameseMode)
         {
+            CandidatePopupWindow.Hide();
             if (CompositionManager.HasActiveComposition())
             {
                 CompositionManager.EndComposition();
@@ -229,7 +240,7 @@ public static unsafe class KeyEventSinkImpl
             return HResult.Ok;
         }
 
-        // 3b. Phím Escape & Tab khi đang ở Symbol mode (xử lý trước ConvertVirtualKeyToChar)
+        // 3b. Phím Escape, Tab và 4 phím mũi tên khi đang ở Symbol mode (xử lý trước ConvertVirtualKeyToChar)
         if (BridgeStateManager.IsSymbolModeActive && service != null)
         {
             if (vkCode == KeyInputTranslator.VkEscape)
@@ -247,6 +258,22 @@ public static unsafe class KeyEventSinkImpl
                 CompositionManager.HandleEngineAction(service, pic, action, newState.TransformedText);
                 *pfEaten = 1;
                 DebugLog.Write($"OnKeyDown Symbol Tab (shift={isShift}) handled, text={newState.TransformedText}");
+                return HResult.Ok;
+            }
+            if (vkCode == KeyInputTranslator.VkUp || vkCode == KeyInputTranslator.VkDown ||
+                vkCode == KeyInputTranslator.VkLeft || vkCode == KeyInputTranslator.VkRight)
+            {
+                var arrow = vkCode switch
+                {
+                    KeyInputTranslator.VkUp => Types.KeyInput.ArrowUp,
+                    KeyInputTranslator.VkDown => Types.KeyInput.ArrowDown,
+                    KeyInputTranslator.VkLeft => Types.KeyInput.ArrowLeft,
+                    _ => Types.KeyInput.ArrowRight
+                };
+                var (newState, action) = BridgeStateManager.ProcessArrow(arrow);
+                CompositionManager.HandleEngineAction(service, pic, action, newState.TransformedText);
+                *pfEaten = 1;
+                DebugLog.Write($"OnKeyDown Symbol Arrow vk=0x{vkCode:X2} handled");
                 return HResult.Ok;
             }
         }

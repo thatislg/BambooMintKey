@@ -106,8 +106,16 @@ public unsafe class TextEditSession
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int DoEditSession(IntPtr thisPtr, uint ec)
     {
-        var target = GetTarget(thisPtr);
-        return target.ExecuteSession(ec);
+        try
+        {
+            var target = GetTarget(thisPtr);
+            return target.ExecuteSession(ec);
+        }
+        catch (Exception ex)
+        {
+            DebugLog.WriteAndFlush($"DoEditSession exception: {ex.GetType().Name}: {ex.Message}");
+            return HResult.Fail;
+        }
     }
 
     private int ExecuteSession(uint ec)
@@ -148,13 +156,8 @@ public unsafe class TextEditSession
         DebugLog.WriteAndFlush($"GetCompositionRange pRange={pRange}");
         if (pRange == IntPtr.Zero) return HResult.Fail;
 
-        // 3. Thay thế văn bản trực tiếp
-        fixed (char* pChars = _text)
-        {
-            var rangeVTable = *(TfRangeVTable**)pRange;
-            int hr = rangeVTable->SetText(pRange, ec, 0, pChars, _text.Length);
-            DebugLog.WriteAndFlush($"SetText HR=0x{hr:X8}");
-        }
+        // 3. Thay thế văn bản 1 lần duy nhất (KHÔNG gọi COM GetActiveView/GetTextExt, KHÔNG tạo UI trong DoEditSession)
+        SetRangeText(pRange, ec, _text);
 
         // 4. Định dạng gạch chân Composition
         DisplayAttributeHelper.ApplyCompositionAttribute(_pContext, ec, pRange);
@@ -163,6 +166,16 @@ public unsafe class TextEditSession
         TsfSelectionHelper.SetSelectionToEnd(_pContext, ec, pRange);
 
         return HResult.Ok;
+    }
+
+    private static void SetRangeText(IntPtr pRange, uint ec, string text)
+    {
+        fixed (char* pChars = text)
+        {
+            var rangeVTable = *(TfRangeVTable**)pRange;
+            int hr = rangeVTable->SetText(pRange, ec, 0, pChars, text.Length);
+            DebugLog.WriteAndFlush($"SetText HR=0x{hr:X8}");
+        }
     }
 
     private int PerformCommitText(uint ec)

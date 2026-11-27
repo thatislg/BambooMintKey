@@ -44,6 +44,10 @@ type KeyInput =
     | NonCharacter          // Các phím chức năng không làm thay đổi từ (Mũi tên, Home, End...)
     | Tab of isShift: bool  // Phím Tab / Shift+Tab (xoay ứng viên trong Symbol mode)
     | Escape                // Phím Esc (hủy Symbol mode trả về chuỗi thô)
+    | ArrowUp               // Phím mũi tên lên (di chuyển chọn lên trong popup)
+    | ArrowDown             // Phím mũi tên xuống (di chuyển chọn xuống trong popup)
+    | ArrowLeft             // Phím mũi tên trái (lật trang trước trong popup)
+    | ArrowRight            // Phím mũi tên phải (lật trang sau trong popup)
 
 // Cấu trúc phân tích âm tiết của một từ tiếng Việt
 type Syllable = {

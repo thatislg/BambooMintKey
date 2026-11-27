@@ -100,6 +100,7 @@ public static unsafe class CompositionManager
 
     public static void TerminateActiveComposition()
     {
+        CandidatePopupWindow.Hide();
         if (_pActiveComposition != IntPtr.Zero)
         {
             var compVTable = *(TfCompositionVTable**)_pActiveComposition;
@@ -113,12 +114,27 @@ public static unsafe class CompositionManager
         if (action.IsUpdateComposition)
         {
             var updateAction = (Types.EngineAction.UpdateComposition)action;
-            RequestEdit(service, pContext, EditActionType.UpdateText, updateAction.newText);
+            var candidatePage = BridgeStateManager.TryGetCurrentCandidatePage();
+            bool uiHostAlive = candidatePage != null && CandidatePopupWindow.IsUiHostRunning();
+            string textToWrite = uiHostAlive ? "::" + candidatePage!.RawQuery : updateAction.newText;
+
+            RequestEdit(service, pContext, EditActionType.UpdateText, textToWrite);
+
+            // Gửi trạng thái sang tiến trình Avalonia (BambooMintKey.UI) SAU KHI RequestEditSession kết thúc
+            if (uiHostAlive && candidatePage != null)
+            {
+                CandidatePopupWindow.ShowOrUpdate(candidatePage);
+            }
+            else
+            {
+                CandidatePopupWindow.Hide();
+            }
         }
         else if (action.IsCommit)
         {
             var commitAction = (Types.EngineAction.Commit)action;
             RequestEdit(service, pContext, EditActionType.CommitText, commitAction.committedText);
+            CandidatePopupWindow.Hide();
             BridgeStateManager.ResetState(preserveTriggerBoundary: true);
         }
         else // PassThrough
@@ -126,6 +142,7 @@ public static unsafe class CompositionManager
             if (HasActiveComposition())
             {
                 RequestEdit(service, pContext, EditActionType.CommitText, transformedText);
+                CandidatePopupWindow.Hide();
                 BridgeStateManager.ResetState();
             }
         }

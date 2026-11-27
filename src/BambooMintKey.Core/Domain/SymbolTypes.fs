@@ -22,6 +22,16 @@ type SymbolSession = {
     SelectedIndex: int
 }
 
+/// Trang ứng viên hiện tại (tối đa 7 mục/trang) phục vụ cửa sổ popup chọn ký hiệu chiều dọc.
+type CandidatePage = {
+    Items: string array
+    SelectedInPage: int
+    PageIndex: int
+    TotalPages: int
+    TotalCount: int
+    RawQuery: string
+}
+
 /// Máy trạng thái của chế độ gõ ký hiệu / icon (Phase 13 Sample).
 [<RequireQualifiedAccess>]
 type SymbolModeState =

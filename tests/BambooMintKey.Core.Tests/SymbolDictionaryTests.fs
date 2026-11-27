@@ -13,6 +13,9 @@ let ``Default embedded dictionary loads sample entries`` () =
     Assert.Contains(entries, fun e -> e.Keyword = "mui" && e.Symbols[0] = "→")
     Assert.Contains(entries, fun e -> e.Keyword = "vn" && e.Symbols[0] = "🇻🇳")
     Assert.Contains(entries, fun e -> e.Keyword = "canhbao" && e.Symbols[0] = "⚠️")
+    Assert.Contains(entries, fun e -> e.Keyword = "tron" && e.Symbols[0] = "①")
+    Assert.Contains(entries, fun e -> e.Keyword = "tronden" && e.Symbols[0] = "❶")
+    Assert.Contains(entries, fun e -> e.Keyword = "vuong" && e.Symbols[0] = "1️⃣")
 
 [<Theory>]
 [<InlineData("mui", "mui")>]

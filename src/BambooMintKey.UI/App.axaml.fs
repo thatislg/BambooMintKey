@@ -13,6 +13,7 @@ type App() =
     inherit Application()
 
     let mutable trayManager: TrayIconManager = null
+    let mutable candidatePopupHost: CandidatePopupHost = null
     let mutable uiProcessMutex: Mutex = null
 
     override this.Initialize() =
@@ -72,6 +73,10 @@ type App() =
                 // 3. Khởi chạy Tray Icon (hiển thị động khi TSF Input Method active)
                 trayManager <- TrayIconManager(openSettings, openAbout)
                 trayManager.Start()
+
+                // 4. Khởi chạy Avalonia Candidate Popup Host (lắng nghe SharedMemory từ NativeBridge)
+                candidatePopupHost <- CandidatePopupHost()
+                candidatePopupHost.Start()
 
                 let isTrayMode =
                     args |> Array.exists (fun a ->

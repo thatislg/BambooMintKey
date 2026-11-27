@@ -34,6 +34,18 @@ public static class KeyInputTranslator
     /// <summary>VK_SPACE (0x20) - Phím Space.</summary>
     public const uint VkSpace = 0x20;
 
+    /// <summary>VK_LEFT (0x25) - Phím mũi tên trái.</summary>
+    public const uint VkLeft = 0x25;
+
+    /// <summary>VK_UP (0x26) - Phím mũi tên lên.</summary>
+    public const uint VkUp = 0x26;
+
+    /// <summary>VK_RIGHT (0x27) - Phím mũi tên phải.</summary>
+    public const uint VkRight = 0x27;
+
+    /// <summary>VK_DOWN (0x28) - Phím mũi tên xuống.</summary>
+    public const uint VkDown = 0x28;
+
     /// <summary>VK_CONTROL (0x11) - Phím Ctrl (modifier).</summary>
     private const uint VkControl = 0x11;
 

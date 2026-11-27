@@ -408,6 +408,10 @@ module TelexEngine =
                 if state.RawKeys.IsEmpty then (emptyWithBoundary true, EngineAction.PassThrough)
                 else commitWordBreak state '\t'
             | KeyInput.Escape
+            | KeyInput.ArrowUp
+            | KeyInput.ArrowDown
+            | KeyInput.ArrowLeft
+            | KeyInput.ArrowRight
             | KeyInput.NonCharacter ->
                 (state, EngineAction.PassThrough)
         elif config.EnableSymbolShortcode && state.SymbolState <> SymbolModeState.Idle then
@@ -446,5 +450,9 @@ module TelexEngine =
                     commitWordBreak state '\t'
 
             | KeyInput.Escape
+            | KeyInput.ArrowUp
+            | KeyInput.ArrowDown
+            | KeyInput.ArrowLeft
+            | KeyInput.ArrowRight
             | KeyInput.NonCharacter ->
                 (state, EngineAction.PassThrough)

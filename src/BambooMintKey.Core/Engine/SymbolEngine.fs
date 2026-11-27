@@ -14,6 +14,9 @@ open BambooMintKey.Core.Dictionary
 /// </summary>
 module SymbolEngine =
 
+    /// Số lượng ứng viên tối đa hiển thị trên mỗi trang của cửa sổ popup dọc (phím chọn 1–7).
+    let PageSize = 7
+
     let private isLineBreakChar (c: char) : bool = c = '\n' || c = '\r'
 
     /// Các ký tự kết thúc mà sau đó chuỗi kích hoạt "::" được phép khởi động lại.
@@ -55,6 +58,32 @@ module SymbolEngine =
             SelectedIndex = 0
         }
 
+    /// Lấy thông tin trang ứng viên hiện tại (tối đa 7 mục) nếu đang ở Collecting và có ít nhất 1 ứng viên.
+    let tryGetCandidatePage (state: WordState) : CandidatePage option =
+        match state.SymbolState with
+        | SymbolModeState.Collecting s when s.Candidates.Length > 0 ->
+            let total = s.Candidates.Length
+            let totalPages = (total + PageSize - 1) / PageSize
+            let pageIdx = s.SelectedIndex / PageSize
+            let pageStart = pageIdx * PageSize
+            let pageCount = min PageSize (total - pageStart)
+            let items = Array.sub s.Candidates pageStart pageCount
+            Some {
+                Items = items
+                SelectedInPage = s.SelectedIndex - pageStart
+                PageIndex = pageIdx
+                TotalPages = totalPages
+                TotalCount = total
+                RawQuery = s.RawQuery
+            }
+        | _ -> None
+
+    /// Chuỗi composition gọn ("::mui") dùng khi cửa sổ popup ứng viên đang hiển thị.
+    let getCompactCompositionText (state: WordState) : string =
+        match state.SymbolState with
+        | SymbolModeState.Collecting s when s.Candidates.Length > 0 -> "::" + s.RawQuery
+        | _ -> state.TransformedText
+
     /// Bắt đầu trạng thái chờ dấu ':' thứ hai khi gặp ':' hợp lệ ở đầu từ.
     let enterPendingColon () : WordState * EngineAction =
         (withSymbolState SymbolModeState.PendingColon ":", EngineAction.UpdateComposition ":")
@@ -86,6 +115,10 @@ module SymbolEngine =
             | KeyInput.Char c ->
                 (emptyWithBoundary false, EngineAction.Commit (":" + string c))
 
+            | KeyInput.ArrowUp
+            | KeyInput.ArrowDown
+            | KeyInput.ArrowLeft
+            | KeyInput.ArrowRight
             | KeyInput.NonCharacter ->
                 (emptyWithBoundary true, EngineAction.Commit ":")
 
@@ -113,11 +146,30 @@ module SymbolEngine =
                 let committed = if isLineBreakChar c then "::" else "::" + string c
                 (emptyWithBoundary (isTriggerBoundaryChar c), EngineAction.Commit committed)
 
+            | KeyInput.ArrowUp
+            | KeyInput.ArrowDown
+            | KeyInput.ArrowLeft
+            | KeyInput.ArrowRight
             | KeyInput.NonCharacter ->
                 (emptyWithBoundary true, EngineAction.Commit "::")
 
         | SymbolModeState.Collecting session ->
+            let moveSelection (nextIdx: int) =
+                let nextSession = { session with SelectedIndex = nextIdx }
+                let preview = formatPreview nextSession
+                (withSymbolState (SymbolModeState.Collecting nextSession) preview, EngineAction.UpdateComposition preview)
+
             match input with
+            | KeyInput.Char c when c >= '1' && c <= '7' && session.Candidates.Length > 0 ->
+                // Chọn và chốt ngay ứng viên thứ (1..7) trên trang hiện tại
+                let pageStart = (session.SelectedIndex / PageSize) * PageSize
+                let targetIdx = pageStart + (int c - int '1')
+                if targetIdx < session.Candidates.Length then
+                    (emptyWithBoundary true, EngineAction.Commit session.Candidates[targetIdx])
+                else
+                    // Số vượt quá số mục trên trang hiện tại -> giữ nguyên phiên để tránh thoát nhầm
+                    (state, EngineAction.UpdateComposition (formatPreview session))
+
             | KeyInput.Char c when Char.IsLetterOrDigit c ->
                 let nextSession = buildSession (session.RawQuery + string c)
                 let preview = formatPreview nextSession
@@ -141,11 +193,43 @@ module SymbolEngine =
                     let nextIdx =
                         if isShift then (session.SelectedIndex - 1 + n) % n
                         else (session.SelectedIndex + 1) % n
-                    let nextSession = { session with SelectedIndex = nextIdx }
-                    let preview = formatPreview nextSession
-                    (withSymbolState (SymbolModeState.Collecting nextSession) preview, EngineAction.UpdateComposition preview)
+                    moveSelection nextIdx
                 else
                     (emptyWithBoundary true, EngineAction.Commit ("::" + session.RawQuery + "\t"))
+
+            | KeyInput.ArrowDown ->
+                let n = session.Candidates.Length
+                if n > 0 then moveSelection ((session.SelectedIndex + 1) % n)
+                else (emptyWithBoundary true, EngineAction.Commit ("::" + session.RawQuery))
+
+            | KeyInput.ArrowUp ->
+                let n = session.Candidates.Length
+                if n > 0 then moveSelection ((session.SelectedIndex - 1 + n) % n)
+                else (emptyWithBoundary true, EngineAction.Commit ("::" + session.RawQuery))
+
+            | KeyInput.ArrowRight ->
+                let n = session.Candidates.Length
+                if n > 0 then
+                    let totalPages = (n + PageSize - 1) / PageSize
+                    if totalPages > 1 then
+                        let nextPage = ((session.SelectedIndex / PageSize) + 1) % totalPages
+                        moveSelection (nextPage * PageSize)
+                    else
+                        moveSelection ((session.SelectedIndex + 1) % n)
+                else
+                    (emptyWithBoundary true, EngineAction.Commit ("::" + session.RawQuery))
+
+            | KeyInput.ArrowLeft ->
+                let n = session.Candidates.Length
+                if n > 0 then
+                    let totalPages = (n + PageSize - 1) / PageSize
+                    if totalPages > 1 then
+                        let prevPage = ((session.SelectedIndex / PageSize) - 1 + totalPages) % totalPages
+                        moveSelection (prevPage * PageSize)
+                    else
+                        moveSelection ((session.SelectedIndex - 1 + n) % n)
+                else
+                    (emptyWithBoundary true, EngineAction.Commit ("::" + session.RawQuery))
 
             | KeyInput.WordBreak c ->
                 if (c = ' ' || isLineBreakChar c) && session.Candidates.Length > 0 then

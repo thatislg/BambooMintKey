@@ -177,4 +177,19 @@ public static class BridgeStateManager
         _currentState = result.Item1;
         return (result.Item1, result.Item2);
     }
+
+    /// <summary>Xử lý phím mũi tên (↑ ↓ ← →) trong Symbol mode.</summary>
+    public static (Types.WordState NewState, Types.EngineAction Action) ProcessArrow(Types.KeyInput arrowInput)
+    {
+        var result = TelexEngine.processKey(_currentState, arrowInput, Config);
+        _currentState = result.Item1;
+        return (result.Item1, result.Item2);
+    }
+
+    /// <summary>Lấy trang ứng viên hiện tại (tối đa 7 mục) nếu đang ở Symbol mode và có ứng viên.</summary>
+    public static CandidatePage? TryGetCurrentCandidatePage()
+    {
+        var opt = SymbolEngine.tryGetCandidatePage(_currentState);
+        return opt is not null && Microsoft.FSharp.Core.OptionModule.IsSome(opt) ? opt.Value : null;
+    }
 }

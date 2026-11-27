@@ -337,6 +337,7 @@ type TrayIconManager(onOpenSettings: unit -> unit, onOpenAbout: unit -> unit) =
     let mutable wndProcDelegate: TrayWin32.WNDPROC = null
     let mutable msgTaskbarCreated = 0u
     let mutable lastKnownActive = false
+    let mutable wasBambooActiveBeforeLock = false
 
     let menuCmdToggleVn = 101u
     let menuCmdMethodTelex = 201u
@@ -645,6 +646,15 @@ type TrayIconManager(onOpenSettings: unit -> unit, onOpenAbout: unit -> unit) =
             if lastKnownActive then
                 showTrayIcon()
             IntPtr.Zero
+        elif msg = SessionRestoreManager.WM_WTSSESSION_CHANGE then
+            let reason = uint32 wParam
+            if reason = SessionRestoreManager.WTS_SESSION_LOCK then
+                wasBambooActiveBeforeLock <- lastKnownActive || isBambooMintKeyActive()
+            elif reason = SessionRestoreManager.WTS_SESSION_UNLOCK then
+                if wasBambooActiveBeforeLock then
+                    wasBambooActiveBeforeLock <- false
+                    SessionRestoreManager.scheduleRestoreAfterUnlock isBambooMintKeyActive
+            IntPtr.Zero
         else
             TrayWin32.DefWindowProcW(hWnd, msg, wParam, lParam)
 
@@ -681,6 +691,8 @@ type TrayIconManager(onOpenSettings: unit -> unit, onOpenAbout: unit -> unit) =
         let atom = TrayWin32.RegisterClassExW(&wc)
         if atom <> 0us then
             hMsgWnd <- TrayWin32.CreateWindowExW(0u, className, "BambooMintKey_Tray_MsgWnd", 0u, 0, 0, 0, 0, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero)
+            if hMsgWnd <> IntPtr.Zero then
+                SessionRestoreManager.WTSRegisterSessionNotification(hMsgWnd, SessionRestoreManager.NOTIFY_FOR_THIS_SESSION) |> ignore
 
         // 2. Cấu hình NOTIFYICONDATAW
         nid.cbSize <- uint32 (Marshal.SizeOf<TrayWin32.NOTIFYICONDATAW>())
@@ -733,5 +745,6 @@ type TrayIconManager(onOpenSettings: unit -> unit, onOpenAbout: unit -> unit) =
             TrayWin32.DestroyIcon(hIconE) |> ignore
             hIconE <- IntPtr.Zero
         if hMsgWnd <> IntPtr.Zero then
+            SessionRestoreManager.WTSUnRegisterSessionNotification(hMsgWnd) |> ignore
             TrayWin32.DestroyWindow(hMsgWnd) |> ignore
             hMsgWnd <- IntPtr.Zero

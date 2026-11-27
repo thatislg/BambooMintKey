@@ -86,7 +86,8 @@ let ``Backspace steps back from query to TriggerReady to PendingColon to Idle`` 
         runInputs cfg ([ KeyInput.WordBreak ':'; KeyInput.WordBreak ':' ] @ chars "vn")
 
     let s2, a2 = TelexEngine.processKey s1 KeyInput.Backspace cfg
-    Assert.Equal(EngineAction.UpdateComposition "::v 🇻🇳", a2)
+    // "::v" khớp cả "vn" (🇻🇳) và tiền tố "vuong" (1️⃣..0️⃣) -> 12 ứng viên
+    Assert.Equal(EngineAction.UpdateComposition "::v 🇻🇳 (1/12)", a2)
 
     let s3, a3 = TelexEngine.processKey s2 KeyInput.Backspace cfg
     Assert.Equal(EngineAction.UpdateComposition "::", a3)
@@ -163,3 +164,48 @@ let ``Disabled EnableSymbolShortcode bypasses symbol mode completely`` () =
     let s1, a1 = TelexEngine.processKey WordState.Empty (KeyInput.WordBreak ':') cfg
     Assert.Equal(EngineAction.PassThrough, a1)
     Assert.Equal(SymbolModeState.Idle, s1.SymbolState)
+
+[<Fact>]
+let ``Arrow keys navigate vertically and paginate across 7-item pages`` () =
+    let cfg = EngineConfig.Default
+    // "::tron" khớp chính xác "tron" (13 mục) + tiền tố "tronden" (11 mục), giới hạn 20 mục -> 3 trang (7 + 7 + 6)
+    let s1, _ = runInputs cfg ([ KeyInput.WordBreak ':'; KeyInput.WordBreak ':' ] @ chars "tron")
+    let p1 = SymbolEngine.tryGetCandidatePage s1
+    Assert.True(p1.IsSome)
+    Assert.Equal(7, p1.Value.Items.Length)
+    Assert.Equal(3, p1.Value.TotalPages)
+    Assert.Equal(0, p1.Value.PageIndex)
+    Assert.Equal("①", p1.Value.Items[0])
+
+    // ArrowDown -> chọn ② (index 1)
+    let s2, _ = TelexEngine.processKey s1 KeyInput.ArrowDown cfg
+    Assert.Equal(1, (SymbolEngine.tryGetCandidatePage s2).Value.SelectedInPage)
+
+    // ArrowUp -> quay lại ① (index 0)
+    let s3, _ = TelexEngine.processKey s2 KeyInput.ArrowUp cfg
+    Assert.Equal(0, (SymbolEngine.tryGetCandidatePage s3).Value.SelectedInPage)
+
+    // ArrowRight -> lật sang trang 2 (⑧ là mục đầu tiên)
+    let s4, _ = TelexEngine.processKey s3 KeyInput.ArrowRight cfg
+    let p2 = (SymbolEngine.tryGetCandidatePage s4).Value
+    Assert.Equal(1, p2.PageIndex)
+    Assert.Equal("⑧", p2.Items[0])
+
+    // Phím số '2' trên trang 2 -> chốt ngay ⑨
+    let s5, a5 = TelexEngine.processKey s4 (KeyInput.Char '2') cfg
+    Assert.Equal(EngineAction.Commit "⑨", a5)
+    Assert.Equal(SymbolModeState.Idle, s5.SymbolState)
+
+[<Fact>]
+let ``Digits 1-7 immediately commit corresponding candidate on current page`` () =
+    let cfg = EngineConfig.Default
+    let s1, _ = runInputs cfg ([ KeyInput.WordBreak ':'; KeyInput.WordBreak ':' ] @ chars "vuong")
+    let s2, a2 = TelexEngine.processKey s1 (KeyInput.Char '3') cfg
+    Assert.Equal(EngineAction.Commit "3️⃣", a2)
+    Assert.Equal(SymbolModeState.Idle, s2.SymbolState)
+
+    // Bấm số vượt quá số mục trên trang (::vn chỉ có 1 mục, bấm '5') -> giữ nguyên phiên, không thoát nhầm
+    let s3, _ = runInputs cfg ([ KeyInput.WordBreak ':'; KeyInput.WordBreak ':' ] @ chars "vn")
+    let s4, a4 = TelexEngine.processKey s3 (KeyInput.Char '5') cfg
+    Assert.Equal(EngineAction.UpdateComposition "::vn 🇻🇳", a4)
+    Assert.NotEqual(SymbolModeState.Idle, s4.SymbolState)

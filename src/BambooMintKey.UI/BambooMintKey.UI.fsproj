@@ -13,13 +13,15 @@
   <ItemGroup>
     <Compile Include="SharedConfig.fs" />
     <Compile Include="TsfBootstrapper.fs" />
+    <Compile Include="SessionRestoreManager.fs" />
+    <Compile Include="CandidatePopupWindow.fs" />
     <Compile Include="MainWindow.axaml.fs" />
     <Compile Include="TrayIconManager.fs" />
     <Compile Include="App.axaml.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(SkipNativeDllCopy)' != 'true' and Exists('..\..\publish\win-x64\BambooMintKey.dll')">
+  <ItemGroup Condition="'$(SkipNativeDllCopy)' != 'true' and !$(BaseIntermediateOutputPath.Contains('wappublish')) and Exists('..\..\publish\win-x64\BambooMintKey.dll')">
     <Content Include="..\..\publish\win-x64\BambooMintKey.dll">
       <Link>BambooMintKey.dll</Link>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
@@ -27,7 +29,7 @@
     </Content>
   </ItemGroup>
 
-  <ItemGroup Condition="'$(SkipNativeDllCopy)' != 'true' and Exists('..\..\publish\win-x86\BambooMintKey32.dll')">
+  <ItemGroup Condition="'$(SkipNativeDllCopy)' != 'true' and !$(BaseIntermediateOutputPath.Contains('wappublish')) and Exists('..\..\publish\win-x86\BambooMintKey32.dll')">
     <Content Include="..\..\publish\win-x86\BambooMintKey32.dll">
       <Link>BambooMintKey32.dll</Link>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
